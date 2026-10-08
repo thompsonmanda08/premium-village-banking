@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet, useSearchParams } from 'react-router';
 import { useGroup } from '@/features/group/GroupContext';
+import { SettingsSheet } from '@/features/settings/SettingsSheet';
 import { BottomNav } from './BottomNav';
 import { MoreSheet } from './MoreSheet';
 import { OfflineBanner } from './OfflineBanner';
@@ -33,6 +34,7 @@ export function AppShell() {
       </div>
       <BottomNav isAdmin={isAdmin} onMore={() => setMoreOpen(true)} />
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} />
+      <SettingsSheet />
     </div>
   );
 }
