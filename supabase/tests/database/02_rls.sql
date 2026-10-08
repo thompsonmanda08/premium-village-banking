@@ -28,6 +28,42 @@ select throws_ok($$select public.is_admin(tests.id('group'))$$, '42501', null, '
 select throws_ok($$select public.can_see_figures(tests.id('group'), tests.id('m_other'))$$, '42501', null, 'anon cannot call can_see_figures');
 reset role;
 
+-- table privileges: only what the app needs, nothing by default --------------------
+select ok(not has_table_privilege('authenticated', 'public.' || t, 'TRUNCATE,REFERENCES,TRIGGER'),
+  'authenticated has no truncate, references or trigger on ' || t)
+from unnest(array['groups', 'members', 'group_members', 'invites', 'cycles', 'cycle_rules', 'audit_log']) as t;
+select ok(not has_any_column_privilege('authenticated', 'public.' || t, 'INSERT,UPDATE'),
+  'authenticated has no insert or update on ' || t)
+from unnest(array['group_members', 'audit_log']) as t;
+select ok(not has_table_privilege('authenticated', 'public.group_members', 'DELETE'), 'authenticated cannot delete from group_members');
+select ok(has_table_privilege('authenticated', 'public.group_members', 'SELECT'), 'authenticated can read group_members');
+select ok(not has_any_column_privilege('anon', 'public.' || t, 'SELECT,INSERT,UPDATE,REFERENCES')
+  and not has_table_privilege('anon', 'public.' || t, 'DELETE,TRUNCATE,TRIGGER'),
+  'anon holds no privilege on ' || t)
+from unnest(array['groups', 'members', 'group_members', 'invites', 'cycles', 'cycle_rules', 'audit_log']) as t;
+select tests.login_as(tests.id('member'));
+select throws_ok('truncate public.' || t, '42501', null, 'authenticated cannot truncate ' || t)
+from unnest(array['groups', 'members', 'invites', 'cycles', 'cycle_rules', 'audit_log']) as t;
+reset role;
+-- New functions get PUBLIC execute from a global default, so each migration must revoke it itself;
+-- this fails the build if one forgets.
+select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'EXECUTE')),
+  0, 'anon can execute no function in public');
+-- Objects created from now on start with no grants to anon or authenticated.
+create table public.zz_future (id int);
+create view public.zz_future_v as select 1 as x;
+create sequence public.zz_future_s;
+select ok(not has_any_column_privilege(r, t, 'SELECT,INSERT,UPDATE,REFERENCES') and not has_table_privilege(r, t, 'DELETE,TRUNCATE,TRIGGER'),
+  r || ' gets nothing on a new ' || t)
+from unnest(array['anon', 'authenticated']) as r, unnest(array['public.zz_future', 'public.zz_future_v']) as t;
+select ok(not has_sequence_privilege(r, 'public.zz_future_s', 'USAGE,SELECT,UPDATE'), r || ' gets nothing on a new sequence')
+from unnest(array['anon', 'authenticated']) as r;
+select ok(not exists (
+  select 1 from pg_default_acl d, aclexplode(d.defaclacl) a
+  where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 'public'::regnamespace
+    and a.grantee in (select oid from pg_roles where rolname in ('anon', 'authenticated'))),
+  'default privileges in public grant nothing to anon or authenticated');
+
 -- outsider: signed in, belongs to no group ----------------------------------------
 select tests.login_as(tests.id('outsider'));
 select results_eq('select count(*)::int from ' || t, 'values (0)', 'outsider reads no ' || t)
@@ -112,6 +148,10 @@ select throws_ok($$update members set role = 'admin' where id = tests.id('m_memb
 select throws_ok($$update members set user_id = auth.uid() where id = tests.id('m_unlinked')$$, '42501', null, 'owner cannot change user_id directly');
 select lives_ok($$update members set phone = '+260971111111' where id = tests.id('m_member')$$, 'owner edits contact details');
 reset role;
+select tests.login_as(tests.id('member'));
+update members set full_name = 'Self Edit', phone = '000' where id = tests.id('m_member');
+reset role;
+select is((select full_name || '/' || phone from members where id = tests.id('m_member')), 'Mary Member/+260971111111', 'member cannot edit their own members row');
 
 -- group_members view --------------------------------------------------------
 select hasnt_column('public', 'group_members', 'email', 'view hides email');
@@ -133,6 +173,33 @@ select tests.login_as(tests.id('owner'));
 select is((select count(*)::int from group_members), 7, 'owner reads the whole group list through the view');
 select is((select count(*)::int from group_members where group_id = tests.id('group2')), 0, 'owner does not see the other group in the view');
 reset role;
+
+select ok((select reloptions @> array['security_invoker=false', 'security_barrier=true'] from pg_class where oid = 'public.group_members'::regclass),
+  'view runs as its owner and is a security barrier');
+-- The view runs as its owner, so it must not accept writes: they would bypass RLS on members.
+select tests.login_as(tests.id('member'));
+select throws_ok($$update group_members set role = 'admin' where id = tests.id('m_member')$$, '42501', null, 'member cannot promote themselves through the view');
+select throws_ok($$update group_members set group_id = tests.id('group2') where id = tests.id('m_member')$$, '42501', null, 'member cannot move their row to another group through the view');
+select throws_ok($$insert into group_members (group_id, full_name, short_name, role) values (tests.id('group'), 'Mallory', 'Mal', 'admin')$$, '42501', null, 'member cannot insert through the view');
+select throws_ok($$insert into group_members (group_id, full_name, short_name, role) values (tests.id('group2'), 'Mallory', 'Mal2', 'admin')$$, '42501', null, 'member cannot insert into another group through the view');
+select throws_ok($$delete from group_members where id = tests.id('m_other')$$, '42501', null, 'member cannot delete through the view');
+reset role;
+select tests.login_as(tests.id('admin'));
+select throws_ok($$update group_members set role = 'member' where id = tests.id('m_owner')$$, '42501', null, 'admin cannot change a role through the view');
+select throws_ok($$update group_members set group_id = tests.id('group2') where id = tests.id('m_admin')$$, '42501', null, 'admin cannot move a member to another group through the view');
+select throws_ok($$insert into group_members (group_id, full_name, short_name, role) values (tests.id('group2'), 'Mallory', 'Mal3', 'admin')$$, '42501', null, 'admin cannot insert through the view');
+select throws_ok($$delete from group_members where id = tests.id('m_unlinked')$$, '42501', null, 'admin cannot delete through the view');
+reset role;
+select tests.login_as(tests.id('owner'));
+select throws_ok($$update group_members set role = 'member' where id = tests.id('m_admin')$$, '42501', null, 'owner cannot change a role through the view');
+select throws_ok($$update group_members set group_id = tests.id('group2') where id = tests.id('m_owner')$$, '42501', null, 'owner cannot move a member to another group through the view');
+select throws_ok($$insert into group_members (group_id, full_name, short_name, role) values (tests.id('group2'), 'Mallory', 'Mal4', 'admin')$$, '42501', null, 'owner cannot insert through the view');
+select throws_ok($$delete from group_members where id = tests.id('m_member')$$, '42501', null, 'owner cannot delete through the view');
+reset role;
+select is((select count(*)::int from members where group_id = tests.id('group') and role = 'admin'), 2, 'the view writes changed no role');
+select is((select count(*)::int from members where group_id = tests.id('group')), 7, 'the view writes added or removed no member of the group');
+select is((select count(*)::int from members where group_id = tests.id('group2')), 1, 'the view writes touched nothing in the other group');
+select is((select count(*)::int from members where short_name like 'Mal%'), 0, 'the view writes inserted no rows');
 
 -- invites -------------------------------------------------------------------
 select tests.login_as(tests.id('admin'));
@@ -172,6 +239,13 @@ select tests.login_as(tests.id('owner'));
 update invites set revoked_at = now() where token_hash = 'hash-d';
 reset role;
 select ok((select revoked_at is not null from invites where token_hash = 'hash-d'), 'owner revokes an invite');
+select tests.login_as(tests.id('admin'));
+select throws_ok($$update invites set revoked_at = null where token_hash = 'hash-a'$$, '42501', null, 'admin cannot un-revoke an invite');
+reset role;
+select tests.login_as(tests.id('owner'));
+select throws_ok($$update invites set revoked_at = null where token_hash = 'hash-d'$$, '42501', null, 'owner cannot un-revoke an invite');
+reset role;
+select is((select count(*)::int from invites where revoked_at is not null), 2, 'revoked invites stay revoked');
 
 -- cycles and rules ----------------------------------------------------------
 select tests.login_as(tests.id('member'));
@@ -336,6 +410,48 @@ reset role;
 select tests.login_as(tests.id('outsider'));
 select ok(not can_see_figures(tests.id('group'), tests.id('m_other')), 'outsider sees nothing');
 reset role;
+-- the member asked about must belong to the group asked about
+select tests.login_as(tests.id('admin'));
+select ok(not can_see_figures(tests.id('group'), tests.id('m_g2')), 'admin cannot see figures of another group''s member');
+reset role;
+select tests.login_as(tests.id('owner'));
+select ok(not can_see_figures(tests.id('group'), tests.id('m_g2')), 'owner cannot see figures of another group''s member');
+reset role;
+select tests.login_as(tests.id('member'));
+select ok(not can_see_figures(tests.id('group2'), tests.id('m_member')), 'a member''s own figures do not open another group');
+reset role;
+select tests.login_as(tests.id('owner2'));
+select ok(not can_see_figures(tests.id('group2'), tests.id('m_other')), 'another group''s owner cannot see this group''s member through their own group');
+select ok(can_see_figures(tests.id('group2'), tests.id('m_g2')), 'owner sees figures of a member of their own group');
+reset role;
+
+-- admin and owner of one group change nothing in another group -------------------------
+with c as (
+  insert into cycles (group_id, label, starts_on, ends_on, payout_on)
+  values (tests.id('group2'), 'G2 Planned', '2031-01-01', '2031-12-31', '2031-12-20') returning id),
+r as (
+  insert into cycle_rules (cycle_id, min_saving, loan_multiples, tenor_bands) select id, 250, '[]', '[]' from c)
+select tests.remember('c_g2_planned', id) from c;
+select tests.login_as(tests.id('admin'));
+update groups set name = 'Cross' where id = tests.id('group2');
+update members set full_name = 'Cross' where id = tests.id('m_g2');
+update cycles set label = 'Cross' where id = tests.id('c_g2_planned');
+update cycle_rules set min_saving = 999 where cycle_id = tests.id('c_g2_planned');
+reset role;
+select is((select name from groups where id = tests.id('group2')), 'Other Group', 'admin cannot rename another group');
+select is((select full_name from members where id = tests.id('m_g2')), 'Second Owner', 'admin cannot edit another group''s member');
+select is((select label from cycles where id = tests.id('c_g2_planned')), 'G2 Planned', 'admin cannot edit another group''s planned cycle');
+select is((select min_saving from cycle_rules where cycle_id = tests.id('c_g2_planned')), 250::numeric, 'admin cannot edit another group''s cycle rules');
+select tests.login_as(tests.id('owner'));
+update groups set name = 'Cross' where id = tests.id('group2');
+update members set full_name = 'Cross' where id = tests.id('m_g2');
+update cycles set label = 'Cross' where id = tests.id('c_g2_planned');
+update cycle_rules set min_saving = 999 where cycle_id = tests.id('c_g2_planned');
+reset role;
+select is((select name from groups where id = tests.id('group2')), 'Other Group', 'owner cannot rename another group');
+select is((select full_name from members where id = tests.id('m_g2')), 'Second Owner', 'owner cannot edit another group''s member');
+select is((select label from cycles where id = tests.id('c_g2_planned')), 'G2 Planned', 'owner cannot edit another group''s planned cycle');
+select is((select min_saving from cycle_rules where cycle_id = tests.id('c_g2_planned')), 250::numeric, 'owner cannot edit another group''s cycle rules');
 
 -- owner without a member row: group2's owner, once their member row is gone ---------
 delete from members where id = tests.id('m_g2');
