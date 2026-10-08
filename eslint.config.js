@@ -18,6 +18,8 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   jsxA11y.flatConfigs.recommended,
+  // Safari drops list semantics from a <ul> with list-style: none (Tailwind's reset), so role="list" is not redundant there.
+  { files: ['**/*.tsx'], rules: { 'jsx-a11y/no-redundant-roles': ['error', { ul: ['list'], ol: ['list'] }] } },
   {
     files: ['**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },

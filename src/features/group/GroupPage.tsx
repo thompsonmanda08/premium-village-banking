@@ -66,7 +66,7 @@ export function GroupPage() {
         </EmptyState>
       ) : (
         <Card className="p-0 md:p-0">
-          <ul className="divide-y divide-line">
+          <ul role="list" className="divide-y divide-line">
             {data.map((m) => (
               <li key={m.id} className="flex items-center gap-3 px-4 py-3">
                 <Avatar name={m.full_name ?? ''} />
@@ -75,8 +75,9 @@ export function GroupPage() {
                   {m.full_name !== m.short_name ? <p className="text-sm text-muted">{m.short_name}</p> : null}
                 </div>
                 <div className="flex flex-wrap justify-end gap-1">
-                  {m.role === 'admin' ? <Badge tone="accent">Admin</Badge> : null}
-                  {m.status === 'left' ? <Badge>Left</Badge> : !m.linked ? <Badge tone="warning">Not joined</Badge> : null}
+                  {m.role === 'admin' ? <Badge tone="accent">Admin</Badge> : <Badge>Member</Badge>}
+                  {/* Whether the person has linked their account; for someone who has left, that no longer matters. */}
+                  {m.status === 'left' ? <Badge>Left</Badge> : m.linked ? <Badge tone="success">Joined</Badge> : <Badge tone="warning">Not joined</Badge>}
                 </div>
               </li>
             ))}

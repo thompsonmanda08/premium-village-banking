@@ -22,6 +22,19 @@ test('end of the cycle: payout and end are included, nothing after the end', () 
   ]);
 });
 
+const loanDays = (c: { starts_on: string; ends_on: string; payout_on: string }, closeDay: number) =>
+  upcomingDates(c, { window_open_day: 5, window_close_day: closeDay }, '2020-01-01', 50).filter((e) => e.kind === 'loans').map((e) => e.date);
+
+test('a loan day past the end of the month is clamped to the last day of that month', () => {
+  const feb = { starts_on: '2027-02-01', ends_on: '2027-03-31', payout_on: '2027-03-20' };
+  expect(loanDays(feb, 28)).toEqual(['2027-02-28', '2027-03-29']); // 28 + 1 = 29 Feb does not exist in 2027
+});
+
+test('leap years keep 29 February', () => {
+  const leap = { starts_on: '2028-02-01', ends_on: '2028-03-31', payout_on: '2028-03-20' };
+  expect(loanDays(leap, 28)).toEqual(['2028-02-29', '2028-03-29']);
+});
+
 test('ordinals', () => {
   expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23].map(ordinal)).toEqual(['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd']);
 });

@@ -3,8 +3,7 @@ import { useGroup } from '@/features/group/GroupContext';
 import { useCycles } from '@/features/cycles/useCycles';
 import { pickCurrentCycle, upcomingDates } from '@/lib/calendar';
 import { friendlyError } from '@/lib/errors';
-import { formatDate, localISODate } from '@/lib/format';
-import { money } from '@/lib/rulesText';
+import { formatDate, localISODate, money } from '@/lib/format';
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton, type Tone } from '@/ui';
 import { UpcomingList } from './UpcomingList';
 

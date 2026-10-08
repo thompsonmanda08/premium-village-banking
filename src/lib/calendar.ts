@@ -3,7 +3,11 @@ type CycleDates = { starts_on: string; ends_on: string; payout_on: string };
 type WindowRules = { window_open_day: number; window_close_day: number };
 
 const ORDER: Record<DateEvent['kind'], number> = { start: 0, window: 1, loans: 2, payout: 3, end: 4 };
-const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+// A day past the end of the month (a close day of 28 plus one in a non-leap February) falls on the last day of that month.
+const iso = (y: number, m: number, d: number) => {
+  const day = Math.min(d, new Date(Date.UTC(y, m, 0)).getUTCDate());
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};
 
 export function ordinal(n: number): string {
   const teen = n % 100 >= 11 && n % 100 <= 13;

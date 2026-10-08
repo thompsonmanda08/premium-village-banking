@@ -4,8 +4,8 @@ import { useCycles } from '@/features/cycles/useCycles';
 import { UpcomingList } from '@/features/home/UpcomingList';
 import { ordinal, pickCurrentCycle, upcomingDates } from '@/lib/calendar';
 import { friendlyError } from '@/lib/errors';
-import { localISODate, pct } from '@/lib/format';
-import { loanLimitLines, money, tenorLines } from '@/lib/rulesText';
+import { localISODate, money, rate } from '@/lib/format';
+import { loanLimitLines, tenorLines } from '@/lib/rulesText';
 import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton } from '@/ui';
 
 export function RulesPage() {
@@ -53,8 +53,8 @@ export function RulesPage() {
   const rows: [string, string][] = [
     ['Minimum saving', `${money(r.min_saving)} a month`],
     ['Declaration window', `${ordinal(r.window_open_day)}–${ordinal(r.window_close_day)} of each month`],
-    ['Loan interest', `${pct(r.loan_rate, 0)}, charged once`],
-    ['Excess interest', `${pct(r.excess_rate, 0)} a month on idle cash`],
+    ['Loan interest', `${rate(r.loan_rate)}, charged once`],
+    ['Excess interest', `${rate(r.excess_rate)} a month on idle cash`],
     ['Late penalty', `${money(r.penalty_per_day)} per day after the ${ordinal(r.window_close_day)}`],
     ['Membership fee', `${money(r.membership_fee)} a quarter`],
   ];
@@ -77,9 +77,9 @@ export function RulesPage() {
         <Card>
           <CardHeader title="Borrowing" />
           <h3 className="mb-1 text-sm font-semibold text-muted">How much you can borrow</h3>
-          <ul className="tabular mb-4 grid gap-1 text-base text-fg">{loanLimitLines(r.loan_multiples).map((l) => <li key={l}>{l}</li>)}</ul>
+          <ul role="list" className="tabular mb-4 grid gap-1 text-base text-fg">{loanLimitLines(r.loan_multiples).map((l) => <li key={l}>{l}</li>)}</ul>
           <h3 className="mb-1 text-sm font-semibold text-muted">How long you have to repay</h3>
-          <ul className="tabular grid gap-1 text-base text-fg">{tenorLines(r.tenor_bands).map((l) => <li key={l}>{l}</li>)}</ul>
+          <ul role="list" className="tabular grid gap-1 text-base text-fg">{tenorLines(r.tenor_bands).map((l) => <li key={l}>{l}</li>)}</ul>
         </Card>
         <Card className="md:col-span-2">
           <CardHeader title="Key dates" />

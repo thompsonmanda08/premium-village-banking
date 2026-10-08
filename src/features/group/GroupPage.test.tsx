@@ -44,10 +44,15 @@ test('lists name, role and whether each member has joined, plus the visibility n
   renderGroup();
   const items = await screen.findAllByRole('listitem');
   expect(items).toHaveLength(3);
+  expect(screen.getByRole('list')).toHaveAttribute('role', 'list'); // explicit, so Safari keeps the list semantics
   expect(within(items[0]!).getByText('Nsama')).toBeInTheDocument();
   expect(within(items[0]!).getByText('Admin')).toBeInTheDocument();
+  expect(within(items[0]!).getByText('Joined')).toBeInTheDocument();
+  expect(within(items[1]!).getByText('Member')).toBeInTheDocument();
   expect(within(items[1]!).getByText('Not joined')).toBeInTheDocument();
+  expect(within(items[2]!).getByText('Member')).toBeInTheDocument();
   expect(within(items[2]!).getByText('Left')).toBeInTheDocument();
+  expect(within(items[2]!).queryByText('Joined')).toBeNull();
   expect(screen.getByRole('heading', { name: 'Group' }).parentElement).toHaveTextContent('2 active members');
   expect(screen.getByText('Everyone in the group can see each member’s figures.')).toBeInTheDocument();
 });

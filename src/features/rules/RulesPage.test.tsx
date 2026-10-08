@@ -59,6 +59,13 @@ test('lists the rules, loan limits, unambiguous repayment periods and key dates'
   expect(screen.getByText('Cycle starts')).toBeInTheDocument();
 });
 
+test('rates are shown exactly, not rounded to whole percentages', async () => {
+  cyclesQuery.mockResolvedValue({ data: [{ ...CYCLE, cycle_rules: { ...RULES, loan_rate: 0.125, excess_rate: 0.0725 } }], error: null });
+  renderRules();
+  expect(await screen.findByText('12.5%, charged once')).toBeInTheDocument();
+  expect(screen.getByText('7.25% a month on idle cash')).toBeInTheDocument();
+});
+
 test('empty: says no rules yet and offers a way to check again', async () => {
   cyclesQuery.mockResolvedValue({ data: [], error: null });
   renderRules();
