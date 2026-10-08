@@ -4,6 +4,7 @@
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { clean } from './scrub.mjs'
 
 const env = process.env
 const args = {
@@ -20,18 +21,18 @@ if (args.includes(undefined) || args.includes('')) {
   process.exit(1)
 }
 
-const clean = (s) =>
-  [env.SUPABASE_DB_URL, env.SUPABASE_DB_PASSWORD]
-    .filter(Boolean)
-    .reduce((acc, v) => acc.split(v).join('[redacted]'), s)
-    .replace(/postgres(ql)?:\/\/\S*/g, '[db-url]')
-
-const bin = fileURLToPath(new URL('../node_modules/.bin/supabase', import.meta.url))
-const r = spawnSync(bin, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-if (process.argv[2] === 'types' && r.status === 0) {
-  writeFileSync('src/lib/database.types.ts', r.stdout)
-} else {
-  process.stdout.write(clean(r.stdout ?? ''))
+// Any throw (spawn rejecting an argument echoes the value it was given) is scrubbed, never dumped raw.
+try {
+  const bin = fileURLToPath(new URL('../node_modules/.bin/supabase', import.meta.url))
+  const r = spawnSync(bin, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  if (process.argv[2] === 'types' && r.status === 0) {
+    writeFileSync('src/lib/database.types.ts', r.stdout)
+  } else {
+    process.stdout.write(clean(r.stdout ?? ''))
+  }
+  process.stderr.write(clean(r.stderr ?? '') + (r.error ? clean(String(r.error.message)) + '\n' : ''))
+  process.exit(r.status ?? 1)
+} catch (e) {
+  console.error(`db-cli failed: ${clean(e?.message ?? e)}`)
+  process.exit(1)
 }
-process.stderr.write(clean(r.stderr ?? '') + (r.error ? clean(String(r.error.message)) + '\n' : ''))
-process.exit(r.status ?? 1)
