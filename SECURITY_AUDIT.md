@@ -16,8 +16,8 @@ landed from parallel work during the audit and were reviewed too.
 |---|---|---|---|
 | Critical | 0 | 0 | 0 |
 | High | 1 | 1 | 0 |
-| Medium | 6 | 3 (M-4 partly) | 4 (M-3, M-5, M-6, rest of M-4) |
-| Low | 10 | 3 | 7 |
+| Medium | 6 | 4 (M-4 partly) | 3 (M-3, M-6, rest of M-4) |
+| Low | 10 | 4 | 6 |
 
 The database layer is in good shape: RLS on every table, column-level grants, no write path to
 `role`/`user_id`/`owner_user_id` from the client, definer functions locked down, and a pgTAP suite
@@ -106,7 +106,7 @@ Status legend: **FIXED** (in this change set) · **OPEN** (reason given).
 
 ### M-5 · Medium · No security headers or CSP; sessions live in `localStorage` — FIXED
 - **Where:** no `vercel.json` / hosting config; `index.html` loads `/theme-init.js` (external file, so a strict CSP without `'unsafe-inline'` scripts is achievable).
-- **Description:** supabase-js keeps the session (access + refresh token) in `localStorage`, so any XSS means account takeover; CSP is the main backstop. Invite tokens travel in the URL path, so `Referrer-Policy` matters too (see L-6). Nothing is deployed, so nothing is exposed today.
+- **Description:** supabase-js keeps the session (access + refresh token) in `localStorage`, so any XSS means account takeover; CSP is the main backstop. Invite tokens travel in the URL path, so `Referrer-Policy` matters too (see L-6).
 - **Fix (done):** `vercel.json` now serves the CSP (enforced), HSTS, `nosniff`, `Referrer-Policy: no-referrer` and `Permissions-Policy` on every path, with `frame-ancestors 'none'` in place of `X-Frame-Options`; `vite preview` mirrors the CSP.
 - **Original recommendation:** serve
   `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://<ref>.supabase.co wss://<ref>.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
@@ -214,7 +214,7 @@ Verification after the changes: `db:test` 6/6 files ok, `vitest` 96/96, `fn:test
 | L-4 | IP allow-list needs the CI/developer egress IPs |
 | M-3 | Needs an MFA enrolment UI and a product decision on who must use it |
 | M-4 (rest) | Production project not created yet; set `PROD_PROJECT_REF` when it is |
-| M-5, L-6, L-10 | Hosting and the sign-in/invite screens do not exist yet |
+| L-10 | User-facing copy: a UX change left for the owner |
 | M-6 | Major-version dependency upgrade, deferred by the owner to its own change |
 | L-5, L-7, L-9 | Low; scheduled for the next feature touching those files |
 | L-8 | Owner decision on repo visibility |

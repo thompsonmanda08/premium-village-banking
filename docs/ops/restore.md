@@ -8,43 +8,115 @@ The dump covers the roles, the `public` schema and the data of `public` and `aut
 `auth.identities` come back). It does not cover `supabase_migrations`, Auth settings, Edge Function code or secrets,
 or anything configured in the Supabase, Google, Resend or Vercel dashboards (see "Non-database setup" below).
 
+## Privilege hardening (part of every restore)
+
+A new Supabase project gives `anon` and `authenticated` every privilege on whatever `postgres` creates in `public`.
+`schema.sql` only adds grants, it never removes the target's extra defaults, and marking migration
+`20261008000200_access_rls.sql` as applied (below) means its revokes never run. Left as is, `anon` and
+`authenticated` end up with full access to every table and view, including writes through `public.group_members`
+(an owner-rights view, so RLS does not apply), which lets a member make themselves an admin.
+So every restore does three things around the load: **A** before it, **B** after it, **C** to prove it worked.
+Both restore procedures below say exactly where. `$DB` is the connection string of the database being restored into.
+
+**A. Before loading `schema.sql`.** Stop new objects from getting those default grants (the same three statements as in
+migration `20261008000200_access_rls.sql`):
+
+```
+psql --variable ON_ERROR_STOP=1 --dbname "$DB" <<'SQL'
+alter default privileges for role postgres in schema public revoke all on tables from public, anon, authenticated;
+alter default privileges for role postgres in schema public revoke all on sequences from public, anon, authenticated;
+alter default privileges for role postgres in schema public revoke all on functions from public, anon, authenticated;
+SQL
+```
+
+**B. After loading `data.sql`.** Re-run every `revoke` / `grant` / `alter default privileges` statement from the
+migrations, in order. This extracts them (whole statements, including the multi-line ones) from the repository and
+runs them in one transaction; run it from the repository root, at the same git revision as the backup:
+
+```
+awk 'tolower($0) ~ /^(revoke|grant|alter default privileges)/ {p=1} p {print} p && /;[ \t]*(--.*)?$/ {p=0}' \
+  supabase/migrations/*.sql > backup/reapply-grants.sql
+psql --single-transaction --variable ON_ERROR_STOP=1 --file backup/reapply-grants.sql --dbname "$DB"
+```
+
+`backup/reapply-grants.sql` should hold 35 statements today (migrations `…0200`, `…0300`, `…0400`); a later
+migration that adds grants is picked up automatically because the glob covers every file. Read the file before
+running it. If it fails on `schema private`, the dump did not carry that schema: run
+`psql --file supabase/migrations/20261008000400_bootstrap.sql --dbname "$DB"` once (it is idempotent), then re-run B.
+
+**C. Verify. This must pass before go-live.** Run:
+
+```
+psql --variable ON_ERROR_STOP=1 --dbname "$DB" <<'SQL'
+select check_name, got, expected, got = expected as pass from (
+  select 'anon: select on members' as check_name,
+         has_table_privilege('anon', 'public.members', 'select') as got, false as expected
+  union all select 'authenticated: insert/update/delete on group_members',
+         has_table_privilege('authenticated', 'public.group_members', 'insert,update,delete'), false
+  union all select 'authenticated: truncate on audit_log',
+         has_table_privilege('authenticated', 'public.audit_log', 'truncate'), false
+  union all select 'anon: execute on any public function except invite_preview(text)',
+         exists (select 1 from pg_proc
+                 where pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'execute')
+                   and oid is distinct from to_regprocedure('public.invite_preview(text)')::oid), false
+  union all select 'anon: execute on invite_preview(text)',
+         has_function_privilege('anon', 'public.invite_preview(text)', 'execute'), true
+  union all select 'authenticated: select on members',
+         has_table_privilege('authenticated', 'public.members', 'select'), true
+) s;
+SQL
+```
+
+Expected: six rows, `pass` = `t` on every one (the first four have `got` = `f`, the last two `t`). Any `f` in `pass`:
+do not go live; re-run B and C, and if it still fails compare against `supabase/tests/database/02_rls.sql`.
+
 ## Restore into a local stack (test this once before go-live)
 
 `supabase start` applies every migration and `seed.sql`, so the objects in `schema.sql` and the rows in `data.sql`
-would collide with what is already there. Empty the stack first.
+would collide with what is already there. Empty the stack first. This drill includes A, B and C, so it proves them.
 
 1. Download the artifact from GitHub → Actions → "Nightly encrypted backup" → a run → Artifacts.
 2. Decrypt and unpack:
 
-       age -d -i pvb-backup.key -o backup.tar.gz pvb-YYYY-MM-DD.tar.gz.age
-       tar xzf backup.tar.gz
+```
+age -d -i pvb-backup.key -o backup.tar.gz pvb-YYYY-MM-DD.tar.gz.age
+tar xzf backup.tar.gz
+export DB='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+```
 
-3. Start the local stack, then empty `public` and the seeded accounts. The grants put back what Supabase gives a
-   fresh `public` schema, trimmed to what migration `20261008000200_access_rls.sql` leaves behind (no default
-   access for `anon` or `authenticated`; `schema.sql` carries the explicit per-table grants):
+3. Start the local stack, then empty `public`, `private` (the bootstrap functions; `schema.sql` recreates it) and the
+   seeded accounts. The grants put back what a fresh `public`
+   schema has, trimmed to what migration `20261008000200_access_rls.sql` leaves behind (no default access for `anon`
+   or `authenticated`):
 
-       bun x supabase start
-       psql --variable ON_ERROR_STOP=1 \
-         --dbname 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' <<'SQL'
-       drop schema public cascade;
-       create schema public;
-       grant usage on schema public to postgres, anon, authenticated, service_role;
-       grant all on schema public to postgres, service_role;
-       alter default privileges for role postgres in schema public grant all on tables to postgres, service_role;
-       alter default privileges for role postgres in schema public grant all on sequences to postgres, service_role;
-       alter default privileges for role postgres in schema public grant all on functions to postgres, service_role;
-       truncate auth.users cascade;
-       SQL
+```
+bun x supabase start
+psql --variable ON_ERROR_STOP=1 --dbname "$DB" <<'SQL'
+drop schema public cascade;
+drop schema if exists private cascade;
+create schema public;
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all on schema public to postgres, service_role;
+alter default privileges for role postgres in schema public grant all on tables to postgres, service_role;
+alter default privileges for role postgres in schema public grant all on sequences to postgres, service_role;
+alter default privileges for role postgres in schema public grant all on functions to postgres, service_role;
+truncate auth.users cascade;
+SQL
+```
 
-4. Load the dump:
+4. Run **A** (above).
+5. Load the dump:
 
-       psql --single-transaction --variable ON_ERROR_STOP=1 \
-         --file backup/roles.sql --file backup/schema.sql \
-         --command 'SET session_replication_role = replica' \
-         --file backup/data.sql \
-         --dbname 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+```
+psql --single-transaction --variable ON_ERROR_STOP=1 \
+  --file backup/roles.sql --file backup/schema.sql \
+  --command 'SET session_replication_role = replica' \
+  --file backup/data.sql \
+  --dbname "$DB"
+```
 
-5. Check: `psql … -c "select count(*) from public.members"` matches production, and
+6. Run **B**, then **C**. `pass` must be `t` on all six rows.
+7. Check: `psql "$DB" -c "select count(*) from public.members"` matches production, and
    `select count(*) from auth.users` matches too.
 
 ## Restore into production
@@ -53,21 +125,26 @@ Never reset or overwrite the existing production project to restore into it. Res
 project. If the old project is still reachable, take a fresh dump from it first (run the backup workflow by hand)
 and keep it until the new project is verified.
 
-1. Create a new Supabase project and note its project ref, database password and **session pooler** connection string.
-2. Run steps 2 and 4 above with `--dbname` set to the new project's session pooler connection string (skip step 3:
-   the new project has an empty `public` schema and no seeded accounts).
-3. Link the CLI to the new project and mark the migrations as already applied. The dump does not include
+1. Create a new Supabase project and note its project ref, database password and **session pooler** connection
+   string. Do steps 1 and 2 of the local procedure, with `export DB='<the session pooler connection string>'`.
+   Skip its step 3: the new project has an empty `public` schema and no seeded accounts.
+2. Run **A** (above) against the new project.
+3. Load the dump with the `psql --single-transaction` command from step 5 of the local procedure.
+4. Run **B**, then **C**. Do not continue until `pass` is `t` on all six rows.
+5. Link the CLI to the new project and mark the migrations as already applied. The dump does not include
    `supabase_migrations`, so a plain `supabase db push` would run `20261008000100_core_schema.sql` again and fail.
    Repair every file in `supabase/migrations` (currently `20261008000100`, `20261008000200`, `20261008000300`,
    `20261008000400` and `20261008000500`; add any later ones):
 
-       supabase link --project-ref <new-ref>
-       supabase migration repair --status applied \
-         20261008000100 20261008000200 20261008000300 20261008000400 20261008000500
-       supabase migration list
+```
+supabase link --project-ref <new-ref>
+supabase migration repair --status applied \
+  20261008000100 20261008000200 20261008000300 20261008000400 20261008000500
+supabase migration list
+```
 
    `migration list` must show every local version as applied remotely. Only then is `supabase db push` a no-op.
-4. Members keep their accounts because `auth.users` is part of the dump, but they must **sign in again**: the new
+6. Members keep their accounts because `auth.users` is part of the dump, but they must **sign in again**: the new
    project has a new JWT secret, so every existing session and refresh token is invalid.
 
 ## Non-database setup (not in the backup)
@@ -75,7 +152,8 @@ and keep it until the new project is verified.
 Do these on the new project before pointing the app at it:
 
 - [ ] Auth providers: Google, email magic link, email + password (and sign-ups disabled, as in `SECURITY_AUDIT.md` H-1).
-- [ ] Auth redirect URLs: the production domain, the Vercel preview pattern, `http://localhost:3000`.
+- [ ] Auth URL configuration: set **Site URL** to the production domain, and the redirect URLs to the production
+      domain, the Vercel preview pattern and `http://localhost:3000`.
 - [ ] Google OAuth client (Google Cloud console): add `https://<new-ref>.supabase.co/auth/v1/callback` as an authorised
       redirect URI, and enter the client ID and secret in the new project's Google provider.
 - [ ] SMTP: Resend credentials in the new project's Auth SMTP settings.
