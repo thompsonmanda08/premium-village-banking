@@ -46,9 +46,12 @@ select throws_ok('truncate public.' || t, '42501', null, 'authenticated cannot t
 from unnest(array['groups', 'members', 'invites', 'cycles', 'cycle_rules', 'audit_log']) as t;
 reset role;
 -- New functions get PUBLIC execute from a global default, so each migration must revoke it itself;
--- this fails the build if one forgets.
-select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'EXECUTE')),
-  0, 'anon can execute no function in public');
+-- this fails the build if one forgets. The allowlist is the invite page's preview and nothing else
+-- (03_invites_admins.sql asserts that anon can in fact run it).
+select is((select count(*)::int from pg_proc
+           where pronamespace = 'public'::regnamespace and has_function_privilege('anon', oid, 'EXECUTE')
+             and oid is distinct from to_regprocedure('public.invite_preview(text)')::oid),
+  0, 'anon can execute no function in public except invite_preview(text)');
 -- Objects created from now on start with no grants to anon or authenticated.
 create table public.zz_future (id int);
 create view public.zz_future_v as select 1 as x;
@@ -369,11 +372,13 @@ select is((select count(*)::int from audit_log), 0, 'member reads no audit entri
 select throws_ok($$insert into audit_log (group_id, action, entity) values (tests.id('group'), 'fake', 'x')$$, '42501', null, 'clients cannot write the audit log');
 reset role;
 select tests.login_as(tests.id('admin'));
-select is((select count(*)::int from audit_log), 1, 'admin reads the audit entries of their group only');
+select is((select count(*)::int from audit_log where action = 'test.entry'), 1, 'admin reads the audit entries of their group only');
+select is((select count(*)::int from audit_log where group_id <> tests.id('group')), 0, 'admin: none from another group');
 select throws_ok($$insert into audit_log (group_id, action, entity) values (tests.id('group'), 'fake', 'x')$$, '42501', null, 'admin cannot write the audit log');
 reset role;
 select tests.login_as(tests.id('owner'));
-select is((select count(*)::int from audit_log), 1, 'owner reads the audit entries of their group only');
+select is((select count(*)::int from audit_log where action = 'test.entry'), 1, 'owner reads the audit entries of their group only');
+select is((select count(*)::int from audit_log where group_id <> tests.id('group')), 0, 'owner: none from another group');
 select throws_ok($$insert into audit_log (group_id, action, entity) values (tests.id('group'), 'fake', 'x')$$, '42501', null, 'owner cannot write the audit log');
 reset role;
 
