@@ -66,7 +66,7 @@ test('error with nothing cached: friendly message and a working retry', async ()
   members.mockResolvedValue({ data: null, error: { message: 'JWT secret-detail', code: 'PGRST301' } });
   groups.mockResolvedValue({ data: [], error: null });
   renderGuard();
-  expect(await screen.findByRole('alert')).toHaveTextContent('Only admins can do this.');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Your session has expired. Please sign in again.');
   expect(screen.queryByText(/secret-detail/)).toBeNull();
   members.mockResolvedValue({ data: [{ ...MEMBER, groups: GROUP }], error: null });
   await userEvent.click(screen.getByRole('button', { name: 'Try again' }));

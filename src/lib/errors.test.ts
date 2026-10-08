@@ -13,6 +13,13 @@ test('maps permission errors', () => {
   expect(friendlyError({ code: '42501', message: 'new row violates row-level security policy for table "members"' })).toBe('Only admins can do this.');
 });
 
+test('an invalid or expired JWT is a session problem, not a permission one', () => {
+  const expired = 'Your session has expired. Please sign in again.';
+  expect(friendlyError({ code: 'PGRST301', message: 'JWT expired' })).toBe(expired);
+  expect(friendlyError({ code: 'PGRST303', message: 'JWT issued at future' })).toBe(expired);
+  expect(friendlyError({ status: 401, message: 'Unauthorized' })).toBe(expired);
+});
+
 test('maps auth messages', () => {
   expect(friendlyError({ message: 'Invalid login credentials', status: 400 })).toBe('That email and password don’t match.');
   expect(friendlyError({ message: 'Signups not allowed for otp', status: 422 })).toBe('We couldn’t find an account for that email. Ask your treasurer for an invite.');
@@ -66,6 +73,7 @@ const AUTH_CODES: Record<string, string> = {
   over_email_send_rate_limit: 'Too many attempts. Please wait a minute and try again.',
   over_request_rate_limit: 'Too many attempts. Please wait a minute and try again.',
   same_password: 'Choose a password you haven’t used before.',
+  weak_password: 'Choose a password of at least 12 characters, with letters and numbers.',
   otp_disabled: 'We couldn’t find an account for that email. Ask your treasurer for an invite.',
   // sign-in screens and the auth callback
   email_required: 'Enter your email address.',

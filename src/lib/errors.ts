@@ -31,6 +31,7 @@ const KNOWN: Record<string, string> = {
   over_email_send_rate_limit: TOO_MANY,
   over_request_rate_limit: TOO_MANY,
   same_password: NEW_PASSWORD,
+  weak_password: 'Choose a password of at least 12 characters, with letters and numbers.',
   otp_disabled: NO_ACCOUNT,
   // sign-in screens and the auth callback (the callback also passes the provider's error_code through here)
   email_required: 'Enter your email address.',
@@ -58,9 +59,9 @@ export function friendlyError(err: unknown): string {
   const hit = known(code) ?? known(msg);
   if (hit) return hit;
   if (status === 429 || /rate limit/i.test(msg)) return TOO_MANY;
-  if (code === '42501' || code === 'PGRST301') return KNOWN.not_admin ?? GENERIC;
+  if (code === '42501') return KNOWN.not_admin ?? GENERIC;
   if (code === '23505') return 'That name is already used in this group.';
-  if (status === 401 || code === 'PGRST303') return 'Your session has expired. Please sign in again.';
+  if (status === 401 || code === 'PGRST301' || code === 'PGRST303') return 'Your session has expired. Please sign in again.';
   if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'You seem to be offline. Check your connection and try again.';
   return GENERIC;
 }
