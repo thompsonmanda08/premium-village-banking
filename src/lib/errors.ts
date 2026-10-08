@@ -4,6 +4,7 @@ const NO_ACCOUNT = 'We couldn’t find an account for that email. Ask your treas
 const UNCONFIRMED = 'Confirm your email address first, using the link we sent you.';
 const NEW_PASSWORD = 'Choose a password you haven’t used before.';
 const TOO_MANY = 'Too many attempts. Please wait a minute and try again.';
+const CONFIRM_WITH_CODE = 'For your security, enter the code we emailed you to confirm this change.';
 
 // Keyed by SQL business code, Edge Function code, supabase-js AuthError code, or (older shapes) exact message text.
 const KNOWN: Record<string, string> = {
@@ -32,6 +33,14 @@ const KNOWN: Record<string, string> = {
   over_request_rate_limit: TOO_MANY,
   same_password: NEW_PASSWORD,
   weak_password: 'Choose a password of at least 12 characters, with letters and numbers.',
+  // account page: the same password rules checked on the phone, and the emailed code a password change can ask for
+  password_too_short: 'Use at least 12 characters.',
+  password_needs_letters_digits: 'Use both letters and numbers.',
+  password_mismatch: 'The passwords don’t match.',
+  reauthentication_needed: CONFIRM_WITH_CODE,
+  reauth_nonce_missing: CONFIRM_WITH_CODE,
+  reauthentication_not_valid: 'That code isn’t right or has expired. Check your email, or go back to get a new code.',
+  manual_linking_disabled: 'Linking Google isn’t switched on yet. Please contact support.',
   otp_disabled: NO_ACCOUNT,
   // sign-in screens and the auth callback (the callback also passes the provider's error_code through here)
   email_required: 'Enter your email address.',

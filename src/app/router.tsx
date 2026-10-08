@@ -3,6 +3,7 @@ import { createBrowserRouter } from 'react-router';
 import { AuthCallback } from '@/features/auth/AuthCallback';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import { SignInPage } from '@/features/auth/SignInPage';
+import { AccountPage } from '@/features/account/AccountPage';
 import { DeskPage } from '@/features/desk/DeskPage';
 import { GroupPage } from '@/features/group/GroupPage';
 import { RequireMembership } from '@/features/group/RequireMembership';
@@ -41,7 +42,7 @@ export const router = createBrowserRouter([
                   page('group', 'Group', <GroupPage />),
                   page('desk', 'Desk', <DeskPage />),
                   page('rules', 'Rules', <RulesPage />),
-                  page('account', 'Account', <ComingSoon title="Account" />),
+                  page('account', 'Account', <AccountPage />),
                   page('*', 'Not found', <NotFound />),
                 ],
               },

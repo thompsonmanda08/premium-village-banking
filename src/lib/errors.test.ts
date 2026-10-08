@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import { friendlyError, isUnknownAccount } from './errors';
 
 const GENERIC = 'Something went wrong. Please try again.';
+const CONFIRM = 'For your security, enter the code we emailed you to confirm this change.';
 
 test('maps SQL business codes', () => {
   expect(friendlyError({ message: 'last_admin', code: 'P0001' })).toBe('The group needs at least one admin. Make someone else an admin first.');
@@ -74,6 +75,14 @@ const AUTH_CODES: Record<string, string> = {
   over_request_rate_limit: 'Too many attempts. Please wait a minute and try again.',
   same_password: 'Choose a password you haven’t used before.',
   weak_password: 'Choose a password of at least 12 characters, with letters and numbers.',
+  // account page: the same password rules checked on the phone, and the emailed code for a password change
+  password_too_short: 'Use at least 12 characters.',
+  password_needs_letters_digits: 'Use both letters and numbers.',
+  password_mismatch: 'The passwords don’t match.',
+  reauthentication_needed: CONFIRM,
+  reauth_nonce_missing: CONFIRM,
+  reauthentication_not_valid: 'That code isn’t right or has expired. Check your email, or go back to get a new code.',
+  manual_linking_disabled: 'Linking Google isn’t switched on yet. Please contact support.',
   otp_disabled: 'We couldn’t find an account for that email. Ask your treasurer for an invite.',
   // sign-in screens and the auth callback
   email_required: 'Enter your email address.',
