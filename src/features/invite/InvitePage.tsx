@@ -26,16 +26,6 @@ export function InvitePage() {
   const { signOut, pending: signingOut } = useSignOut(here);
   const attempted = useRef('');
 
-  const preview = useQuery({
-    queryKey: ['invite-preview', token],
-    retry: false,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('invite_preview', { p_token: token });
-      if (error) throw error;
-      return data as unknown as Preview;
-    },
-  });
-
   const accept = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.rpc('accept_invite', { p_token: token });
@@ -44,9 +34,27 @@ export function InvitePage() {
     },
     onSuccess: async (member) => {
       haptic();
-      await qc.invalidateQueries({ queryKey: ['membership'] });
+      // 'all': nothing mounted here observes membership, and a cached "no group" would otherwise be shown at /.
+      await qc.invalidateQueries({ queryKey: ['membership'], refetchType: 'all' });
+      qc.removeQueries({ queryKey: ['invite-preview', token] });
       toast(`Welcome, ${member.short_name}`, { tone: 'success' });
       navigate('/', { replace: true });
+    },
+  });
+
+  const preview = useQuery({
+    queryKey: ['invite-preview', token],
+    retry: false,
+    // One visit only: the token and member details are never reused or persisted (see shouldPersistQuery), and a refetch
+    // after the invite is accepted would answer "used".
+    gcTime: 0,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    enabled: !accept.isSuccess, // the cache entry is removed on success; do not build it again while navigating away
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('invite_preview', { p_token: token });
+      if (error) throw error;
+      return data as unknown as Preview;
     },
   });
 
@@ -61,17 +69,34 @@ export function InvitePage() {
     mutate();
   }, [token, userId, valid, mutate]);
 
+  // Try again after a failed link: clear the failure and go once more. The guard stays set, so the effect cannot add a second call.
+  const retry = () => {
+    accept.reset();
+    mutate();
+  };
+  const { message, code } = (accept.error ?? {}) as { message?: unknown; code?: unknown };
+  const mismatch = message === 'email_mismatch' || code === 'email_mismatch';
+
   const p = preview.data;
   const heading = p?.member_name ? `You’re invited to ${p.group_name} as ${p.member_name}` : 'Your invitation';
 
+  const linking = (
+    <p role="status" className="flex items-center gap-3 text-base text-muted">
+      <Loader2 aria-hidden className="size-5 animate-spin text-accent" /> Linking your account…
+    </p>
+  );
+
   return (
     <AuthLayout title="Join your group">
-      {preview.isPending || loading ? (
+      {accept.isPending || accept.isSuccess ? (
+        linking // whatever the preview says meanwhile (it turns "used" once the invite is accepted)
+      ) : preview.isPending || loading ? (
         <div role="status">
           <span className="sr-only">Loading your invitation…</span>
           <Skeleton className="h-40" />
         </div>
-      ) : preview.isError ? (
+      ) : preview.isError && !p ? (
+        // Data wins over a failed background refetch.
         <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void preview.refetch()}>Try again</Button>}>
           {friendlyError(preview.error)}
         </Alert>
@@ -92,17 +117,19 @@ export function InvitePage() {
             tone="danger"
             title="We couldn’t link your account"
             action={
-              <Button size="sm" variant="secondary" isLoading={signingOut} onClick={() => void signOut()}>
-                Sign out and use the invited email
-              </Button>
+              mismatch ? (
+                <Button size="sm" variant="secondary" isLoading={signingOut} onClick={() => void signOut()}>
+                  Sign out and use the invited email
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={retry}>Try again</Button>
+              )
             }
           >
             {friendlyError(accept.error)} You’re signed in as <strong>{session.user.email}</strong>.
           </Alert>
         ) : (
-          <p role="status" className="flex items-center gap-3 text-base text-muted">
-            <Loader2 aria-hidden className="size-5 animate-spin text-accent" /> Linking your account…
-          </p>
+          linking
         )
       ) : (
         <div className="grid gap-6">

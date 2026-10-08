@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { defaultShouldDehydrateQuery, QueryClient, type Query } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { del, get, set } from 'idb-keyval';
 
@@ -12,6 +12,9 @@ export const makeQueryClient = () =>
       mutations: { retry: 0 },
     },
   });
+
+/** The invite preview holds the raw invite token and the member's details: it lives for one visit and never reaches IndexedDB. */
+export const shouldPersistQuery = (query: Query): boolean => query.queryKey[0] !== 'invite-preview' && defaultShouldDehydrateQuery(query);
 
 export const persister = createAsyncStoragePersister({
   key: CACHE_KEY,
