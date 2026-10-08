@@ -104,10 +104,11 @@ Status legend: **FIXED** (in this change set) · **OPEN** (reason given).
 - **Fix (done, approved):** `db:reset` refuses any `SUPABASE_DB_URL` naming `PROD_PROJECT_REF` (new, in `.env.example`). Tested in `scripts/seed-guard.test.mjs` and proven against the real URL (exit 1, nothing run).
 - **Open:** create the production project separately and set `PROD_PROJECT_REF` to its ref in every `.env.local`; while it is unset, the guard does nothing. `db:test` has no such guard yet.
 
-### M-5 · Medium · No security headers or CSP; sessions live in `localStorage` — OPEN (hosting not set up yet)
+### M-5 · Medium · No security headers or CSP; sessions live in `localStorage` — FIXED
 - **Where:** no `vercel.json` / hosting config; `index.html` loads `/theme-init.js` (external file, so a strict CSP without `'unsafe-inline'` scripts is achievable).
 - **Description:** supabase-js keeps the session (access + refresh token) in `localStorage`, so any XSS means account takeover; CSP is the main backstop. Invite tokens travel in the URL path, so `Referrer-Policy` matters too (see L-6). Nothing is deployed, so nothing is exposed today.
-- **Fix (when hosting is chosen):** serve
+- **Fix (done):** `vercel.json` now serves the CSP (enforced), HSTS, `nosniff`, `Referrer-Policy: no-referrer` and `Permissions-Policy` on every path, with `frame-ancestors 'none'` in place of `X-Frame-Options`; `vite preview` mirrors the CSP.
+- **Original recommendation:** serve
   `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://<ref>.supabase.co wss://<ref>.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
   `Strict-Transport-Security: max-age=63072000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `X-Frame-Options: DENY`. Check the CSP against the built app (PWA service worker, fonts) before enforcing; start with `Content-Security-Policy-Report-Only`.
 
@@ -140,7 +141,7 @@ Status legend: **FIXED** (in this change set) · **OPEN** (reason given).
 - **Description:** deletes of planned `cycles`/`cycle_rules` are not audited (triggers are insert/update only); `audit_log` has no retention policy and keeps member PII snapshots forever.
 - **Fix:** add `after delete` triggers (write_audit needs to read `OLD` on delete); define retention when financial records arrive. Low while only planned cycles are deletable.
 
-### L-6 · Low · Invite token in the URL path — OPEN (frontend not built)
+### L-6 · Low · Invite token in the URL path — FIXED
 - **Where:** `invite-member/index.ts:75` builds `SITE_URL/invite/<token>`.
 - **Description:** URLs leak through Referer, browser history, and logs. Mitigated: tokens are 256-bit, single-use, expire, are stored hashed, and `accept_invite` also requires the signed-in email to match.
 - **Fix:** `Referrer-Policy: no-referrer` (M-5) is the control, set in `vercel.json`. `history.replaceState` is deliberately not used: the invite page reloads to the same URL after sign-out and for retry, and acceptance navigates with replace.

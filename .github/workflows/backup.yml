@@ -4,13 +4,17 @@ on:
     - cron: '23 1 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.120.0   # matches the supabase devDependency in bun.lock
       - run: sudo apt-get update && sudo apt-get install -y age
       - name: Dump roles, schema and data
         env:
@@ -20,6 +24,9 @@ jobs:
           supabase db dump --db-url "$DB_URL" -f backup/roles.sql --role-only
           supabase db dump --db-url "$DB_URL" -f backup/schema.sql
           supabase db dump --db-url "$DB_URL" -f backup/data.sql --use-copy --data-only
+          # A dump that silently lost the app or login data is worse than a failed run.
+          grep -Eq '^COPY "?public"?\."?members"? ' backup/data.sql
+          grep -Eq '^COPY "?auth"?\."?users"? ' backup/data.sql
           tar czf backup.tar.gz backup
       - name: Encrypt
         env:
@@ -29,4 +36,5 @@ jobs:
         with:
           name: pvb-backup-${{ github.run_id }}
           path: pvb-*.tar.gz.age
+          if-no-files-found: error
           retention-days: 90
