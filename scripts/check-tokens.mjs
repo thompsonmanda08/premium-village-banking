@@ -3,22 +3,36 @@ import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PALETTE = 'slate|zinc|gray|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black';
-const PROPS = 'bg|text|border|ring|from|via|to|shadow|fill|stroke|divide|outline|placeholder|decoration|caret';
+// Every utility prefix that takes a colour (inset-/drop-/text- variants of ring and shadow end in these).
+const PROPS = 'bg|text|border(?:-[trblxyse])?|(?:inset-)?ring(?:-offset)?|from|via|to|(?:inset-|drop-)?shadow|fill|stroke|divide|outline|placeholder|decoration|caret|accent';
+// Same list for dark: variants, minus shadow (dark:shadow-none is a legitimate elevation tweak, not a colour).
+const DARK_PROPS = 'bg|text|border|ring|from|via|to|fill|stroke|divide|outline|placeholder|decoration|caret|accent';
+// One Tailwind variant segment: hover, md, group-hover, aria-[x=y], [&>svg].
+const VARIANT = String.raw`(?:[\w-]+(?:-\[[^\]]*\])?|\[[^\]]*\])`;
 
 export const RULES = [
-  { name: 'raw palette colour', re: new RegExp(`\\b(?:${PROPS})-(?:${PALETTE})(?:-\\d{2,3})?(?:\\/\\d{1,3})?(?![\\w-])`) },
-  { name: 'text under 12px', re: /text-\[(?:\d|1[01])px\]/ },
-  { name: 'theme ternary', re: /\bisLight\b/ },
-  { name: 'dark: colour variant', re: /\bdark:(?:bg|text|border|ring)-/ },
-  { name: 'gradient', re: /\bbg-(?:gradient|linear)-to-/ },
+  { name: 'raw palette colour', re: new RegExp(String.raw`\b(?:${PROPS})-(?:${PALETTE})(?:-\d{2,3})?(?:\/(?:\d{1,3}|\[[^\]]+\]))?(?![\w-])`, 'g') },
+  {
+    name: 'arbitrary colour value',
+    re: new RegExp(String.raw`\b(?:${PROPS})-\[[^\]]*(?:#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl|hwb|lab|lch|oklab|oklch)a?\()`, 'g'),
+  },
+  {
+    name: 'text under 12px',
+    re: /\btext-\[(\d*\.?\d+)(px|rem|em)\]/g,
+    keep: (m) => Number(m[1]) * (m[2] === 'px' ? 1 : 16) < 12,
+  },
+  { name: 'theme ternary', re: /\bisLight\b/g },
+  { name: 'dark: colour variant', re: new RegExp(String.raw`\bdark:(?:${VARIANT}:)*(?:${DARK_PROPS})-`, 'g') },
+  { name: 'gradient', re: /\bbg-(?:gradient|linear|radial|conic)(?![A-Za-z0-9_])|\b(?:repeating-)?(?:linear|radial|conic)-gradient\(/g },
 ];
 
 export function scan(text) {
   const hits = [];
   text.split('\n').forEach((line, i) => {
     for (const rule of RULES) {
-      const m = line.match(rule.re);
-      if (m) hits.push({ line: i + 1, rule: rule.name, match: m[0] });
+      for (const m of line.matchAll(rule.re)) {
+        if (!rule.keep || rule.keep(m)) hits.push({ line: i + 1, rule: rule.name, match: m[0] });
+      }
     }
   });
   return hits;

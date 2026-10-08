@@ -33,3 +33,17 @@ test('closes from the close button', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Close' }));
   expect(screen.queryByRole('dialog')).toBeNull();
 });
+
+test('keeps Shift+Tab inside the dialog from a freshly opened sheet, and wraps Tab from the last element', async () => {
+  render(<Harness />);
+  await userEvent.click(screen.getByRole('button', { name: 'Open' }));
+  const dialog = screen.getByRole('dialog', { name: 'Settings' });
+  expect(dialog).toHaveFocus();
+
+  await userEvent.tab({ shift: true });
+  expect(dialog).toContainElement(document.activeElement as HTMLElement);
+  expect(screen.getByRole('button', { name: 'Inside' })).toHaveFocus();
+
+  await userEvent.tab();
+  expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
+});

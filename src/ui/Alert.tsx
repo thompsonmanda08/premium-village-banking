@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, OctagonAlert } from 'lucide-react';
 import { cn } from './cn';
 
 type AlertTone = 'info' | 'success' | 'warning' | 'danger';
@@ -9,7 +9,7 @@ const STYLE: Record<AlertTone, string> = {
   warning: 'bg-warning-soft text-warning',
   danger: 'bg-danger-soft text-danger',
 };
-const ICON = { info: Info, success: CheckCircle2, warning: AlertTriangle, danger: AlertTriangle };
+const ICON = { info: Info, success: CheckCircle2, warning: AlertTriangle, danger: OctagonAlert };
 
 export function Alert({ tone = 'info', title, children, action }: { tone?: AlertTone; title?: string; children: ReactNode; action?: ReactNode }) {
   const Icon = ICON[tone];

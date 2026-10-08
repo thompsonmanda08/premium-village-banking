@@ -17,13 +17,18 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 function trapFocus(e: KeyboardEvent, root: HTMLElement | null) {
   if (!root) return;
   const items = root.querySelectorAll<HTMLElement>(FOCUSABLE);
-  if (items.length === 0) return;
+  if (items.length === 0) {
+    e.preventDefault();
+    return;
+  }
   const first = items[0]!;
   const last = items[items.length - 1]!;
-  if (e.shiftKey && document.activeElement === first) {
+  const active = document.activeElement;
+  // The panel itself holds focus on open (tabindex=-1, not in `items`), so it counts as the start boundary.
+  if (e.shiftKey && (active === first || active === root || !root.contains(active))) {
     e.preventDefault();
     last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
+  } else if (!e.shiftKey && (active === last || !root.contains(active))) {
     e.preventDefault();
     first.focus();
   }

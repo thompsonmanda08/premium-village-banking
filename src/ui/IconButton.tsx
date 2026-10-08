@@ -21,8 +21,8 @@ export function IconButton({ label, icon, badge, className, type = 'button', ...
     >
       <span aria-hidden>{icon}</span>
       {badge ? (
-        <span aria-hidden className="absolute -right-0.5 -top-0.5 min-w-5 rounded-full bg-danger px-1 text-center text-xs font-semibold leading-5 text-on-accent">
-          {badge}
+        <span aria-hidden className="absolute -right-0.5 -top-0.5 min-w-5 rounded-full bg-accent-solid px-1 text-center text-xs font-semibold leading-5 text-on-accent">
+          {badge > 99 ? '99+' : badge}
         </span>
       ) : null}
     </button>
