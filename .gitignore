@@ -32,3 +32,4 @@ test-results
 supabase/.temp
 supabase/.branches
 supabase/functions/.env
+deno.lock

@@ -18,7 +18,7 @@
     "db:reset": "bun scripts/db-cli.mjs reset",
     "db:test": "bun scripts/db-test.mjs",
     "db:types": "bun scripts/db-cli.mjs types",
-    "fn:test": "deno test --allow-env supabase/functions/invite-member/lib.test.ts"
+    "fn:test": "bun x deno test --allow-env supabase/functions/invite-member/lib.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
