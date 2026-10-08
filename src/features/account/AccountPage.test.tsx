@@ -8,7 +8,7 @@ import { GroupProvider } from '@/features/group/GroupContext';
 import type { Membership } from '@/features/group/useMembership';
 import { ToastProvider } from '@/ui';
 
-const auth = { getUserIdentities: vi.fn(), updateUser: vi.fn(), reauthenticate: vi.fn(), linkIdentity: vi.fn() };
+const auth = { getUserIdentities: vi.fn(), updateUser: vi.fn(), reauthenticate: vi.fn() };
 const signOutEverywhere = vi.fn();
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -16,7 +16,6 @@ vi.mock('@/lib/supabase', () => ({
       getUserIdentities: (...a: unknown[]) => auth.getUserIdentities(...a),
       updateUser: (...a: unknown[]) => auth.updateUser(...a),
       reauthenticate: (...a: unknown[]) => auth.reauthenticate(...a),
-      linkIdentity: (...a: unknown[]) => auth.linkIdentity(...a),
     },
   },
 }));
@@ -38,9 +37,10 @@ function Where() {
   const { search } = useLocation();
   return <output data-testid="search">{search}</output>;
 }
-const renderAccount = (url = '/account') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+const renderAccount = (url = '/account') => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return { qc, ...render(
+    <QueryClientProvider client={qc}>
       <ThemeProvider>
         <ToastProvider>
           <MemoryRouter initialEntries={[url]}>
@@ -50,7 +50,8 @@ const renderAccount = (url = '/account') =>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>,
-  );
+  ) };
+};
 
 async function fillPasswords(password = GOOD, confirm = password) {
   await userEvent.type(screen.getByLabelText('New password'), password);
@@ -75,47 +76,47 @@ test('shows name, email and the group', async () => {
   await screen.findByText('Email');
 });
 
-test('lists each linked sign-in method by name; Google is offered only while it is not linked', async () => {
+test('lists each linked sign-in method by name and explains how Google gets linked; there is no link button', async () => {
   renderAccount();
   const list = await screen.findByRole('list', { name: 'Ways to sign in' });
   expect(list).toHaveTextContent('Email');
   expect(list).not.toHaveTextContent('Google');
-  expect(screen.getByRole('button', { name: 'Link Google' })).toBeInTheDocument();
+  expect(screen.getByText('Sign in with Google using this email and it links automatically.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /link google/i })).toBeNull();
 });
 
-test('a linked Google account shows as Google, with no link button', async () => {
+test('a linked Google account shows as Google, still with no link button', async () => {
   auth.getUserIdentities.mockResolvedValue(identities('email', 'google'));
   renderAccount();
   const list = await screen.findByRole('list', { name: 'Ways to sign in' });
   expect(list).toHaveTextContent('Email');
   expect(list).toHaveTextContent('Google');
-  expect(screen.queryByRole('button', { name: 'Link Google' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /link google/i })).toBeNull();
 });
 
-test('while the methods load there is a labelled placeholder; if they fail, a friendly sentence and no link button', async () => {
+test('while the methods load there is a labelled placeholder; if they fail, a friendly sentence and a way to retry', async () => {
   auth.getUserIdentities.mockResolvedValue({ data: null, error: { code: 'PGRST301', message: 'JWT expired secret-detail' } });
   renderAccount();
   expect(screen.getByText('Loading sign-in methods…')).toBeInTheDocument();
   expect(await screen.findByText('Your session has expired. Please sign in again.')).toBeInTheDocument();
   expect(screen.queryByText(/secret-detail/)).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Link Google' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /link google/i })).toBeNull();
 });
 
-test('Link Google starts the link flow and returns to the account page', async () => {
-  auth.linkIdentity.mockResolvedValue({ data: {}, error: null });
-  renderAccount();
-  await userEvent.click(await screen.findByRole('button', { name: 'Link Google' }));
-  expect(auth.linkIdentity).toHaveBeenCalledWith({
-    provider: 'google',
-    options: { redirectTo: 'http://localhost:3000/auth/callback?next=%2Faccount' },
+test('only provider names reach the query cache, never the identity rows with their emails and profile data', async () => {
+  auth.getUserIdentities.mockResolvedValue({
+    data: {
+      identities: [
+        { id: 'i1', user_id: 'u1', provider: 'email', identity_data: { email: 'member@pvb.test', sub: 'u1' } },
+        { id: 'i2', user_id: 'u1', provider: 'google', identity_data: { email: 'member@gmail.test', name: 'Sapi Mulimbika', avatar_url: 'https://x.test/a.png' } },
+      ],
+    },
+    error: null,
   });
-});
-
-test('a refused Google link says so in a friendly sentence', async () => {
-  auth.linkIdentity.mockResolvedValue({ data: null, error: { code: 'over_request_rate_limit', message: 'x' } });
-  renderAccount();
-  await userEvent.click(await screen.findByRole('button', { name: 'Link Google' }));
-  expect(await screen.findByText('Too many attempts. Please wait a minute and try again.')).toBeInTheDocument();
+  const { qc } = renderAccount();
+  await screen.findByRole('list', { name: 'Ways to sign in' });
+  expect(qc.getQueryData(['identities', 'u1'])).toEqual(['email', 'google']);
 });
 
 test('?reset=1 shows the set-a-new-password prompt; a plain visit does not', async () => {
@@ -219,6 +220,25 @@ test('a wrong code says so in a friendly sentence and stays on the code step; Ba
   await userEvent.click(screen.getByRole('button', { name: 'Back' }));
   expect(screen.getByLabelText('New password')).toHaveValue(GOOD);
   expect(screen.queryByLabelText('Code from your email')).toBeNull();
+});
+
+test('a password the server refuses after the code step goes back to the password field with its sentence', async () => {
+  auth.updateUser
+    .mockResolvedValueOnce({ data: null, error: { code: 'reauthentication_needed', message: 'x' } })
+    .mockResolvedValueOnce({ data: null, error: { code: 'same_password', message: 'New password should be different from the old password.' } });
+  auth.reauthenticate.mockResolvedValue({ data: {}, error: null });
+  renderAccount();
+  await fillPasswords();
+  await savePassword();
+  await userEvent.type(await screen.findByLabelText('Code from your email'), '123456');
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+  const input = await screen.findByLabelText('New password');
+  await waitFor(() => expect(input).toHaveAccessibleDescription('Choose a password you haven’t used before.'));
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  expect(input).toHaveFocus();
+  expect(screen.queryByLabelText('Code from your email')).toBeNull();
+  expect(screen.queryByText('Password saved')).toBeNull();
 });
 
 test('when the code email cannot be sent, the form stays and says why', async () => {

@@ -20,8 +20,6 @@ type FormError = { text: string; field?: Field };
 
 function SignInMethodsCard() {
   const { session } = useSession();
-  const toast = useToast();
-  const [linking, setLinking] = useState(false);
   const methods = useQuery({
     queryKey: ['identities', session?.user.id],
     // Only the provider names are kept: the identity rows carry emails and profile data that don't belong in the offline cache.
@@ -32,21 +30,6 @@ function SignInMethodsCard() {
     },
     staleTime: 0, // coming back from Google must show it linked, not a copy from a minute ago
   });
-
-  const linkGoogle = async () => {
-    setLinking(true);
-    try {
-      const { error } = await supabase.auth.linkIdentity({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/account')}` },
-      });
-      if (error) toast(friendlyError(error), { tone: 'danger' }); // on success the browser leaves for Google
-    } catch (err) {
-      toast(friendlyError(err), { tone: 'danger' });
-    } finally {
-      setLinking(false);
-    }
-  };
 
   const providers = methods.data;
   return (
@@ -62,9 +45,7 @@ function SignInMethodsCard() {
               </li>
             ))}
           </ul>
-          {providers.includes('google') ? null : (
-            <Button className="mt-3" variant="secondary" fullWidth isLoading={linking} onClick={() => void linkGoogle()}>Link Google</Button>
-          )}
+          <p className="mt-3 text-sm text-muted">Sign in with Google using this email and it links automatically.</p>
         </>
       ) : methods.isError ? (
         <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void methods.refetch()}>Try again</Button>}>
@@ -102,6 +83,8 @@ function PasswordCard({ resetting, onSaved }: { resetting: boolean; onSaved: () 
   }, [step]);
 
   const fail = (err: unknown, field?: Field) => setError({ text: friendlyError(err), field });
+  // The server checks the code first, then the password rules: a refused password belongs on the password field, on either step.
+  const refusedPassword = (err: { code?: string }) => err.code === 'weak_password' || err.code === 'same_password';
   const clear = (field: Field) => setError((e) => (e?.field === field ? null : e));
 
   const saved = () => {
@@ -134,7 +117,7 @@ function PasswordCard({ resetting, onSaved }: { resetting: boolean; onSaved: () 
       const { error: err } = await supabase.auth.updateUser({ password });
       if (!err) return saved();
       // A sign-in older than a day needs a one-time code from the member's email before the password may change.
-      if (err.code !== 'reauthentication_needed') return fail(err, err.code === 'weak_password' || err.code === 'same_password' ? 'password' : undefined);
+      if (err.code !== 'reauthentication_needed') return fail(err, refusedPassword(err) ? 'password' : undefined);
       const sent = await supabase.auth.reauthenticate();
       if (sent.error) return fail(sent.error);
       setStep('code');
@@ -146,8 +129,13 @@ function PasswordCard({ resetting, onSaved }: { resetting: boolean; onSaved: () 
     if (!code.trim()) return fail({ code: 'reauthentication_needed' }, 'code');
     void run(async () => {
       const { error: err } = await supabase.auth.updateUser({ password, nonce: code.trim() });
-      if (err) fail(err, 'code');
-      else saved();
+      if (!err) return saved();
+      if (refusedPassword(err)) {
+        setCode('');
+        setStep('password');
+        return fail(err, 'password');
+      }
+      fail(err, 'code');
     });
   };
 

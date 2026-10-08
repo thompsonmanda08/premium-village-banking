@@ -82,7 +82,6 @@ const AUTH_CODES: Record<string, string> = {
   reauthentication_needed: CONFIRM,
   reauth_nonce_missing: CONFIRM,
   reauthentication_not_valid: 'That code isn’t right or has expired. Check your email, or go back to get a new code.',
-  manual_linking_disabled: 'Linking Google isn’t switched on yet. Please contact support.',
   otp_disabled: 'We couldn’t find an account for that email. Ask your treasurer for an invite.',
   // sign-in screens and the auth callback
   email_required: 'Enter your email address.',

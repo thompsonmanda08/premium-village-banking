@@ -40,7 +40,6 @@ const KNOWN: Record<string, string> = {
   reauthentication_needed: CONFIRM_WITH_CODE,
   reauth_nonce_missing: CONFIRM_WITH_CODE,
   reauthentication_not_valid: 'That code isn’t right or has expired. Check your email, or go back to get a new code.',
-  manual_linking_disabled: 'Linking Google isn’t switched on yet. Please contact support.',
   otp_disabled: NO_ACCOUNT,
   // sign-in screens and the auth callback (the callback also passes the provider's error_code through here)
   email_required: 'Enter your email address.',
