@@ -7,31 +7,38 @@ import { RequireMembership } from '@/features/group/RequireMembership';
 import { ComingSoon } from '@/features/shells/ComingSoon';
 import { NotFound } from '@/features/shells/NotFound';
 import { AppShell } from './AppShell';
+import { RouteError } from './RouteError';
 
 const page = (path: string, title: string, element: ReactNode) => ({ path, element, handle: { title } });
 
 export const router = createBrowserRouter([
-  { path: '/sign-in', element: <SignInPage /> },
-  { path: '/auth/callback', element: <AuthCallback /> },
   {
-    element: <RequireAuth />,
+    errorElement: <RouteError />,
     children: [
+      { path: '/sign-in', element: <SignInPage /> },
+      { path: '/auth/callback', element: <AuthCallback /> },
       {
-        element: <RequireMembership />,
+        element: <RequireAuth />,
         children: [
           {
-            element: <AppShell />,
+            element: <RequireMembership />,
             children: [
-              { index: true, element: <ComingSoon title="Home" />, handle: { title: 'Home' } },
-              page('passbook', 'Passbook', <ComingSoon title="Passbook" />),
-              page('declare', 'Declare', <ComingSoon title="Declaration" />),
-              page('plan', 'Plan', <ComingSoon title="Plan" />),
-              page('record', 'My record', <ComingSoon title="Record" />),
-              page('group', 'Group', <ComingSoon title="Group" />),
-              page('desk', 'Desk', <ComingSoon title="Desk" />),
-              page('rules', 'Rules', <ComingSoon title="Rules" />),
-              page('account', 'Account', <ComingSoon title="Account" />),
-              page('*', 'Not found', <NotFound />),
+              {
+                element: <AppShell />,
+                errorElement: <RouteError />,
+                children: [
+                  { index: true, element: <ComingSoon title="Home" />, handle: { title: 'Home' } },
+                  page('passbook', 'Passbook', <ComingSoon title="Passbook" />),
+                  page('declare', 'Declare', <ComingSoon title="Declaration" />),
+                  page('plan', 'Plan', <ComingSoon title="Plan" />),
+                  page('record', 'My record', <ComingSoon title="Record" />),
+                  page('group', 'Group', <ComingSoon title="Group" />),
+                  page('desk', 'Desk', <ComingSoon title="Desk" />),
+                  page('rules', 'Rules', <ComingSoon title="Rules" />),
+                  page('account', 'Account', <ComingSoon title="Account" />),
+                  page('*', 'Not found', <NotFound />),
+                ],
+              },
             ],
           },
         ],

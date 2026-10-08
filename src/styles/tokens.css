@@ -75,8 +75,10 @@
     background: var(--canvas);
     color: var(--fg);
     -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: contain; /* keeps Android Chrome's native pull-to-refresh from fighting ours */
   }
   body {
+    overscroll-behavior-y: contain;
     min-height: 100dvh;
     font-family: var(--font-sans);
     font-size: 1rem;

@@ -18,6 +18,10 @@ export function PullToRefresh({ onRefresh, children }: { onRefresh: () => Promis
       onTouchMove={(e) => {
         if (startY.current !== null) setDistance(pullDistance((e.touches[0]?.clientY ?? 0) - startY.current));
       }}
+      onTouchCancel={() => {
+        startY.current = null;
+        setDistance(0);
+      }}
       onTouchEnd={async () => {
         const pulled = distance;
         startY.current = null;
@@ -26,12 +30,14 @@ export function PullToRefresh({ onRefresh, children }: { onRefresh: () => Promis
         setBusy(true);
         try {
           await onRefresh();
+        } catch {
+          // the caller surfaces its own errors; the indicator just resets
         } finally {
           setBusy(false);
         }
       }}
     >
-      <div aria-hidden className="flex justify-center overflow-hidden transition-[height] duration-150" style={{ height: busy ? 40 : distance }}>
+      <div aria-hidden className={cn('flex justify-center overflow-hidden', distance === 0 && 'transition-[height] duration-150')} style={{ height: busy ? 40 : distance }}>
         <RefreshCw className={cn('mt-2 size-5 text-muted', busy && 'animate-spin')} style={{ transform: `rotate(${distance * 3}deg)` }} />
       </div>
       {children}

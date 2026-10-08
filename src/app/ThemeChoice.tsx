@@ -19,7 +19,7 @@ export function ThemeChoice() {
           <label
             key={value}
             className={cn(
-              'flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border text-sm font-medium transition active:scale-[.97]',
+              'flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border text-sm font-medium transition active:scale-[.97] has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
               pref === value ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-surface text-fg',
             )}
           >

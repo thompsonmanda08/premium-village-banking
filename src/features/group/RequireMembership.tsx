@@ -11,7 +11,8 @@ import { useMembership } from './useMembership';
 export function RequireMembership() {
   const { session } = useSession();
   const query = useMembership(session?.user.id);
-  const state: MembershipState = query.isPending ? 'loading' : query.isError ? 'error' : query.data ? 'found' : 'none';
+  // Data wins over status: a failed background refetch keeps the last known membership (TanStack keeps `data` on error).
+  const state: MembershipState = query.isPending ? 'loading' : query.data !== undefined ? (query.data ? 'found' : 'none') : 'error';
   const access = decideAccess(false, Boolean(session), state);
 
   if (access === 'wait') return <FullScreenLoader />;

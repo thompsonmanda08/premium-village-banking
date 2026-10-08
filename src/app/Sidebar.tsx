@@ -9,7 +9,7 @@ import { ThemeChoice } from './ThemeChoice';
 export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { isAdmin, group } = useGroup();
   return (
-    <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-r border-line bg-surface p-4 md:flex">
+    <aside className="sticky top-0 hidden h-dvh flex-col gap-6 overflow-y-auto border-r border-line bg-surface p-4 md:flex">
       <div className="flex items-center gap-3 px-2">
         <BrandMark size={36} />
         <div className="min-w-0">
