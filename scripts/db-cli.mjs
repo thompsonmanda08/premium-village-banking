@@ -5,11 +5,13 @@ import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { clean } from './scrub.mjs'
+import { isLocalUrl, seedsRemote } from './seed-guard.mjs'
 
 const env = process.env
 const args = {
   push: ['db', 'push', '--db-url', env.SUPABASE_DB_URL, '--yes'],
-  reset: ['db', 'reset', '--db-url', env.SUPABASE_DB_URL, '--yes'],
+  // seed.sql (public-password accounts) is for the local/CI stack only: never seed a hosted database.
+  reset: ['db', 'reset', '--db-url', env.SUPABASE_DB_URL, '--yes', ...(isLocalUrl(env.SUPABASE_DB_URL) ? [] : ['--no-seed'])],
   types: ['gen', 'types', 'typescript', '--project-id', env.SUPABASE_PROJECT_REF, '--schema', 'public'],
 }[process.argv[2]]
 if (!args) {
@@ -18,6 +20,10 @@ if (!args) {
 }
 if (args.includes(undefined) || args.includes('')) {
   console.error('Missing SUPABASE_DB_URL / SUPABASE_PROJECT_REF. Copy .env.example to .env.local and fill it in.')
+  process.exit(1)
+}
+if (seedsRemote(args, env.SUPABASE_DB_URL)) {
+  console.error('Refusing to apply supabase/seed.sql to a database that is not localhost.')
   process.exit(1)
 }
 
