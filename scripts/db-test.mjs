@@ -20,6 +20,18 @@ const lines = (res) =>
 
 let sql
 let failed = 0
+
+// 00_helpers.sql leaves schema `tests` behind: security definer functions that write auth.users,
+// executable by anon/authenticated. On the hosted database that must not outlive a run, so it is
+// dropped before the first file (stale leftovers) and again after the last (finally below).
+const dropHelpers = async () => {
+  await sql.unsafe('rollback').simple().catch(() => {})
+  await sql
+    .unsafe('drop schema if exists tests cascade')
+    .simple()
+    .catch((e) => console.error(`warning: could not drop schema tests: ${clean(e?.message ?? e)}`))
+}
+
 // Everything that can throw, including building the client (a malformed URL throws a TypeError
 // whose `input` is the full connection string), stays inside this try.
 try {
@@ -28,6 +40,7 @@ try {
 
   sql = postgres(url, { max: 1, prepare: false, onnotice: () => {} })
   await sql.unsafe('create extension if not exists pgtap with schema extensions').simple()
+  await dropHelpers()
 
   for (const file of files) {
     let tap = []
@@ -39,7 +52,10 @@ try {
     }
     // Always roll back, so a file that forgot its own rollback; can't leak a transaction
     // (or its rows) into the next file. A stray rollback is only a notice.
+    // Then drop temp tables: pgTAP keeps its plan there, and 00_helpers.sql runs outside a
+    // transaction, so its plan() would otherwise survive and make the next file "plan twice".
     await sql.unsafe('rollback').simple().catch(() => {})
+    await sql.unsafe('discard temp').simple().catch(() => {})
 
     const ran = tap.filter((l) => /^(not )?ok\b/.test(l)).length
     const plan = tap.map((l) => /^1\.\.(\d+)/.exec(l)).find(Boolean)
@@ -61,6 +77,7 @@ try {
   console.error(`db:test could not run: ${clean(e?.message ?? e)}`)
   failed = 1
 } finally {
+  if (sql) await dropHelpers().catch(() => {})
   await sql?.end({ timeout: 5 }).catch(() => {})
 }
 process.exit(failed ? 1 : 0)
