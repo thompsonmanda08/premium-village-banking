@@ -58,3 +58,29 @@ test('falls back to a generic sentence for anything unknown', () => {
     expect(friendlyError(err)).toBe(GENERIC);
   }
 });
+
+// supabase-js auth errors carry a stable `code`; their message text is not a contract and has changed between releases.
+const AUTH_CODES: Record<string, string> = {
+  invalid_credentials: 'That email and password don’t match.',
+  email_not_confirmed: 'Confirm your email address first, using the link we sent you.',
+  over_email_send_rate_limit: 'Too many attempts. Please wait a minute and try again.',
+  over_request_rate_limit: 'Too many attempts. Please wait a minute and try again.',
+  same_password: 'Choose a password you haven’t used before.',
+  otp_disabled: 'We couldn’t find an account for that email. Ask your treasurer for an invite.',
+};
+
+test.each(Object.entries(AUTH_CODES))('maps auth error code %s whatever the message says', (code, sentence) => {
+  expect(friendlyError({ code, message: 'Some reworded upstream message', status: 400 })).toBe(sentence);
+  expect(friendlyError({ code, message: '' })).toBe(sentence);
+});
+
+test('an error code in the table wins over message-text matching', () => {
+  expect(friendlyError({ code: 'invalid_credentials', message: 'Failed to fetch' })).toBe('That email and password don’t match.');
+});
+
+test('names that exist on Object.prototype are not table hits', () => {
+  for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    expect(friendlyError({ message: name })).toBe(GENERIC);
+    expect(friendlyError({ code: name, message: 'x' })).toBe(GENERIC);
+  }
+});

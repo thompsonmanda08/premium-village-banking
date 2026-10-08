@@ -25,5 +25,5 @@ export const persister = createAsyncStoragePersister({
 export async function wipeLocalData(qc: QueryClient): Promise<void> {
   await qc.cancelQueries();
   qc.clear();
-  await del(CACHE_KEY);
+  await persister.removeClient();
 }

@@ -1,6 +1,12 @@
 const GENERIC = 'Something went wrong. Please try again.';
+const BAD_LOGIN = 'That email and password don’t match.';
+const NO_ACCOUNT = 'We couldn’t find an account for that email. Ask your treasurer for an invite.';
+const UNCONFIRMED = 'Confirm your email address first, using the link we sent you.';
+const NEW_PASSWORD = 'Choose a password you haven’t used before.';
+const TOO_MANY = 'Too many attempts. Please wait a minute and try again.';
 
-const BY_MESSAGE: Record<string, string> = {
+// Keyed by SQL business code, Edge Function code, supabase-js AuthError code, or (older shapes) exact message text.
+const KNOWN: Record<string, string> = {
   invite_not_found: 'This invite link isn’t valid. Ask your treasurer for a new one.',
   invite_expired: 'This invite has expired. Ask your treasurer to send a new one.',
   invite_revoked: 'This invite was cancelled. Ask your treasurer for a new one.',
@@ -20,11 +26,20 @@ const BY_MESSAGE: Record<string, string> = {
   invalid_email: 'Enter a valid email address.',
   invalid_member: 'That member could not be found.',
   invite_failed: 'The invite could not be sent. Please try again.',
-  'Invalid login credentials': 'That email and password don’t match.',
-  'Signups not allowed for otp': 'We couldn’t find an account for that email. Ask your treasurer for an invite.',
-  'Email not confirmed': 'Confirm your email address first, using the link we sent you.',
-  'New password should be different from the old password.': 'Choose a password you haven’t used before.',
+  invalid_credentials: BAD_LOGIN,
+  email_not_confirmed: UNCONFIRMED,
+  over_email_send_rate_limit: TOO_MANY,
+  over_request_rate_limit: TOO_MANY,
+  same_password: NEW_PASSWORD,
+  otp_disabled: NO_ACCOUNT,
+  'Invalid login credentials': BAD_LOGIN,
+  'Signups not allowed for otp': NO_ACCOUNT,
+  'Email not confirmed': UNCONFIRMED,
+  'New password should be different from the old password.': NEW_PASSWORD,
 };
+
+// hasOwn: a code or message like "constructor" must not resolve to an Object.prototype member.
+const known = (key: unknown): string | undefined => (typeof key === 'string' && Object.hasOwn(KNOWN, key) ? KNOWN[key] : undefined);
 
 type ErrorLike = { message?: unknown; code?: unknown; status?: unknown };
 
@@ -33,10 +48,10 @@ export function friendlyError(err: unknown): string {
   if (!err || typeof err !== 'object') return GENERIC;
   const { message, code, status } = err as ErrorLike;
   const msg = typeof message === 'string' ? message : '';
-  // hasOwn: a message like "constructor" must not resolve to an Object.prototype member.
-  if (Object.hasOwn(BY_MESSAGE, msg)) return BY_MESSAGE[msg] ?? GENERIC;
-  if (status === 429 || /rate limit/i.test(msg)) return 'Too many attempts. Please wait a minute and try again.';
-  if (code === '42501' || code === 'PGRST301') return BY_MESSAGE.not_admin ?? GENERIC;
+  const hit = known(code) ?? known(msg);
+  if (hit) return hit;
+  if (status === 429 || /rate limit/i.test(msg)) return TOO_MANY;
+  if (code === '42501' || code === 'PGRST301') return KNOWN.not_admin ?? GENERIC;
   if (code === '23505') return 'That name is already used in this group.';
   if (status === 401 || code === 'PGRST303') return 'Your session has expired. Please sign in again.';
   if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'You seem to be offline. Check your connection and try again.';
