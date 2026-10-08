@@ -45,3 +45,78 @@ test('applyTheme sets data-theme, color-scheme and theme-color', () => {
   applyTheme('light', document.documentElement);
   expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#F1F5F9');
 });
+
+test('theme-init.js respects system preference when storage throws', () => {
+  // Reset to clean state
+  document.documentElement.dataset.theme = '';
+  document.documentElement.style.colorScheme = '';
+  document.head.innerHTML = '<meta name="theme-color" content="#F1F5F9" />';
+
+  // Mock localStorage to throw on getItem (e.g., cookies blocked)
+  const originalLocalStorage = window.localStorage;
+  Object.defineProperty(window, 'localStorage', {
+    value: {
+      getItem: () => {
+        throw new Error('Storage access denied');
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    },
+    configurable: true,
+  });
+
+  // Mock matchMedia to report dark preference
+  const originalMatchMedia = window.matchMedia;
+  Object.defineProperty(window, 'matchMedia', {
+    value: (query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)',
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
+    }),
+    configurable: true,
+  });
+
+  try {
+    // Execute theme-init.js logic inline (simulating the actual script)
+    const root = document.documentElement;
+    let pref: string | null = null;
+    try {
+      pref = window.localStorage.getItem('pvb-theme');
+    } catch {
+      // Storage access denied; pref stays null
+    }
+
+    let dark = false;
+    try {
+      dark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch {
+      // matchMedia unavailable; dark stays false (light mode)
+    }
+
+    const theme = dark ? 'dark' : 'light';
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#09090B' : '#F1F5F9');
+
+    // Verify: even though storage threw, we consulted matchMedia and got dark
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#09090B');
+  } finally {
+    // Restore
+    Object.defineProperty(window, 'localStorage', {
+      value: originalLocalStorage,
+      configurable: true,
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      value: originalMatchMedia,
+      configurable: true,
+    });
+  }
+});

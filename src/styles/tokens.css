@@ -87,6 +87,9 @@
     outline: 3px solid var(--accent);
     outline-offset: 2px;
   }
+  *, ::before, ::after {
+    border-color: var(--line);
+  }
 }
 
 @utility tabular {
