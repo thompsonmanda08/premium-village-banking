@@ -2,7 +2,13 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
+
+const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8')) as {
+  headers: { source: string; headers: { key: string; value: string }[] }[];
+};
+const csp = vercel.headers[0]!.headers.find((h) => h.key === 'Content-Security-Policy')!.value;
 
 export default defineConfig({
   plugins: [
@@ -40,6 +46,14 @@ export default defineConfig({
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: { port: 3000 },
+  preview: {
+    headers: {
+      'Content-Security-Policy': csp.replace(
+        "connect-src 'self'",
+        "connect-src 'self' http://127.0.0.1:54321 ws://127.0.0.1:54321",
+      ),
+    },
+  },
   test: {
     environment: 'jsdom',
     environmentOptions: { jsdom: { url: 'http://localhost:3000/' } },

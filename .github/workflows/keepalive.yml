@@ -1,0 +1,19 @@
+name: Keep Supabase awake
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays 06:17 UTC; free projects pause after 7 idle days
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - run: |
+          curl --fail --silent --show-error \
+            "$SUPABASE_URL/rest/v1/rpc/invite_preview" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"p_token":"keepalive"}'

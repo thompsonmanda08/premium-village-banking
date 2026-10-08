@@ -1,0 +1,32 @@
+name: Nightly encrypted backup
+on:
+  schedule:
+    - cron: '23 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: sudo apt-get update && sudo apt-get install -y age
+      - name: Dump roles, schema and data
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir backup
+          supabase db dump --db-url "$DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$DB_URL" -f backup/data.sql --use-copy --data-only
+          tar czf backup.tar.gz backup
+      - name: Encrypt
+        env:
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: age -r "$AGE_RECIPIENT" -o "pvb-$(date -u +%F).tar.gz.age" backup.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pvb-backup-${{ github.run_id }}
+          path: pvb-*.tar.gz.age
+          retention-days: 90

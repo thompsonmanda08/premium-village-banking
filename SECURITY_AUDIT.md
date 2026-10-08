@@ -143,7 +143,7 @@ Status legend: **FIXED** (in this change set) · **OPEN** (reason given).
 ### L-6 · Low · Invite token in the URL path — OPEN (frontend not built)
 - **Where:** `invite-member/index.ts:75` builds `SITE_URL/invite/<token>`.
 - **Description:** URLs leak through Referer, browser history, and logs. Mitigated: tokens are 256-bit, single-use, expire, are stored hashed, and `accept_invite` also requires the signed-in email to match.
-- **Fix:** `Referrer-Policy: no-referrer` (M-5); the invite page should `history.replaceState` the token out of the address bar once read.
+- **Fix:** `Referrer-Policy: no-referrer` (M-5) is the control, set in `vercel.json`. `history.replaceState` is deliberately not used: the invite page reloads to the same URL after sign-out and for retry, and acceptance navigates with replace.
 
 ### L-7 · Low · Edge Function dependencies unpinned — OPEN
 - **Where:** `index.ts:1` imports `jsr:@supabase/supabase-js@2`; `deno.lock` is gitignored.
