@@ -1,20 +1,24 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Premium Village Bank
 
-# Run and deploy your AI Studio app
+Mobile-first savings, declarations and loans app for Premium Village Banking.
+Vite + React SPA on Vercel, Supabase (Postgres, Auth, Edge Functions) on the free tier.
 
-This contains everything you need to run your app locally.
+## Develop
 
-View your app in AI Studio: https://ai.studio/apps/241a92a0-d25c-43ad-a7f2-d4409a07e3d4
+Prerequisites: Bun 1.4+, Docker (for the local Supabase stack), Deno 2 (Edge Function tests).
 
-## Run Locally
+    bun install
+    bun run db:start        # local Supabase on :54321, applies migrations + seed
+    cp .env.example .env.local   # then paste the anon key printed by db:start
+    bun run dev             # http://localhost:3000
 
-**Prerequisites:**  Node.js
+Local accounts (password `password123`): owner@pvb.test, admin@pvb.test, member@pvb.test, outsider@pvb.test.
 
+## Check
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+    bun run typecheck && bun run lint && bun run check:tokens && bun run test
+    bun run db:test         # pgTAP RLS suite
+    bun run fn:test         # Edge Function unit tests
+    bun run e2e             # Playwright smoke (starts the dev server)
+
+Specs and plans: `docs/superpowers/`. Operations: `docs/ops/`.

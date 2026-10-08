@@ -1,8 +1,0 @@
-{
-  "name": "Daily Dashboard",
-  "description": "A modular, enterprise-ready ERP & EduTech dashboard platform featuring customizable academic calendar & timetable widgets, automated biometric/QR attendance registers, student cohort management, multi-stage document approval workflows, certified PDF viewer, procurement management, video course classroom, e-commerce storefront, and reusable UI components.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}
