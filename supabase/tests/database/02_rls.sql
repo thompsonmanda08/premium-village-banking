@@ -94,8 +94,9 @@ select is(
   + (select count(*)::int from invites where revoked_at is not null) + (select count(*)::int from cycles where label = 'X')
   + (select count(*)::int from cycle_rules where min_saving = 1),
   0, 'outsider edits nothing');
-select is((select count(*)::int from cycles), 2, 'outsider deletes no cycles');
-select is((select count(*)::int from cycle_rules), 2, 'outsider deletes no cycle rules');
+-- Scoped to the fixture groups: the CI seed leaves a committed Premium VB cycle and rules behind.
+select is((select count(*)::int from cycles where group_id in (tests.id('group'), tests.id('group2'))), 2, 'outsider deletes no cycles');
+select is((select count(*)::int from cycle_rules r join cycles c on c.id = r.cycle_id where c.group_id in (tests.id('group'), tests.id('group2'))), 2, 'outsider deletes no cycle rules');
 
 -- groups -------------------------------------------------------------------
 select tests.login_as(tests.id('member'));

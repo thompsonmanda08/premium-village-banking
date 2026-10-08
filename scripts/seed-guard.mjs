@@ -2,10 +2,13 @@
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
 
 // Parsed with URL, not a regex, so `postgresql://localhost@evil.example/db` is not "local".
+// libpq and pgx let ?host= / ?hostaddr= override the authority, so either one makes it remote.
 // Anything unparseable counts as remote.
 export const isLocalUrl = (url) => {
   try {
-    return LOCAL_HOSTS.has(new URL(url).hostname.toLowerCase())
+    const u = new URL(url)
+    if ([...u.searchParams.keys()].some((k) => ['host', 'hostaddr'].includes(k.toLowerCase()))) return false
+    return LOCAL_HOSTS.has(u.hostname.toLowerCase())
   } catch {
     return false
   }

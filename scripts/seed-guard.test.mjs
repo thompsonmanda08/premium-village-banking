@@ -4,12 +4,22 @@ import { isLocalUrl, seeds, seedsRemote } from './seed-guard.mjs'
 const reset = (...more) => ['db', 'reset', '--db-url', 'u', '--yes', ...more]
 
 test('only localhost-style hosts are local', () => {
-  for (const u of ['postgresql://postgres:x@127.0.0.1:54322/postgres', 'postgresql://p@localhost/db', 'postgresql://p@[::1]:5432/db'])
+  for (const u of [
+    'postgresql://postgres:x@127.0.0.1:54322/postgres',
+    'postgresql://p@localhost/db',
+    'postgresql://p@LOCALHOST:5432/db?sslmode=disable',
+    'postgresql://p@[::1]:5432/db',
+  ])
     expect(isLocalUrl(u), u).toBe(true)
   for (const u of [
     'postgresql://postgres.ref:x@pooler.example.com:5432/postgres',
     'postgresql://localhost@evil.example/db',
     'postgresql://p@127.0.0.1.evil.example/db',
+    'postgresql://p@EVIL.EXAMPLE/db',
+    'postgresql://p@localhost/db?host=evil.example',
+    'postgresql://p@localhost/db?HOST=evil.example',
+    'postgresql://p@localhost/db?sslmode=disable&hostaddr=203.0.113.9',
+    'postgresql://p@localhost/db?Ho%73tAddr=203.0.113.9',
     'not a url',
     '',
     undefined,

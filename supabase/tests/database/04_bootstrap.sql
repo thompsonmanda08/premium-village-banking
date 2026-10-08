@@ -15,6 +15,12 @@ select is((select count(*)::int from cycles where group_id = tests.id('pvb') and
 select is((select starts_on::text || ' ' || payout_on::text from cycles where group_id = tests.id('pvb')), '2027-02-15 2028-02-05', 'cycle dates');
 select is((select r.min_saving from cycle_rules r join cycles c on c.id = r.cycle_id where c.group_id = tests.id('pvb')), 250::numeric, 'constitution rules');
 select is((select jsonb_array_length(r.tenor_bands) from cycle_rules r join cycles c on c.id = r.cycle_id where c.group_id = tests.id('pvb')), 4, 'four tenor bands');
+select is((select r.loan_multiples::jsonb from cycle_rules r join cycles c on c.id = r.cycle_id where c.group_id = tests.id('pvb')),
+  '[{"from_month":1,"to_month":4,"multiple":3},{"from_month":5,"to_month":9,"multiple":2},{"from_month":10,"to_month":11,"multiple":1},{"from_month":12,"to_month":12,"multiple":0}]'::jsonb,
+  'loan multiples follow the constitution');
+select is((select r.tenor_bands::jsonb from cycle_rules r join cycles c on c.id = r.cycle_id where c.group_id = tests.id('pvb')),
+  '[{"max":3000,"months":1},{"max":5000,"months":2},{"max":9999.99,"months":3},{"max":null,"months":4}]'::jsonb,
+  'tenor bands follow the constitution');
 select throws_ok($$select private.bootstrap_premium_vb(tests.id('boss'))$$, 'P0001', 'already_bootstrapped', 'bootstrap runs once');
 
 -- Nothing in schema private is reachable by app roles or PUBLIC, now or on future functions.
