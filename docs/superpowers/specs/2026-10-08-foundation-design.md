@@ -96,11 +96,45 @@ All of `components/views/*` (Overview, Analytics, DataRecords, ProjectsBoard, Co
 
 ## 4. Design system
 
-Carried over from the artifact; persisted with ui-ux-pro-max as `design-system/premium-vb/MASTER.md` during implementation.
+The template's own theme is kept (slate light, zinc dark, indigo accent, Inter) and cleaned up. Persisted as `DESIGN.md` plus `src/styles/tokens.css` during implementation.
 
-- **Colour tokens** (CSS variables, light and dark): `paper` #EEF2EE / #0F1A16, `sheet` #FFFFFF / #16241F, `ink` #132A22 / #E4ECE7, `muted` #5E6F67 / #93A69C, `line` #D3DCD5 / #2A3B34, `malachite` #1D6B4E / #4FB58B, `malachite-soft`, `copper` #B5652A / #E08A4A, `copper-soft`, `red` #A63A2B / #E07A6A. Text on filled malachite uses `paper` (≥4.5:1 in both themes).
-- **Type**: Bricolage Grotesque (headings, figures), Instrument Sans (body), tabular figures for money; body ≥16px on phones.
-- **Theme**: system by default, with a light/dark override stored per device.
+### Problems in the template theme
+
+| Problem | Evidence | Fix |
+|---|---|---|
+| Theme toggle and `dark:` classes disagree | Tailwind CDN runs with the default `darkMode: 'media'`, so ~1,480 `dark:` classes follow the OS, while 8 files switch on React `theme` state (`isLight ? … : …`). Toggling gives a half-light, half-dark screen | One mechanism: `data-theme` on `<html>`, Tailwind v4 `@custom-variant dark ([data-theme=dark] &)`; system by default, per-device override; delete every `isLight` ternary |
+| Colours hardcoded per component | 1,000+ raw palette classes (`slate-200`, `zinc-800`, `indigo-500`, `white/5` …) | Components use semantic tokens only (`bg-surface`, `text-muted`, `border-line` …) |
+| Muted text fails contrast | `slate-400` on white 2.56:1; `zinc-500` on zinc-900 3.67:1 | Muted text is `slate-600` (7.58:1) / `zinc-400` (6.91:1) |
+| Text too small for phones | 262 uses of 9–11px text | Floor of 12px for metadata only; body 16px on phones, 14px dense desktop tables |
+| Decorative effects | glow shadows (`shadow-indigo-500/20`, 29×), 60 gradients, glass `backdrop-blur` cards, noise overlay, indigo→purple→emerald logo | Removed. Blur only on sticky bars; flat surfaces; light mode uses `shadow-sm`, dark mode uses borders; solid indigo logo mark |
+| Accent drifts | `indigo-400/500/600` and `purple-*` used interchangeably | One accent per mode (below); purple dropped |
+| Hairline borders vanish in dark | `zinc-800` on `zinc-900` 1.19:1, `white/5` | Dark borders use `zinc-700` (1.70:1) for structure, `zinc-800` only inside surfaces |
+
+### Tokens
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `bg` | slate-100 `#F1F5F9` | zinc-950 `#09090B` | app background |
+| `surface` | white `#FFFFFF` | zinc-900 `#18181B` | cards, sheets, bars |
+| `surface-2` | slate-50 `#F8FAFC` | zinc-800 `#27272A` | insets, table headers, chips |
+| `line` | slate-200 `#E2E8F0` | zinc-700 `#3F3F46` | borders, dividers |
+| `text` | slate-900 `#0F172A` | zinc-100 `#F4F4F5` | primary text (16.3:1 / 18.1:1) |
+| `text-muted` | slate-600 `#475569` | zinc-400 `#A1A1AA` | secondary text (7.6:1 / 6.9:1) |
+| `accent` | indigo-600 `#4F46E5` | indigo-400 `#818CF8` | links, active nav, focus ring (6.3:1 / 5.9:1) |
+| `accent-solid` | indigo-600 | indigo-600 | filled buttons, white text 6.3:1 in both modes (indigo-500 is only 4.47:1, so it is not used) |
+| `accent-soft` | indigo-50 | indigo-500 at 15% | selected rows, active nav pill |
+| `success` | emerald-700 `#047857` | emerald-400 `#34D399` | logged, money in, on track (5.5:1 / 9.2:1) |
+| `warning` | amber-700 `#B45309` | amber-400 `#FBBF24` | pending, owed, watch (5.0:1 / 10.6:1) |
+| `danger` | rose-600 `#E11D48` | rose-400 `#FB7185` | overdue, penalties, destructive (4.7:1 / 6.6:1) |
+| `info` | sky-700 | sky-400 | neutral notices |
+
+Each semantic colour has a `-soft` background at 10% (light) / 15% (dark) for badges. Money conventions: savings and earnings in `success`, amounts owed in `warning`, penalties and losses in `danger`.
+
+### Type, shape, motion
+
+- **Type**: Inter (the template's font), weights 400/500/600/700, `font-variant-numeric: tabular-nums` on all figures. Scale: 12 (metadata), 14 (dense desktop tables), 16 (body), 20, 24, 32 (balances). Body ≥16px on phones.
+- **Shape**: the template's radii: `rounded-xl` controls, `rounded-2xl` cards, full-pill badges and chips.
+- **Motion**: 150–200ms ease-out for state changes; route transitions per §7; all disabled under `prefers-reduced-motion`.
 - **Icons**: lucide-react only, never emoji; icon-only buttons carry `aria-label`.
 - **Status**: never colour alone; every badge has a text label and a glyph.
 
@@ -112,7 +146,9 @@ All tables have `id uuid primary key default gen_random_uuid()`, `created_at tim
 groups (
   name text not null,
   currency text not null default 'ZMW',
-  owner_user_id uuid not null references auth.users
+  owner_user_id uuid not null references auth.users,
+  figures_visibility text not null default 'open'
+    check (figures_visibility in ('open','private'))   -- see §6
 )
 
 members (
@@ -191,13 +227,21 @@ RLS is enabled on every table; there are no policies for `anon`.
 
 | Table | Select | Insert / update / delete |
 |---|---|---|
-| groups | `is_member(id)` | update: `is_admin(id)` |
+| groups | `is_member(id)` | update: `is_admin(id)` (includes `figures_visibility`) |
 | members | Base table: `is_admin(group_id)` or `user_id = auth.uid()`. Other members read the group list through the view `group_members` (owned by a definer role, filtered by `is_member(group_id)`), which exposes only id, full_name, short_name, role, status and linked (bool), never email, phone or user_id | admins: insert, update name/contact/status. `role` and `user_id` change only via `set_admin` / `accept_invite` (column privileges revoked) |
 | invites | `is_admin(group_id)` | via Edge Function / admins; revoke = update `revoked_at` |
 | cycles, cycle_rules | `is_member(group_id)` | `is_admin(group_id)`; `cycle_rules` writable only while the cycle is `planned` |
 | audit_log | `is_admin(group_id)` | none from clients; written by functions and triggers |
 
-Privacy rule carried into later sub-projects: a member reads their own ledger rows and group aggregates; admins read all rows.
+### Figures visibility (transparency now, privacy switch later)
+
+The group currently shares every member's figures, as the workbook and the artifact do. That stays the default.
+
+- `groups.figures_visibility` is `'open'` (default) or `'private'`.
+- Foundation adds `can_see_figures(group_id, member_id) → bool` (`stable security definer`): true if the caller is an admin, or the member is the caller, or `figures_visibility = 'open'` and the caller `is_member(group_id)`.
+- Every per-member ledger table and view in sub-projects 2–4 uses this function in its select policy, so switching to `'private'` needs no migration or code change. Group totals stay visible to all members in both modes.
+- Only admins change the setting, from the gear drawer, with a confirmation step and an `audit_log` entry. Members see a one-line notice of the current mode on the Group screen.
+- pgTAP covers both modes: in `'open'` a member reads another member's rows; in `'private'` they read only their own.
 
 ## 7. Screens and navigation
 
@@ -220,7 +264,7 @@ Privacy rule carried into later sub-projects: a member reads their own ledger ro
 | `/group` | members list: name, role, linked yes/no |
 | `/desk` | admins only; empty state until sub-project 4. Non-admins get a 404-style "not available" screen |
 | `/rules` | cycle rules and calendar |
-| `?settings=open` | gear drawer (admins): group details; admins (promote/demote); members (add, edit, mark left) and invites (send, resend, revoke, status); cycle rules (editable while `planned`) |
+| `?settings=open` | gear drawer (admins): group details; figures visibility (open / private, with confirmation); admins (promote/demote); members (add, edit, mark left) and invites (send, resend, revoke, status); cycle rules (editable while `planned`) |
 | `/account` | name, email, linked sign-in methods, set/change password, sign out |
 
 Unauthenticated users are redirected to `/sign-in`; authenticated users with no membership see "Your account isn't linked to a group. Ask your treasurer for an invite."
@@ -276,7 +320,7 @@ Merge to `main` deploys the frontend to production.
 
 1. An invited member signs in on a phone with each of the three methods and is linked to the right member.
 2. The owner promotes an admin; the admin sees Desk in the bottom nav and the gear; a member sees neither, and a member's attempt to call `set_admin` or write `cycle_rules` is refused by Postgres.
-3. All pgTAP RLS tests pass.
+3. All pgTAP RLS tests pass, including both figures-visibility modes.
 4. Lighthouse mobile: performance ≥90, accessibility ≥90; installable PWA; no horizontal scroll at 360px.
 5. Production deploy is green, the keep-alive and backup jobs have run, and a restore has been tested.
 
@@ -288,5 +332,5 @@ Merge to `main` deploys the frontend to production.
 | No downloadable backups on the free tier | Nightly encrypted `pg_dump` (§8) |
 | Resend free tier: 100 emails/day, 3,000/month | Ample for 18 members; magic links are rate-limited per address by Supabase |
 | Members without Google or reliable email | Email + password works without Google; the treasurer can resend invites |
-| Privacy change from the artifact (members no longer see each other's figures) | Group-level aggregates stay visible; confirm with the group before cutover |
+| Switching to private mode upsets members used to transparency | Default stays `open`; the switch is an admin decision, announced in-app, audited, and reversible |
 | Only one Supabase project for prod; previews hit prod | Preview test accounts belong to no group, so RLS shows them nothing |
