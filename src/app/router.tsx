@@ -4,6 +4,7 @@ import { AuthCallback } from '@/features/auth/AuthCallback';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import { SignInPage } from '@/features/auth/SignInPage';
 import { RequireMembership } from '@/features/group/RequireMembership';
+import { InvitePage } from '@/features/invite/InvitePage';
 import { ComingSoon } from '@/features/shells/ComingSoon';
 import { NotFound } from '@/features/shells/NotFound';
 import { AppShell } from './AppShell';
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/sign-in', element: <SignInPage /> },
       { path: '/auth/callback', element: <AuthCallback /> },
+      { path: '/invite/:token', element: <InvitePage /> },
       {
         element: <RequireAuth />,
         children: [

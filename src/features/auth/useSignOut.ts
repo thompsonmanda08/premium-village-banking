@@ -7,9 +7,10 @@ import { signOutEverywhere } from './signOut';
 /**
  * The one Sign out action. When the network sign-out fails (offline), supabase-js never emits SIGNED_OUT, so the session
  * provider would keep the previous member in memory; a full reload drops that state and any pending timers. If the local
- * wipe itself fails the person stays put with a message and can try again.
+ * wipe itself fails the person stays put with a message and can try again. `to` is where the reload lands (an invite page
+ * passes its own URL so the person can open it again with the right account).
  */
-export function useSignOut() {
+export function useSignOut(to = '/sign-in') {
   const qc = useQueryClient();
   const toast = useToast();
   const [pending, setPending] = useState(false);
@@ -18,12 +19,12 @@ export function useSignOut() {
     setPending(true);
     try {
       await signOutEverywhere(qc);
-      window.location.replace('/sign-in'); // stay "pending" until the page unloads
+      window.location.replace(to); // stay "pending" until the page unloads
     } catch (err) {
       toast(friendlyError(err), { tone: 'danger' });
       setPending(false);
     }
-  }, [qc, toast]);
+  }, [qc, toast, to]);
 
   return { signOut, pending };
 }

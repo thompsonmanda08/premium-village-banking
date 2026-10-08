@@ -63,3 +63,16 @@ test('the More sheet signs out the same way', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/sign-in'));
 });
+
+test('leaves for the destination it was given, e.g. back to an invite link signed out', async () => {
+  signOutEverywhere.mockResolvedValue(undefined);
+  const { useSignOut } = await import('./useSignOut');
+  function Probe() {
+    const { signOut } = useSignOut('/invite/tok');
+    return <button onClick={() => void signOut()}>Leave</button>;
+  }
+  render(wrap(<Probe />));
+  await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+  await waitFor(() => expect(replace).toHaveBeenCalledWith('/invite/tok'));
+  expect(replace).not.toHaveBeenCalledWith('/sign-in');
+});
