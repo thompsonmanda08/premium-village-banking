@@ -39,4 +39,5 @@ test('formatDate is locale-independent', () => {
 
 test('localISODate uses local calendar fields', () => {
   expect(localISODate(new Date(2027, 1, 5, 23, 30))).toBe('2027-02-05');
+  expect(localISODate(new Date(2027, 1, 5, 0, 30))).toBe('2027-02-05');
 });
