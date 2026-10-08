@@ -14,9 +14,10 @@
     "check:tokens": "node scripts/check-tokens.mjs src",
     "e2e": "playwright test",
     "db:start": "supabase start",
-    "db:reset": "supabase db reset",
-    "db:test": "supabase test db",
-    "db:types": "supabase gen types typescript --local --schema public > src/lib/database.types.ts",
+    "db:push": "bun scripts/db-cli.mjs push",
+    "db:reset": "bun scripts/db-cli.mjs reset",
+    "db:test": "bun scripts/db-test.mjs",
+    "db:types": "bun scripts/db-cli.mjs types",
     "fn:test": "deno test --allow-env supabase/functions/invite-member/lib.test.ts"
   },
   "dependencies": {
@@ -50,6 +51,7 @@
     "fake-indexeddb": "^6",
     "globals": "^17.13.0",
     "jsdom": "^30.1.2",
+    "postgres": "^3.4.9",
     "supabase": "^2",
     "tailwindcss": "^4",
     "typescript": "~5.8",

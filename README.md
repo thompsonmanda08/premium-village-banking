@@ -5,14 +5,22 @@ Vite + React SPA on Vercel, Supabase (Postgres, Auth, Edge Functions) on the fre
 
 ## Develop
 
-Prerequisites: Bun 1.4+, Docker (for the local Supabase stack), Deno 2 (Edge Function tests).
+Prerequisites: Bun 1.4+, Deno 2 (Edge Function tests). No Docker needed: development runs against a hosted Supabase project, whose database may be reset freely until go-live.
 
     bun install
-    bun run db:start        # local Supabase on :54321, applies migrations + seed
-    cp .env.example .env.local   # then paste the anon key printed by db:start
-    bun run dev             # http://localhost:3000
+    cp .env.example .env.local   # fill in the URL, anon key, project ref, access token and DB URL (see comments inside)
+    bun run db:reset             # drop and re-apply every migration (and seed) on the hosted DB
+    bun run dev                  # http://localhost:3000
 
-Local accounts (password `password123`): owner@pvb.test, admin@pvb.test, member@pvb.test, outsider@pvb.test.
+Database scripts (all read `.env.local`; the CLI-only values never reach the browser bundle):
+
+    bun run db:push     # apply new migrations to the hosted DB
+    bun run db:reset    # wipe the hosted DB and re-apply all migrations + seed
+    bun run db:test     # pgTAP suite in supabase/tests/database against the hosted DB
+    bun run db:types    # regenerate src/lib/database.types.ts
+    bun run db:start    # optional local stack (needs Docker); CI uses this
+
+Seeded accounts (password `password123`): owner@pvb.test, admin@pvb.test, member@pvb.test, outsider@pvb.test.
 
 ## Check
 
