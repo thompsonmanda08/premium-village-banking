@@ -1,4 +1,6 @@
-import { describe, expect, test } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import { describe, expect, test, vi } from 'vitest';
 import { applyTheme, readPref, resolveTheme, THEME_KEY, writePref } from './theme';
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -52,71 +54,40 @@ test('theme-init.js respects system preference when storage throws', () => {
   document.documentElement.style.colorScheme = '';
   document.head.innerHTML = '<meta name="theme-color" content="#F1F5F9" />';
 
-  // Mock localStorage to throw on getItem (e.g., cookies blocked)
-  const originalLocalStorage = window.localStorage;
-  Object.defineProperty(window, 'localStorage', {
-    value: {
-      getItem: () => {
-        throw new Error('Storage access denied');
-      },
-      setItem: () => {},
-      removeItem: () => {},
-    },
-    configurable: true,
+  // Read the actual theme-init.js file
+  const themeInitPath = resolve(__dirname, '../../public/theme-init.js');
+  const source = readFileSync(themeInitPath, 'utf8');
+
+  // Spy on localStorage.getItem to throw (simulating blocked storage)
+  const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    throw new Error('Storage access denied');
   });
 
   // Mock matchMedia to report dark preference
-  const originalMatchMedia = window.matchMedia;
-  Object.defineProperty(window, 'matchMedia', {
-    value: (query: string) => ({
-      matches: query === '(prefers-color-scheme: dark)',
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => true,
-    }),
-    configurable: true,
-  });
+  const matchMediaSpy = vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+    matches: query === '(prefers-color-scheme: dark)',
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => true,
+  }));
 
   try {
-    // Execute theme-init.js logic inline (simulating the actual script)
-    const root = document.documentElement;
-    let pref: string | null = null;
-    try {
-      pref = window.localStorage.getItem('pvb-theme');
-    } catch {
-      // Storage access denied; pref stays null
-    }
+    // Execute the real theme-init.js in the jsdom window
+    new Function(source)();
 
-    let dark = false;
-    try {
-      dark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    } catch {
-      // matchMedia unavailable; dark stays false (light mode)
-    }
-
-    const theme = dark ? 'dark' : 'light';
-    root.dataset.theme = theme;
-    root.style.colorScheme = theme;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', dark ? '#09090B' : '#F1F5F9');
-
-    // Verify: even though storage threw, we consulted matchMedia and got dark
+    // Verify: even though storage threw, matchMedia was consulted and dark was applied
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement.style.colorScheme).toBe('dark');
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#09090B');
   } finally {
-    // Restore
-    Object.defineProperty(window, 'localStorage', {
-      value: originalLocalStorage,
-      configurable: true,
-    });
-    Object.defineProperty(window, 'matchMedia', {
-      value: originalMatchMedia,
-      configurable: true,
-    });
+    // Clean up
+    getItemSpy.mockRestore();
+    matchMediaSpy.mockRestore();
+    document.documentElement.dataset.theme = '';
+    document.documentElement.style.colorScheme = '';
   }
 });
