@@ -1,7 +1,9 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { HttpError, corsOrigin, hashToken, inviteExpiry, makeToken, parseInviteRequest } from './lib.ts';
 
-const SITE_URL = Deno.env.get('SITE_URL') ?? 'http://localhost:3000';
+// No fallback: a missing SITE_URL would put localhost in invite links and the CORS allow-list.
+const SITE_URL = Deno.env.get('SITE_URL');
+if (!SITE_URL) throw new Error('SITE_URL is not set');
 const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS');
 
 // Reflect the request origin only when it is SITE_URL or in ALLOWED_ORIGINS; otherwise answer with SITE_URL.

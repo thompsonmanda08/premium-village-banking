@@ -23,3 +23,7 @@ export const seeds = (args) =>
 
 // --linked targets the hosted project whatever the URL says.
 export const seedsRemote = (args, url) => seeds(args) && (args.includes('--linked') || !isLocalUrl(url))
+
+// Supabase puts the project ref in every connection string (pooler user `postgres.<ref>`, direct
+// host `db.<ref>.supabase.co`), so naming it anywhere means the URL points at that project.
+export const targetsProject = (url, ref) => Boolean(ref) && String(url).toLowerCase().includes(ref.toLowerCase())

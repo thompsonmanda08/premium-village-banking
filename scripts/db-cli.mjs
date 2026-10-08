@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { clean } from './scrub.mjs'
-import { isLocalUrl, seedsRemote } from './seed-guard.mjs'
+import { isLocalUrl, seedsRemote, targetsProject } from './seed-guard.mjs'
 
 const env = process.env
 const args = {
@@ -24,6 +24,11 @@ if (args.includes(undefined) || args.includes('')) {
 }
 if (seedsRemote(args, env.SUPABASE_DB_URL)) {
   console.error('Refusing to apply supabase/seed.sql to a database that is not localhost.')
+  process.exit(1)
+}
+// db reset deletes every row: never against production.
+if (process.argv[2] === 'reset' && targetsProject(env.SUPABASE_DB_URL, env.PROD_PROJECT_REF)) {
+  console.error('Refusing to reset the production project (PROD_PROJECT_REF).')
   process.exit(1)
 }
 

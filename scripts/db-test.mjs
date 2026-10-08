@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import postgres from 'postgres'
 import { clean } from './scrub.mjs'
+import { isLocalUrl } from './seed-guard.mjs'
 
 const url = process.env.SUPABASE_DB_URL
 if (!url) {
@@ -38,7 +39,8 @@ try {
   const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
   if (files.length === 0) throw new Error(`No .sql files in ${dir}`)
 
-  sql = postgres(url, { max: 1, prepare: false, onnotice: () => {} })
+  // postgres.js connects in plaintext unless told otherwise, and the pooler accepts that: require TLS off localhost.
+  sql = postgres(url, { max: 1, prepare: false, onnotice: () => {}, ssl: isLocalUrl(url) ? false : 'require' })
   await sql.unsafe('create extension if not exists pgtap with schema extensions').simple()
   await dropHelpers()
 

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { isLocalUrl, seeds, seedsRemote } from './seed-guard.mjs'
+import { isLocalUrl, seeds, seedsRemote, targetsProject } from './seed-guard.mjs'
 
 const reset = (...more) => ['db', 'reset', '--db-url', 'u', '--yes', ...more]
 
@@ -44,4 +44,14 @@ test('seeding a non-local database is refused', () => {
   expect(seedsRemote(reset(), local)).toBe(false)
   expect(seedsRemote(reset('--linked'), local)).toBe(true)
   expect(seedsRemote(reset(), undefined)).toBe(true)
+})
+
+test('a URL naming the production project ref is production', () => {
+  const ref = 'abcdefghijklmnop'
+  expect(targetsProject(`postgresql://postgres.${ref}:x@aws-0-eu.pooler.supabase.com:5432/postgres`, ref)).toBe(true)
+  expect(targetsProject(`postgresql://postgres:x@db.${ref}.supabase.co:5432/postgres`, ref)).toBe(true)
+  expect(targetsProject(`postgresql://postgres:x@db.${ref.toUpperCase()}.supabase.co:5432/postgres`, ref)).toBe(true)
+  expect(targetsProject('postgresql://postgres.otherprojectref:x@aws-0-eu.pooler.supabase.com:5432/postgres', ref)).toBe(false)
+  expect(targetsProject('postgresql://postgres:postgres@127.0.0.1:54322/postgres', ref)).toBe(false)
+  for (const unset of ['', undefined]) expect(targetsProject(`postgresql://postgres.${ref}:x@h/db`, unset)).toBe(false)
 })
