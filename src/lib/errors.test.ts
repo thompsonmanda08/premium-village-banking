@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { friendlyError } from './errors';
+import { friendlyError, isUnknownAccount } from './errors';
 
 const GENERIC = 'Something went wrong. Please try again.';
 
@@ -67,6 +67,13 @@ const AUTH_CODES: Record<string, string> = {
   over_request_rate_limit: 'Too many attempts. Please wait a minute and try again.',
   same_password: 'Choose a password you haven’t used before.',
   otp_disabled: 'We couldn’t find an account for that email. Ask your treasurer for an invite.',
+  // sign-in screens and the auth callback
+  email_required: 'Enter your email address.',
+  password_required: 'Enter your password.',
+  signup_disabled: 'This account isn’t invited yet. Ask your treasurer for an invite.',
+  access_denied: 'Sign-in was cancelled. You can try again.',
+  otp_expired: 'This sign-in link has expired or was already used. Request a new one.',
+  callback_failed: 'We couldn’t finish signing you in. Please try again.',
 };
 
 test.each(Object.entries(AUTH_CODES))('maps auth error code %s whatever the message says', (code, sentence) => {
@@ -82,5 +89,14 @@ test('names that exist on Object.prototype are not table hits', () => {
   for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
     expect(friendlyError({ message: name })).toBe(GENERIC);
     expect(friendlyError({ code: name, message: 'x' })).toBe(GENERIC);
+  }
+});
+
+test('recognises "no such account" auth errors', () => {
+  for (const err of [{ code: 'otp_disabled' }, { code: 'signup_disabled' }, { code: 'user_not_found' }, { message: 'Signups not allowed for otp' }]) {
+    expect(isUnknownAccount(err), JSON.stringify(err)).toBe(true);
+  }
+  for (const err of [null, undefined, 'otp_disabled', {}, { code: 'over_email_send_rate_limit', status: 429 }, { code: 'invalid_credentials' }, new TypeError('Failed to fetch')]) {
+    expect(isUnknownAccount(err), String(err)).toBe(false);
   }
 });

@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { Mail } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { friendlyError } from '@/lib/errors';
+import { friendlyError, isUnknownAccount } from '@/lib/errors';
 import { Alert, Button, TextField } from '@/ui';
+import { safeNext } from './safeNext';
 
 const callback = (next: string) => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
@@ -19,32 +20,56 @@ function GoogleIcon() {
   );
 }
 
-export function SignInMethods({ next, email: initialEmail = '' }: { next: string; email?: string }) {
+type FormError = { text: string; field?: 'email' | 'password' };
+
+export function SignInMethods({ next: rawNext, email: initialEmail = '' }: { next: string; email?: string }) {
+  const next = safeNext(rawNext);
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const wasSent = useRef(false);
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'link' | 'password'>('link');
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FormError | null>(null);
   const [sent, setSent] = useState<'link' | 'reset' | null>(null);
+
+  // A field error goes on the field (aria-invalid / aria-describedby) and takes focus; the confirmation takes focus
+  // when it replaces the form, and the form takes it back when the person returns to fix the address.
+  useEffect(() => {
+    if (error?.field) formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
+  }, [error]);
+  useEffect(() => {
+    if (sent) {
+      wasSent.current = true;
+      headingRef.current?.focus();
+    } else if (wasSent.current) {
+      wasSent.current = false;
+      formRef.current?.querySelector('input')?.focus();
+    }
+  }, [sent]);
 
   async function run(key: string, action: () => Promise<{ error: unknown }>, onOk?: () => void) {
     setError(null);
     setBusy(key);
     try {
       const { error: err } = await action();
-      if (err) setError(friendlyError(err));
+      if (err) setError({ text: friendlyError(err) });
       else onOk?.();
     } catch (err) {
-      setError(friendlyError(err));
+      setError({ text: friendlyError(err) });
     } finally {
       setBusy(null);
     }
   }
 
+  const invalid = (field: 'email' | 'password', code: string) => setError({ field, text: friendlyError({ code }) });
+  const clearField = (field: 'email' | 'password') => setError((e) => (e?.field === field ? null : e));
+
   const needEmail = () => {
     if (email.trim()) return false;
-    setError('Enter your email address.');
+    invalid('email', 'email_required');
     return true;
   };
 
@@ -56,7 +81,11 @@ export function SignInMethods({ next, email: initialEmail = '' }: { next: string
     if (needEmail()) return;
     void run(
       'link',
-      () => supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: callback(next), shouldCreateUser: false } }),
+      async () => {
+        const res = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: callback(next), shouldCreateUser: false } });
+        // Same answer for a stranger's address as for a member's, so this screen cannot be used to probe who is in the group.
+        return isUnknownAccount(res.error) ? { error: null } : res;
+      },
       () => setSent('link'),
     );
   };
@@ -64,7 +93,7 @@ export function SignInMethods({ next, email: initialEmail = '' }: { next: string
   const signIn = (e: FormEvent) => {
     e.preventDefault();
     if (needEmail()) return;
-    if (!password) return setError('Enter your password.');
+    if (!password) return invalid('password', 'password_required');
     void run('password', () => supabase.auth.signInWithPassword({ email: email.trim(), password }), () => navigate(next, { replace: true }));
   };
 
@@ -79,11 +108,16 @@ export function SignInMethods({ next, email: initialEmail = '' }: { next: string
 
   if (sent) {
     return (
-      <Alert tone="success" title="Check your email">
-        {sent === 'link'
-          ? `We sent a sign-in link to ${email.trim()}. Open it on this device.`
-          : `We sent a password reset link to ${email.trim()}.`}
-      </Alert>
+      <div className="grid gap-4">
+        <Alert tone="success">
+          <h2 ref={headingRef} tabIndex={-1} className="font-semibold">Check your email</h2>
+          <p>
+            If that email belongs to a member, we’ve sent {sent === 'link' ? 'a sign-in link' : 'a password reset link'}. Check your
+            inbox — and the address, if nothing arrives.
+          </p>
+        </Alert>
+        <Button variant="secondary" fullWidth onClick={() => setSent(null)}>Use a different email</Button>
+      </div>
     );
   }
 
@@ -97,12 +131,33 @@ export function SignInMethods({ next, email: initialEmail = '' }: { next: string
         <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
       </div>
 
-      <form className="grid gap-4" onSubmit={mode === 'link' ? sendLink : signIn} noValidate>
-        <TextField label="Email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <form ref={formRef} className="grid gap-4" onSubmit={mode === 'link' ? sendLink : signIn} noValidate>
+        <TextField
+          label="Email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={email}
+          error={error?.field === 'email' ? error.text : undefined}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clearField('email');
+          }}
+        />
         {mode === 'password' ? (
-          <TextField label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <TextField
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            error={error?.field === 'password' ? error.text : undefined}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              clearField('password');
+            }}
+          />
         ) : null}
-        {error ? <Alert tone="danger">{error}</Alert> : null}
+        {error && !error.field ? <Alert tone="danger">{error.text}</Alert> : null}
         {mode === 'link' ? (
           <>
             <Button type="submit" fullWidth leftIcon={<Mail className="size-5" />} isLoading={busy === 'link'}>

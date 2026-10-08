@@ -32,6 +32,13 @@ const KNOWN: Record<string, string> = {
   over_request_rate_limit: TOO_MANY,
   same_password: NEW_PASSWORD,
   otp_disabled: NO_ACCOUNT,
+  // sign-in screens and the auth callback (the callback also passes the provider's error_code through here)
+  email_required: 'Enter your email address.',
+  password_required: 'Enter your password.',
+  signup_disabled: 'This account isn’t invited yet. Ask your treasurer for an invite.',
+  access_denied: 'Sign-in was cancelled. You can try again.',
+  otp_expired: 'This sign-in link has expired or was already used. Request a new one.',
+  callback_failed: 'We couldn’t finish signing you in. Please try again.',
   'Invalid login credentials': BAD_LOGIN,
   'Signups not allowed for otp': NO_ACCOUNT,
   'Email not confirmed': UNCONFIRMED,
@@ -56,4 +63,16 @@ export function friendlyError(err: unknown): string {
   if (status === 401 || code === 'PGRST303') return 'Your session has expired. Please sign in again.';
   if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'You seem to be offline. Check your connection and try again.';
   return GENERIC;
+}
+
+const UNKNOWN_ACCOUNT_CODES = ['otp_disabled', 'signup_disabled', 'user_not_found'];
+
+/**
+ * True when an auth error only says "no member has this email" (magic link with shouldCreateUser: false). Sign-in screens
+ * must answer exactly as they do for a real member, otherwise anyone can probe which emails belong to the group.
+ */
+export function isUnknownAccount(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const { message, code } = err as ErrorLike;
+  return (typeof code === 'string' && UNKNOWN_ACCOUNT_CODES.includes(code)) || message === 'Signups not allowed for otp';
 }
