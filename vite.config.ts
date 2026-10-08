@@ -9,6 +9,7 @@ export default defineConfig({
   server: { port: 3000 },
   test: {
     environment: 'jsdom',
+    environmentOptions: { jsdom: { url: 'http://localhost:3000/' } },
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.mjs'],
     env: { VITE_SUPABASE_URL: 'http://localhost:54321', VITE_SUPABASE_ANON_KEY: 'test-anon-key' },
