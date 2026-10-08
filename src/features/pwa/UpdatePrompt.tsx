@@ -1,11 +1,16 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Button } from '@/ui';
+import { watchForUpdates } from './swUpdates';
 
 export function UpdatePrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
+  } = useRegisterSW({
+    onRegisteredSW(_url, registration) {
+      if (registration) watchForUpdates(registration);
+    },
+  });
   if (!needRefresh) return null;
   return (
     <div role="status" className="fixed inset-x-4 bottom-[calc(88px+env(safe-area-inset-bottom))] z-[60] mx-auto flex max-w-md items-center gap-2 rounded-xl border border-line bg-surface p-3 shadow-lg md:bottom-6">

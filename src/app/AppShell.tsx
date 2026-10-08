@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Outlet, useSearchParams } from 'react-router';
 import { useGroup } from '@/features/group/GroupContext';
 import { InstallHint } from '@/features/pwa/InstallHint';
-import { UpdatePrompt } from '@/features/pwa/UpdatePrompt';
 import { SettingsSheet } from '@/features/settings/SettingsSheet';
 import { BottomNav } from './BottomNav';
 import { MoreSheet } from './MoreSheet';
@@ -38,7 +37,6 @@ export function AppShell() {
       <BottomNav isAdmin={isAdmin} onMore={() => setMoreOpen(true)} />
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} />
       <SettingsSheet />
-      <UpdatePrompt />
     </div>
   );
 }

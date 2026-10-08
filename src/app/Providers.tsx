@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { CACHE_MAX_AGE, makeQueryClient, persister, shouldPersistQuery } from '@/lib/queryClient';
 import { SessionProvider } from '@/features/auth/SessionProvider';
+import { UpdatePrompt } from '@/features/pwa/UpdatePrompt';
 import { ToastProvider } from '@/ui';
 import { ThemeProvider } from './ThemeProvider';
 
@@ -12,6 +13,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider>
         <ToastProvider>
           <SessionProvider>{children}</SessionProvider>
+          <UpdatePrompt />
         </ToastProvider>
       </ThemeProvider>
     </PersistQueryClientProvider>

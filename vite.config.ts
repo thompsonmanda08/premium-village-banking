@@ -32,6 +32,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/manifest\.webmanifest$/, /^\/sw\.js$/, /^\/workbox-/],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Inter ships one woff2 per script; precache Latin only. The rest still load on demand when online (unicode-range).
+        globIgnores: ['**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese,latin-ext}-wght-normal-*.woff2'],
         cleanupOutdatedCaches: true,
       },
     }),
