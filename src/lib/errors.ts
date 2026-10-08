@@ -61,6 +61,8 @@ export function friendlyError(err: unknown): string {
   if (status === 429 || /rate limit/i.test(msg)) return TOO_MANY;
   if (code === '42501') return KNOWN.not_admin ?? GENERIC;
   if (code === '23505') return 'That name is already used in this group.';
+  // A check constraint (blank or over-long name, malformed email): retrying the same input can never succeed.
+  if (code === '23514') return 'Some details aren’t valid. Check the name, short name and email.';
   if (status === 401 || code === 'PGRST301' || code === 'PGRST303') return 'Your session has expired. Please sign in again.';
   if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'You seem to be offline. Check your connection and try again.';
   return GENERIC;

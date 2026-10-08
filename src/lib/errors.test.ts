@@ -108,3 +108,9 @@ test('recognises "no such account" auth errors', () => {
     expect(isUnknownAccount(err), String(err)).toBe(false);
   }
 });
+
+test('a check-constraint refusal says which details to fix, since a retry cannot succeed', () => {
+  const text = friendlyError({ code: '23514', message: 'new row for relation "members" violates check constraint "members_short_name_check"' });
+  expect(text).toBe('Some details aren’t valid. Check the name, short name and email.');
+  expect(text).not.toBe(GENERIC);
+});

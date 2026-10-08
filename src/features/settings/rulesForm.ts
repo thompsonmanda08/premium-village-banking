@@ -38,6 +38,8 @@ export function toFormValues(c: CycleInput): RulesFormValues {
   };
 }
 
+// numeric(12,2) holds up to 9,999,999,999.99.
+const MAX_AMOUNT = 1e10;
 const num = (v: string) => (v.trim() === '' ? Number.NaN : Number(v));
 
 export function validateRules(f: RulesFormValues): Partial<Record<keyof RulesFormValues, string>> {
@@ -46,8 +48,11 @@ export function validateRules(f: RulesFormValues): Partial<Record<keyof RulesFor
   if (!f.starts_on) e.starts_on = 'Choose a start date.';
   if (!f.ends_on || f.ends_on <= f.starts_on) e.ends_on = 'The cycle must end after it starts.';
   if (!f.payout_on || f.payout_on > f.ends_on) e.payout_on = 'Payout must be on or before the end date.';
+  else if (f.starts_on && f.payout_on < f.starts_on) e.payout_on = 'Payout must be on or after the start date.';
   for (const k of ['min_saving', 'membership_fee', 'penalty_per_day'] as const) {
-    if (!(num(f[k]) >= 0)) e[k] = 'Enter an amount of 0 or more.';
+    const v = num(f[k]);
+    if (!(Number.isFinite(v) && v >= 0)) e[k] = 'Enter an amount of 0 or more.';
+    else if (v >= MAX_AMOUNT) e[k] = 'That amount is too large.';
   }
   for (const k of ['loan_rate_pct', 'excess_rate_pct'] as const) {
     const v = num(f[k]);

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { expect, test, vi } from 'vitest';
 import { GroupProvider } from '@/features/group/GroupContext';
 
@@ -9,9 +9,14 @@ vi.mock('./PeopleSection', () => ({ PeopleSection: () => <p>people section</p> }
 vi.mock('./RulesSection', () => ({ RulesSection: () => <p>rules section</p> }));
 const { SettingsSheet } = await import('./SettingsSheet');
 
+function Search() {
+  return <output aria-label="search">{useLocation().search}</output>;
+}
+
 const renderAt = (url: string, isAdmin: boolean) =>
   render(
     <MemoryRouter initialEntries={[url]}>
+      <Search />
       <GroupProvider value={{ group: { id: 'g1', name: 'Premium', currency: 'ZMW', owner_user_id: 'o', figures_visibility: 'open' }, member: null, isAdmin }}>
         <SettingsSheet />
       </GroupProvider>
@@ -31,5 +36,23 @@ test('a member who types ?settings=open sees no drawer', () => {
 
 test('admins see nothing until the gear sets ?settings=open', () => {
   renderAt('/', true);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('a member who typed ?settings=open has the param removed, so it cannot reopen later', () => {
+  renderAt('/?settings=open&tab=x', false);
+  expect(screen.getByLabelText('search')).toHaveTextContent('?tab=x');
+});
+
+test('an admin keeps ?settings=open while the drawer is showing', () => {
+  renderAt('/?settings=open', true);
+  expect(screen.getByLabelText('search')).toHaveTextContent('?settings=open');
+});
+
+test('closing the drawer drops only the settings param', async () => {
+  const { default: userEvent } = await import('@testing-library/user-event');
+  renderAt('/?settings=open&tab=x', true);
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(screen.getByLabelText('search')).toHaveTextContent('?tab=x');
   expect(screen.queryByRole('dialog')).toBeNull();
 });

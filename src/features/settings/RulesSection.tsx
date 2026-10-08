@@ -97,7 +97,13 @@ export function RulesSection() {
   const { group } = useGroup();
   const cycles = useCycles(group.id);
   if (cycles.isPending) return <Skeleton className="h-64" />;
-  if (cycles.isError) return <Alert tone="danger">{friendlyError(cycles.error)}</Alert>;
+  if (cycles.isError) {
+    return (
+      <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void cycles.refetch()}>Try again</Button>}>
+        {friendlyError(cycles.error)}
+      </Alert>
+    );
+  }
   const planned = cycles.data.find((c) => c.status === 'planned');
   const shown = planned ?? pickCurrentCycle(cycles.data, localISODate(new Date()));
   if (!shown?.rules) return <Alert tone="info">No cycle has been set up yet.</Alert>;

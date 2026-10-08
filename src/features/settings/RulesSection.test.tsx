@@ -7,7 +7,7 @@ import { ToastProvider } from '@/ui';
 
 const from = vi.fn();
 vi.mock('@/lib/supabase', () => ({ supabase: { from } }));
-const cyclesState = vi.hoisted(() => ({ current: { isPending: false, isError: false, data: [] as unknown[] } }));
+const cyclesState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@/features/cycles/useCycles', () => ({ useCycles: () => cyclesState.current }));
 const { RulesForm, RulesSection } = await import('./RulesSection');
 
@@ -16,8 +16,8 @@ const cycle = {
   rules: { min_saving: 250, membership_fee: 50, penalty_per_day: 50, loan_rate: 0.15, excess_rate: 0.1, window_open_day: 5, window_close_day: 7, loan_multiples: [], tenor_bands: [] },
 };
 
-const Wrap = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider client={new QueryClient()}>
+const Wrap = ({ children, client }: { children: React.ReactNode; client?: QueryClient }) => (
+  <QueryClientProvider client={client ?? new QueryClient()}>
     <ToastProvider>
       <GroupProvider value={{ group: { id: 'g1', name: 'Premium', currency: 'ZMW', owner_user_id: 'o', figures_visibility: 'open' }, member: null, isAdmin: true }}>
         {children}
@@ -25,7 +25,8 @@ const Wrap = ({ children }: { children: React.ReactNode }) => (
     </ToastProvider>
   </QueryClientProvider>
 );
-const renderForm = (locked: boolean, status = 'active') => render(<Wrap><RulesForm cycle={{ ...cycle, status } as never} locked={locked} /></Wrap>);
+const renderForm = (locked: boolean, status = 'active', client?: QueryClient) =>
+  render(<Wrap client={client}><RulesForm cycle={{ ...cycle, status } as never} locked={locked} /></Wrap>);
 
 // from('cycles') and from('cycle_rules') each answer .update(payload).eq(...).select(...) with the queued result.
 const updates = { cycles: vi.fn(), cycle_rules: vi.fn() };
@@ -100,4 +101,24 @@ test('a planned cycle is editable inside the section', () => {
   render(<Wrap><RulesSection /></Wrap>);
   expect(screen.getByLabelText('Cycle name')).toHaveValue('Cycle 2027');
   expect(screen.getByLabelText('Minimum saving (K)')).toBeEnabled();
+});
+
+test('a refused save still refreshes the cycles, so a half-failed save leaves no stale dates on screen', async () => {
+  const client = new QueryClient();
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  results.cycle_rules.mockResolvedValue({ data: [], error: null }); // the cycle row was updated, the rules were refused
+  renderForm(false, 'planned', client);
+  await userEvent.click(screen.getByRole('button', { name: 'Save cycle and rules' }));
+  expect(await screen.findByText('Rules can only change before the cycle starts.')).toBeInTheDocument();
+  expect(updates.cycles).toHaveBeenCalled();
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['cycles', 'g1'] });
+});
+
+test('a failed cycles load shows the reason with a retry', async () => {
+  const refetch = vi.fn();
+  cyclesState.current = { isPending: false, isError: true, error: { code: 'PGRST301' }, refetch };
+  render(<Wrap><RulesSection /></Wrap>);
+  expect(screen.getByText('Your session has expired. Please sign in again.')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(refetch).toHaveBeenCalledTimes(1);
 });

@@ -12,11 +12,19 @@ export interface SheetProps {
   footer?: ReactNode;
 }
 
-const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex]:not([tabindex="-1"])';
+
+// A closed <details> hides everything but its <summary>; the selector alone would count the hidden controls as the last stop.
+function isReachable(el: HTMLElement, root: HTMLElement): boolean {
+  for (let d = el.closest('details'); d && root.contains(d); d = d.parentElement?.closest('details') ?? null) {
+    if (!d.open && el.closest('summary')?.parentElement !== d) return false;
+  }
+  return true;
+}
 
 function trapFocus(e: KeyboardEvent, root: HTMLElement | null) {
   if (!root) return;
-  const items = root.querySelectorAll<HTMLElement>(FOCUSABLE);
+  const items = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => isReachable(el, root));
   if (items.length === 0) {
     e.preventDefault();
     return;
