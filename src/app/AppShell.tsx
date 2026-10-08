@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Outlet, useSearchParams } from 'react-router';
 import { useGroup } from '@/features/group/GroupContext';
+import { InstallHint } from '@/features/pwa/InstallHint';
+import { UpdatePrompt } from '@/features/pwa/UpdatePrompt';
 import { SettingsSheet } from '@/features/settings/SettingsSheet';
 import { BottomNav } from './BottomNav';
 import { MoreSheet } from './MoreSheet';
@@ -29,12 +31,14 @@ export function AppShell() {
         <TopBar onOpenSettings={openSettings} />
         <OfflineBanner />
         <main id="main" className="mx-auto w-full max-w-[1180px] flex-1 px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-4 md:px-8 md:pb-10 md:pt-8">
+          <InstallHint />
           <Outlet />
         </main>
       </div>
       <BottomNav isAdmin={isAdmin} onMore={() => setMoreOpen(true)} />
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} />
       <SettingsSheet />
+      <UpdatePrompt />
     </div>
   );
 }
