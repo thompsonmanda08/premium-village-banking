@@ -3,8 +3,12 @@ import { createBrowserRouter } from 'react-router';
 import { AuthCallback } from '@/features/auth/AuthCallback';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import { SignInPage } from '@/features/auth/SignInPage';
+import { DeskPage } from '@/features/desk/DeskPage';
+import { GroupPage } from '@/features/group/GroupPage';
 import { RequireMembership } from '@/features/group/RequireMembership';
+import { HomePage } from '@/features/home/HomePage';
 import { InvitePage } from '@/features/invite/InvitePage';
+import { RulesPage } from '@/features/rules/RulesPage';
 import { ComingSoon } from '@/features/shells/ComingSoon';
 import { NotFound } from '@/features/shells/NotFound';
 import { AppShell } from './AppShell';
@@ -29,14 +33,14 @@ export const router = createBrowserRouter([
                 element: <AppShell />,
                 errorElement: <RouteError />,
                 children: [
-                  { index: true, element: <ComingSoon title="Home" />, handle: { title: 'Home' } },
+                  { index: true, element: <HomePage />, handle: { title: 'Home' } },
                   page('passbook', 'Passbook', <ComingSoon title="Passbook" />),
                   page('declare', 'Declare', <ComingSoon title="Declaration" />),
                   page('plan', 'Plan', <ComingSoon title="Plan" />),
                   page('record', 'My record', <ComingSoon title="Record" />),
-                  page('group', 'Group', <ComingSoon title="Group" />),
-                  page('desk', 'Desk', <ComingSoon title="Desk" />),
-                  page('rules', 'Rules', <ComingSoon title="Rules" />),
+                  page('group', 'Group', <GroupPage />),
+                  page('desk', 'Desk', <DeskPage />),
+                  page('rules', 'Rules', <RulesPage />),
                   page('account', 'Account', <ComingSoon title="Account" />),
                   page('*', 'Not found', <NotFound />),
                 ],
