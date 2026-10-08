@@ -12,6 +12,8 @@ const invite = (over: object) => ({ id: 'i1', email: 'charles@exmaple.com', crea
 const INVITED = { ...BASE, id: 'm4', user_id: null, full_name: 'Charles Banda', short_name: 'Charles', email: 'charles@exmaple.com', role: 'member', invites: [invite({})] };
 const LAPSED = { ...BASE, id: 'm5', user_id: null, full_name: 'Heri Phiri', short_name: 'Heri', email: 'heri@example.com', role: 'member', invites: [invite({ id: 'i2', email: 'heri@exmaple.com', expires_at: '2026-10-05T00:00:00Z' })] };
 
+const invokeInvite = vi.fn();
+vi.mock('@/lib/functions', () => ({ invokeInvite }));
 const from = vi.fn();
 const order = vi.fn();
 const updateSelect = vi.fn();
@@ -38,14 +40,20 @@ beforeEach(() => {
   updateSelect.mockReset().mockResolvedValue({ data: [{ id: 'x' }], error: null });
   insertSelect.mockReset().mockResolvedValue({ data: [{ id: 'new' }], error: null });
   rpc.mockReset().mockResolvedValue({ data: null, error: null });
+  invokeInvite.mockReset().mockResolvedValue({ expiresAt: '2099-01-01T00:00:00Z' });
 });
 
-async function renderPeople(members: object[] = [ADMIN], openName?: string) {
+async function renderPeople(members: object[] = [ADMIN], openName?: string, viewerId?: string) {
   order.mockResolvedValue({ data: members, error: null });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ToastProvider>
-        <GroupProvider value={{ group: { id: 'g1', name: 'Premium', currency: 'ZMW', owner_user_id: 'o', figures_visibility: 'open' }, member: null, isAdmin: true }}>
+        <GroupProvider value={{
+            group: { id: 'g1', name: 'Premium', currency: 'ZMW', owner_user_id: 'o', figures_visibility: 'open' },
+            member: viewerId ? { id: viewerId, group_id: 'g1', full_name: 'Viewer', short_name: 'Viewer', role: 'admin', status: 'active', email: null } : null,
+            isAdmin: true,
+          }}
+        >
           <PeopleSection />
         </GroupProvider>
       </ToastProvider>
@@ -153,6 +161,28 @@ test('a mistyped email blocks Send invite instead of reaching the server', async
   await userEvent.type(row().getByLabelText('Email'), 'charles@example');
   await userEvent.click(row().getByRole('button', { name: 'Send invite' }));
   expect(row().getByText('Enter a valid email address.')).toBeInTheDocument();
+  expect(invokeInvite).not.toHaveBeenCalled();
+});
+
+test('a valid email sends the invite to exactly that address', async () => {
+  const row = await renderPeople([{ ...INVITED, invites: [], email: null }]);
+  await userEvent.type(row().getByLabelText('Email'), 'charles@example.com');
+  await userEvent.click(row().getByRole('button', { name: 'Send invite' }));
+  expect(invokeInvite).toHaveBeenCalledWith('m4', 'charles@example.com');
+  expect(await screen.findByText('Invite sent to charles@example.com')).toBeInTheDocument();
+});
+
+test('your own row has no "Mark as left" (it would demote you, then fail as a non-admin), only a note; Remove admin stays', async () => {
+  const row = await renderPeople([ADMIN], undefined, 'm2');
+  expect(row().queryByRole('button', { name: 'Mark as left' })).toBeNull();
+  expect(row().getByText('Another admin can mark you as left.')).toBeInTheDocument();
+  expect(row().getByRole('button', { name: 'Remove admin' })).toBeInTheDocument();
+});
+
+test('another admin\'s row still offers "Mark as left"', async () => {
+  const row = await renderPeople([ADMIN], undefined, 'm9');
+  expect(row().getByRole('button', { name: 'Mark as left' })).toBeInTheDocument();
+  expect(row().queryByText('Another admin can mark you as left.')).toBeNull();
 });
 
 test('adding: a first name too long to be a short name is caught before the insert', async () => {

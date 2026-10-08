@@ -58,6 +58,8 @@ function AddMember({ groupId }: { groupId: string }) {
 }
 
 function MemberRow({ member }: { member: AdminMember }) {
+  // Marking yourself left would demote you first, then fail as a non-admin: leaving you demoted but active.
+  const isSelf = useGroup().member?.id === member.id;
   const [form, setForm] = useState({ full_name: member.full_name, short_name: member.short_name, email: member.email ?? '', phone: member.phone ?? '' });
   const [showErrors, setShowErrors] = useState(false);
   const errors = validateMember(form);
@@ -152,7 +154,9 @@ function MemberRow({ member }: { member: AdminMember }) {
           ) : active ? (
             <Button variant="secondary" isLoading={setAdmin.isPending} onClick={() => setAdmin.mutate(true)}>Make admin</Button>
           ) : null}
-          {active ? (
+          {active && isSelf ? (
+            <p className="text-sm text-muted">Another admin can mark you as left.</p>
+          ) : active ? (
             <Button variant={leave.armed ? 'danger' : 'ghost'} isLoading={setStatus.isPending} onClick={leave.tap}>
               {leave.armed ? 'Tap again to mark as left' : 'Mark as left'}
             </Button>
