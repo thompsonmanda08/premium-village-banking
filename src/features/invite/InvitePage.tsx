@@ -34,8 +34,9 @@ export function InvitePage() {
     },
     onSuccess: async (member) => {
       haptic();
-      // 'all': nothing mounted here observes membership, and a cached "no group" would otherwise be shown at /.
-      await qc.invalidateQueries({ queryKey: ['membership'], refetchType: 'all' });
+      // No membership observer is mounted here (and a cache restored from storage has no query function), so refetching
+      // from this page cannot work. Drop the cached "no group" instead: RequireMembership loads fresh, with its own loader and retry.
+      qc.removeQueries({ queryKey: ['membership'] });
       qc.removeQueries({ queryKey: ['invite-preview', token] });
       toast(`Welcome, ${member.short_name}`, { tone: 'success' });
       navigate('/', { replace: true });

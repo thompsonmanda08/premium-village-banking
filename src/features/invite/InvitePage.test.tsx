@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ToastProvider } from '@/ui';
@@ -28,6 +28,16 @@ const accepts = () => rpc.mock.calls.filter(([name]) => name === 'accept_invite'
 const previews = () => rpc.mock.calls.filter(([name]) => name === 'invite_preview');
 const NEVER = new Promise<never>(() => {});
 
+// Stands in for RequireMembership at "/": it owns the membership query, and shows a cached "no group" as soon as it mounts.
+const fetchMembership = vi.fn();
+const seen: string[] = [];
+function Guard() {
+  const q = useQuery({ queryKey: ['membership', 'u1'], queryFn: () => fetchMembership() as Promise<unknown> });
+  const state = q.isPending ? 'loading' : q.data === null ? 'no group' : 'Home';
+  seen.push(state);
+  return <p>{state}</p>;
+}
+
 /** invite_preview answers `previewResult`; each accept_invite takes the next of `acceptResults` (then hangs). */
 function serve(acceptResults: unknown[], previewResult: unknown = preview('valid')) {
   const queue = [...acceptResults];
@@ -43,7 +53,7 @@ function renderAt(path: string, { strict = false, setup }: { strict?: boolean; s
         <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route path="/invite/:token" element={<InvitePage />} />
-            <Route path="/" element={<p>Home</p>} />
+            <Route path="/" element={<Guard />} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -59,6 +69,8 @@ beforeEach(() => {
   signOut.mockReset().mockResolvedValue({ error: null });
   signInWithOAuth.mockReset().mockResolvedValue({ error: null });
   replace.mockReset();
+  fetchMembership.mockReset().mockResolvedValue({ group: 'Premium' });
+  seen.length = 0;
   session = null;
   vi.stubGlobal('location', { ...window.location, replace });
 });
@@ -147,22 +159,33 @@ test('signed in with the right email: links once, welcomes by name, forgets the 
   await waitFor(() => expect(qc.getQueryCache().find({ queryKey: ['invite-preview', 'tok'] })).toBeUndefined());
 });
 
-test('membership is refetched before going home, so a cached "no group" cannot flash', async () => {
+test('a cached membership is dropped before going home, so the guard loads fresh instead of showing a cached "no group"', async () => {
   signedIn();
   serve([{ data: { short_name: 'Tafara' }, error: null }]);
-  let finish!: (v: unknown) => void;
-  const membership = vi.fn(() => new Promise((r) => (finish = r)));
+  let remove!: ReturnType<typeof vi.spyOn>;
+  // As hydrated from IndexedDB on a fresh page load: a cached null with no query function and nothing mounted to observe it.
   const qc = renderAt('/invite/tok', {
     setup: (c) => {
-      c.setQueryDefaults(['membership'], { queryFn: membership });
-      c.setQueryData(['membership', 'u1'], null); // as cached before the invite: not in any group, and nothing mounted observes it
+      remove = vi.spyOn(c, 'removeQueries');
+      c.setQueryData(['membership', 'u1'], null);
     },
   });
-  await waitFor(() => expect(membership).toHaveBeenCalledTimes(1));
-  expect(screen.queryByText('Home')).toBeNull(); // still waiting on it
-  finish({ group: 'Premium' });
   expect(await screen.findByText('Home')).toBeInTheDocument();
+  expect(remove).toHaveBeenCalledWith({ queryKey: ['membership'] });
+  expect(seen[0]).toBe('loading'); // not the cached null
+  expect(seen).not.toContain('no group');
+  expect(fetchMembership).toHaveBeenCalledTimes(1);
   expect(qc.getQueryData(['membership', 'u1'])).toEqual({ group: 'Premium' });
+});
+
+test('going home does not wait on the membership request', async () => {
+  signedIn();
+  serve([{ data: { short_name: 'Tafara' }, error: null }]);
+  fetchMembership.mockReturnValue(NEVER); // a stalled request must not leave "Linking your account…" up
+  renderAt('/invite/tok', { setup: (c) => c.setQueryData(['membership', 'u1'], null) });
+  expect(await screen.findByText('loading')).toBeInTheDocument();
+  expect(await screen.findByText('Welcome, Tafara')).toBeInTheDocument();
+  expect(screen.queryByText('Linking your account…')).toBeNull();
 });
 
 test('accept_invite is called once even when StrictMode runs the effect twice on a page that already has the preview', async () => {
