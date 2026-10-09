@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import { BrandMark } from './BrandMark';
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
@@ -13,6 +14,11 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
       </div>
       {subtitle ? <p className="-mt-4 mb-6 text-base text-muted">{subtitle}</p> : null}
       {children}
+      <p className="mt-8 text-sm text-muted">
+        By accepting an invitation or creating an account, you accept the{' '}
+        <Link to="/terms" className="font-semibold text-accent underline underline-offset-4">Terms of use</Link> and{' '}
+        <Link to="/terms#privacy" className="font-semibold text-accent underline underline-offset-4">Privacy policy</Link>.
+      </p>
     </main>
   );
 }

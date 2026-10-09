@@ -9,7 +9,9 @@ import { GroupPage } from '@/features/group/GroupPage';
 import { RequireMembership } from '@/features/group/RequireMembership';
 import { HomePage } from '@/features/home/HomePage';
 import { InvitePage } from '@/features/invite/InvitePage';
+import { TermsPage } from '@/features/legal/TermsPage';
 import { RulesPage } from '@/features/rules/RulesPage';
+import { SettingsPage } from '@/features/settings/SettingsPage';
 import { ComingSoon } from '@/features/shells/ComingSoon';
 import { NotFound } from '@/features/shells/NotFound';
 import { AppShell } from './AppShell';
@@ -24,6 +26,7 @@ export const router = createBrowserRouter([
       { path: '/sign-in', element: <SignInPage /> },
       { path: '/auth/callback', element: <AuthCallback /> },
       { path: '/invite/:token', element: <InvitePage /> },
+      { path: '/terms', element: <TermsPage /> },
       {
         element: <RequireAuth />,
         children: [
@@ -43,6 +46,7 @@ export const router = createBrowserRouter([
                   page('desk', 'Desk', <DeskPage />),
                   page('rules', 'Rules', <RulesPage />),
                   page('account', 'Account', <AccountPage />),
+                  page('settings/:tab?', 'Group settings', <SettingsPage />),
                   page('*', 'Not found', <NotFound />),
                 ],
               },
