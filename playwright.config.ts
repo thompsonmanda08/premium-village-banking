@@ -12,10 +12,13 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 20_000 },
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
+  // CI: no HTML report, because it records step titles such as Fill "<password>" and the workflow uploads artifacts.
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
     baseURL,
-    // No traces in CI: they record typed values (E2E passwords) and request headers, and the workflow uploads the report.
+    // CI keeps no traces (they hold typed values and request headers). The workflow uploads only the failure screenshots
+    // (test-results/**/*.png): rendered pages, where password fields are masked. It does not upload error-context.md
+    // (page snapshots) or any report.
     trace: process.env.CI ? 'off' : 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
