@@ -6,10 +6,19 @@ select tests.fixture();
 create function pg_temp.h(t text) returns text language sql as $$ select encode(extensions.digest(t, 'sha256'), 'hex') $$;
 insert into invites (group_id, member_id, email, token_hash, expires_at, created_by) values
   (tests.id('group'), tests.id('m_unlinked'), 'Unlinked@Test.local', pg_temp.h('tok-valid'), now() + interval '14 days', tests.id('admin')),
-  (tests.id('group'), tests.id('m_unlinked'), 'unlinked@test.local', pg_temp.h('tok-expired'), now() - interval '1 minute', tests.id('admin'));
+  (tests.id('group'), tests.id('m_member'), 'unlinked@test.local', pg_temp.h('tok-expired'), now() - interval '1 minute', tests.id('admin'));
 insert into invites (group_id, member_id, email, token_hash, expires_at, created_by, revoked_at) values
   (tests.id('group'), tests.id('m_unlinked'), 'unlinked@test.local', pg_temp.h('tok-revoked'), now() + interval '14 days', tests.id('admin'), now());
 select tests.remember('u_unlinked', tests.create_user('unlinked@test.local'));
+
+-- one live invite per member: a second unaccepted, unrevoked one is refused; revoked ones do not count.
+-- (tok-expired sits on another member on purpose: an expired but unrevoked invite is still live to the index.)
+select throws_ok($$insert into invites (group_id, member_id, email, token_hash, expires_at, created_by)
+  values (tests.id('group'), tests.id('m_unlinked'), 'unlinked@test.local', 'hash-second-live', now() + interval '14 days', tests.id('admin'))$$,
+  '23505', null, 'a member cannot have two live invites');
+select lives_ok($$insert into invites (group_id, member_id, email, token_hash, expires_at, created_by, revoked_at)
+  values (tests.id('group'), tests.id('m_unlinked'), 'unlinked@test.local', 'hash-second-revoked', now() + interval '14 days', tests.id('admin'), now())$$,
+  'a revoked invite does not count as live');
 
 -- function privileges -------------------------------------------------------
 -- invite_preview is the only function anon may run (02_rls.sql fails on any other).

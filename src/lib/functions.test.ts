@@ -29,6 +29,13 @@ test("throws the function's own error code", async () => {
   await failsWith('not_admin');
 });
 
+test('surfaces the mail rate limit and a double-tapped invite by code', async () => {
+  invoke.mockResolvedValue({ data: null, error: httpError(429, { error: 'over_email_send_rate_limit' }) });
+  await failsWith('over_email_send_rate_limit');
+  invoke.mockResolvedValue({ data: null, error: httpError(409, { error: 'invite_in_progress' }) });
+  await failsWith('invite_in_progress');
+});
+
 test('maps a gateway 401 (no error field) to not_signed_in', async () => {
   invoke.mockResolvedValue({ data: null, error: httpError(401, { code: 401, message: 'Invalid JWT' }) });
   await failsWith('not_signed_in');

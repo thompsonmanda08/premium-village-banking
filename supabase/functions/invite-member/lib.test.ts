@@ -1,5 +1,5 @@
 import { assertEquals, assertMatch, assertNotEquals, assertThrows } from 'jsr:@std/assert@1';
-import { HttpError, corsOrigin, hashToken, inviteExpiry, makeToken, parseInviteRequest } from './lib.ts';
+import { HttpError, corsOrigin, hashToken, inviteExpiry, inviteLink, isRateLimited, makeToken, parseInviteRequest, trimSlashes } from './lib.ts';
 
 Deno.test('makeToken returns 43 url-safe characters and never repeats', () => {
   const a = makeToken();
@@ -58,4 +58,36 @@ Deno.test('corsOrigin is exact-match only: no lookalikes, prefixes, wildcards or
   assertEquals(corsOrigin('https://site.example/', SITE, undefined), SITE);
   assertEquals(corsOrigin('https://anything.example', SITE, '*'), SITE);
   assertEquals(corsOrigin('https://x.preview.example', SITE, 'https://*.preview.example'), SITE);
+});
+
+Deno.test('trimSlashes drops trailing slashes and surrounding spaces only', () => {
+  assertEquals(trimSlashes('https://site.example/'), 'https://site.example');
+  assertEquals(trimSlashes(' https://site.example/// '), 'https://site.example');
+  assertEquals(trimSlashes('https://site.example/app'), 'https://site.example/app');
+  assertEquals(trimSlashes('/'), '');
+});
+
+Deno.test('inviteLink has a single slash whether or not SITE_URL ends in one', () => {
+  assertEquals(inviteLink('https://site.example', 'tok'), 'https://site.example/invite/tok');
+  assertEquals(inviteLink('https://site.example/', 'tok'), 'https://site.example/invite/tok');
+  assertEquals(inviteLink('https://site.example//', 'tok'), 'https://site.example/invite/tok');
+});
+
+Deno.test('corsOrigin reflects the real origin when SITE_URL or an allowlisted origin has a trailing slash', () => {
+  assertEquals(corsOrigin(SITE, SITE + '/', undefined), SITE);
+  assertEquals(corsOrigin('https://evil.example', SITE + '/', undefined), SITE);
+  assertEquals(corsOrigin(null, SITE + '//', undefined), SITE);
+  const env = 'http://localhost:3000/, https://preview.example/ ,';
+  assertEquals(corsOrigin('http://localhost:3000', SITE, env), 'http://localhost:3000');
+  assertEquals(corsOrigin('https://preview.example', SITE, env), 'https://preview.example');
+  assertEquals(corsOrigin('https://preview.example/', SITE, env), SITE);
+});
+
+Deno.test('isRateLimited recognises GoTrue 429s and its rate-limit codes only', () => {
+  assertEquals(isRateLimited({ status: 429 }), true);
+  assertEquals(isRateLimited({ status: 400, code: 'over_email_send_rate_limit' }), true);
+  assertEquals(isRateLimited({ code: 'over_request_rate_limit' }), true);
+  assertEquals(isRateLimited({ status: 422, code: 'email_exists' }), false);
+  assertEquals(isRateLimited({ status: 500 }), false);
+  assertEquals(isRateLimited({}), false);
 });

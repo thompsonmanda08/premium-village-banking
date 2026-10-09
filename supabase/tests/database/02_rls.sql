@@ -227,9 +227,9 @@ reset role;
 select is((select count(*)::int from invites where revoked_at is not null), 0, 'member cannot revoke invites');
 select tests.login_as(tests.id('owner'));
 select lives_ok($$insert into invites (group_id, member_id, email, token_hash, expires_at, created_by)
-  values (tests.id('group'), tests.id('m_unlinked'), 'unlinked@test.local', 'hash-d', now() + interval '14 days', auth.uid())$$, 'owner creates an invite');
+  values (tests.id('group'), tests.id('m_member'), 'unlinked@test.local', 'hash-d', now() + interval '14 days', auth.uid())$$, 'owner creates an invite');
 select throws_ok($$insert into invites (group_id, member_id, email, token_hash, expires_at, created_by)
-  values (tests.id('group'), tests.id('m_unlinked'), 'unlinked@test.local', 'hash-f', now() + interval '14 days', tests.id('member'))$$,
+  values (tests.id('group'), tests.id('m_member'), 'unlinked@test.local', 'hash-f', now() + interval '14 days', tests.id('member'))$$,
   '42501', null, 'invite must be created by the signed-in owner');
 select is((select count(*)::int from invites), 2, 'owner reads invites of their group only');
 reset role;

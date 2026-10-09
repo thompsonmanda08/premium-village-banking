@@ -31,12 +31,23 @@ export function parseInviteRequest(body: unknown): InviteRequest {
   return { memberId, email: email.trim().toLowerCase() };
 }
 
+/** An origin or site URL without trailing slashes: `https://x.example/` and `https://x.example` are the same place. */
+export const trimSlashes = (url: string): string => url.trim().replace(/\/+$/, '');
+
+/** Where the invite email sends the member: exactly one slash between the site and the path. */
+export const inviteLink = (siteUrl: string, token: string): string => `${trimSlashes(siteUrl)}/invite/${token}`;
+
+/** GoTrue refusing to send another email (HTTP 429, or its `over_*_rate_limit` codes). */
+export const isRateLimited = (err: { status?: number; code?: string }): boolean =>
+  err.status === 429 || err.code === 'over_email_send_rate_limit' || err.code === 'over_request_rate_limit';
+
 /**
  * Value for Access-Control-Allow-Origin. Allowed = siteUrl plus the comma-separated
- * allowedOriginsEnv (trimmed, empty entries ignored). Exact string match only, no wildcards:
- * an allowed request origin is reflected, anything else (or none) gets siteUrl.
+ * allowedOriginsEnv (trimmed, trailing slashes dropped, empty entries ignored). Exact string match only,
+ * no wildcards: an allowed request origin is reflected, anything else (or none) gets siteUrl.
  */
 export function corsOrigin(requestOrigin: string | null, siteUrl: string, allowedOriginsEnv: string | undefined): string {
-  const allowed = new Set([siteUrl, ...(allowedOriginsEnv ?? '').split(',').map((o) => o.trim()).filter(Boolean)]);
-  return requestOrigin && allowed.has(requestOrigin) ? requestOrigin : siteUrl;
+  const site = trimSlashes(siteUrl);
+  const allowed = new Set([site, ...(allowedOriginsEnv ?? '').split(',').map(trimSlashes).filter(Boolean)]);
+  return requestOrigin && allowed.has(requestOrigin) ? requestOrigin : site;
 }

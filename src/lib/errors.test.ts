@@ -43,7 +43,10 @@ const SQL_CODES = [
   'member_taken', 'member_not_active', 'member_not_found', 'last_admin', 'not_admin', 'not_signed_in',
   'already_bootstrapped', 'owner_member_not_found',
 ];
-const FUNCTION_CODES = ['invalid_body', 'invalid_member', 'invalid_email', 'not_signed_in', 'not_admin', 'member_taken', 'member_not_active', 'invite_failed'];
+const FUNCTION_CODES = [
+  'invalid_body', 'invalid_member', 'invalid_email', 'not_signed_in', 'not_admin', 'member_taken', 'member_not_active', 'invite_failed',
+  'invite_in_progress',
+];
 
 test.each([...new Set([...SQL_CODES, ...FUNCTION_CODES])])('has a friendly sentence for %s', (code) => {
   for (const err of [{ message: code, code: 'P0001' }, new Error(code), Object.assign(new Error(code), { code })]) {
@@ -95,6 +98,13 @@ const AUTH_CODES: Record<string, string> = {
 test.each(Object.entries(AUTH_CODES))('maps auth error code %s whatever the message says', (code, sentence) => {
   expect(friendlyError({ code, message: 'Some reworded upstream message', status: 400 })).toBe(sentence);
   expect(friendlyError({ code, message: '' })).toBe(sentence);
+});
+
+test('a double-tapped invite asks for a moment, and a mail rate limit reads as too many attempts', () => {
+  expect(friendlyError({ message: 'invite_in_progress' })).toBe('An invite is already being sent. Wait a moment and try again.');
+  expect(friendlyError(Object.assign(new Error('over_email_send_rate_limit'), { code: 'over_email_send_rate_limit' }))).toBe(
+    'Too many attempts. Please wait a minute and try again.',
+  );
 });
 
 test('an error code in the table wins over message-text matching', () => {

@@ -1,8 +1,10 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { HttpError, corsOrigin, hashToken, inviteExpiry, makeToken, parseInviteRequest } from './lib.ts';
+// Exact version on purpose: `@2` would float to whatever is newest at each deploy. Bump it deliberately.
+import { createClient } from 'jsr:@supabase/supabase-js@2.117.3';
+import { HttpError, corsOrigin, hashToken, inviteExpiry, inviteLink, isRateLimited, makeToken, parseInviteRequest, trimSlashes } from './lib.ts';
 
 // No fallback: a missing SITE_URL would put localhost in invite links and the CORS allow-list.
-const SITE_URL = Deno.env.get('SITE_URL');
+// A trailing slash is dropped so links and the CORS match never see `https://site//invite/…`.
+const SITE_URL = trimSlashes(Deno.env.get('SITE_URL') ?? '');
 if (!SITE_URL) throw new Error('SITE_URL is not set');
 const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS');
 
@@ -72,21 +74,22 @@ Deno.serve(async (req) => {
       expires_at: expiresAt,
       created_by: userData.user.id,
     });
-    if (insertError) throw insertError;
+    // Two taps at once: both revoke, both insert, and the one-live-invite-per-member index refuses the second.
+    if (insertError) throw insertError.code === '23505' ? new HttpError(409, 'invite_in_progress') : insertError;
 
-    const redirectTo = `${SITE_URL}/invite/${token}`;
+    const redirectTo = inviteLink(SITE_URL, token);
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
     const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
     if (inviteError) {
-      const alreadyRegistered = inviteError.status === 422 || /already been registered/i.test(inviteError.message);
-      if (!alreadyRegistered) throw inviteError;
+      if (isRateLimited(inviteError)) throw new HttpError(429, 'over_email_send_rate_limit');
+      if (inviteError.code !== 'email_exists') throw inviteError;
       // Existing account (e.g. re-invite): send a sign-in link that lands on the invite page.
       const mailer = createClient(url, anonKey, { auth: { persistSession: false } });
       const { error: otpError } = await mailer.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
       });
-      if (otpError) throw otpError;
+      if (otpError) throw isRateLimited(otpError) ? new HttpError(429, 'over_email_send_rate_limit') : otpError;
     }
 
     return json(cors, 200, { ok: true, expiresAt });
