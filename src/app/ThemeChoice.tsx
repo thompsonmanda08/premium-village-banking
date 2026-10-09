@@ -14,13 +14,13 @@ export function ThemeChoice() {
   return (
     <fieldset>
       <legend className="mb-2 text-sm font-medium text-fg">Theme</legend>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-1 rounded-full border border-line bg-surface-2 p-1">
         {OPTIONS.map(({ value, label, icon: Icon }) => (
           <label
             key={value}
             className={cn(
-              'flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border text-sm font-medium transition active:scale-[.97] has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
-              pref === value ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-surface text-fg',
+              'flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full text-sm font-medium transition active:scale-[.97] has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
+              pref === value ? 'bg-accent-solid text-on-accent' : 'text-muted hover:text-fg',
             )}
           >
             <input type="radio" name="theme" value={value} checked={pref === value} onChange={() => setPref(value)} className="sr-only" />

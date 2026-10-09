@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { ordinal, pickCurrentCycle, upcomingDates } from './calendar';
+import { cycleMonths, daysBetween, ordinal, pickCurrentCycle, upcomingDates } from './calendar';
 
 const cycle = { starts_on: '2027-02-15', ends_on: '2028-02-15', payout_on: '2028-02-05' };
 const rules = { window_open_day: 5, window_close_day: 7 };
@@ -45,4 +45,24 @@ test('current cycle: active wins, then the next planned, then the latest', () =>
   expect(pickCurrentCycle([c('closed', '2026-02-15', '2027-02-15'), c('planned', '2027-02-15', '2028-02-15')], '2027-02-20')?.status).toBe('planned');
   expect(pickCurrentCycle([c('closed', '2025-02-15', '2026-02-15'), c('closed', '2026-02-15', '2027-02-15')], '2028-01-01')?.starts_on).toBe('2026-02-15');
   expect(pickCurrentCycle([], '2027-01-01')).toBeNull();
+});
+
+test('daysBetween counts calendar days across months and years', () => {
+  expect(daysBetween('2027-02-15', '2027-03-15')).toBe(28);
+  expect(daysBetween('2027-12-31', '2028-01-01')).toBe(1);
+  expect(daysBetween('2027-03-01', '2027-02-28')).toBe(-1);
+});
+
+test('cycleMonths: a 15 Feb to 15 Feb cycle is twelve months, Feb to Jan, with the current one part filled', () => {
+  const months = cycleMonths({ starts_on: '2027-02-15', ends_on: '2028-02-15' }, '2027-04-22');
+  expect(months.map((m) => m.label)).toEqual(['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan']);
+  expect(months.slice(0, 3).map((m) => m.state)).toEqual(['past', 'past', 'current']);
+  expect(months[2]!.fill).toBeCloseTo(7 / 30);
+  expect(months[3]).toMatchObject({ state: 'future', fill: 0 });
+});
+
+test('cycleMonths before the start is all future, after the end all past', () => {
+  const c = { starts_on: '2027-02-15', ends_on: '2028-02-15' };
+  expect(cycleMonths(c, '2027-01-01').every((m) => m.state === 'future' && m.fill === 0)).toBe(true);
+  expect(cycleMonths(c, '2028-03-01').every((m) => m.state === 'past' && m.fill === 1)).toBe(true);
 });

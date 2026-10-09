@@ -1,7 +1,7 @@
 import { defineConfig, minimal2023Preset } from '@vite-pwa/assets-generator/config';
 
-// Maskable and Apple icons are padded; fill the padding with the brand indigo instead of the default white rim.
-const resizeOptions = { background: '#4F46E5' };
+// Maskable and Apple icons are padded; fill the padding with the brand lime instead of the default white rim.
+const resizeOptions = { background: '#C6F432' };
 
 export default defineConfig({
   preset: {

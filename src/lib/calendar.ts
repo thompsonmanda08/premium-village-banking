@@ -50,3 +50,33 @@ export function pickCurrentCycle<T extends { status: string; starts_on: string; 
     null
   );
 }
+
+const utc = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number) as [number, number, number];
+  return Date.UTC(y, m - 1, d);
+};
+
+/** Whole days from one ISO date to another; negative when `to` is earlier. */
+export const daysBetween = (from: string, to: string): number => Math.round((utc(to) - utc(from)) / 86_400_000);
+
+export type CycleMonth = { start: string; label: string; state: 'past' | 'current' | 'future'; fill: number };
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** The cycle as monthly periods that begin on the cycle's start day; `fill` is how much of each period has gone by. */
+export function cycleMonths(cycle: { starts_on: string; ends_on: string }, today: string): CycleMonth[] {
+  const [sy, sm, sd] = cycle.starts_on.split('-').map(Number) as [number, number, number];
+  const starts: string[] = [];
+  for (let i = 0; ; i++) {
+    const y = sy + Math.floor((sm - 1 + i) / 12);
+    const m = ((sm - 1 + i) % 12) + 1;
+    const start = iso(y, m, sd);
+    if (start >= cycle.ends_on) break;
+    starts.push(start);
+  }
+  return starts.map((start, i) => {
+    const end = starts[i + 1] ?? cycle.ends_on;
+    const fill = Math.min(1, Math.max(0, daysBetween(start, today) / daysBetween(start, end)));
+    const state = today >= end ? 'past' : today >= start ? 'current' : 'future';
+    return { start, label: MONTH_NAMES[Number(start.slice(5, 7)) - 1]!, state, fill: state === 'past' ? 1 : fill };
+  });
+}

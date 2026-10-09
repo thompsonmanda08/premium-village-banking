@@ -12,10 +12,10 @@ export function BottomNav({ isAdmin, onMore }: { isAdmin: boolean; onMore: () =>
       <ul className="grid grid-cols-5">
         {bottomNav(isAdmin).map(({ key, label, to, icon: Icon }) => (
           <li key={key}>
-            <NavLink to={to} end={to === '/'} viewTransition className={({ isActive }) => cn(item, isActive ? 'text-accent' : 'text-muted')}>
+            <NavLink to={to} end={to === '/'} viewTransition className={({ isActive }) => cn(item, isActive ? 'text-fg' : 'text-muted')}>
               {({ isActive }) => (
                 <>
-                  <span className={cn(pill, isActive && 'bg-accent-soft')}>
+                  <span className={cn(pill, isActive && 'bg-accent-solid text-on-accent')}>
                     <Icon aria-hidden className="size-6" />
                   </span>
                   {label}

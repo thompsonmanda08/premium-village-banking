@@ -14,7 +14,7 @@ export function IconButton({ label, icon, badge, className, type = 'button', ...
       aria-label={badge ? `${label}, ${badge} waiting` : label}
       title={label}
       className={cn(
-        'relative inline-grid size-12 place-items-center rounded-xl text-muted transition duration-150 hover:bg-surface-2 hover:text-fg active:scale-[.97]',
+        'relative inline-grid size-12 place-items-center rounded-full text-muted transition duration-150 hover:bg-surface-2 hover:text-fg active:scale-[.97]',
         className,
       )}
       {...rest}

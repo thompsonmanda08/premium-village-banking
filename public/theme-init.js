@@ -18,5 +18,5 @@
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
   var meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', dark ? '#09090B' : '#F1F5F9');
+  if (meta) meta.setAttribute('content', dark ? '#0F1113' : '#EEF0F2');
 })();
