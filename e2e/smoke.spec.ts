@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures';
+import type { Page } from '@playwright/test';
 
 test('sign-in page offers all three methods', async ({ page }, info) => {
   await page.goto('/sign-in');
@@ -30,11 +31,18 @@ test('an unknown invite explains itself', async ({ page }) => {
   await expect(page.getByText('This invite link isn’t valid. Ask your treasurer for a new one.')).toBeVisible();
 });
 
-for (const path of ['/sign-in', '/invite/not-a-real-token']) {
+// Measure once the page has settled on a concrete element, not on network idle: the invite page waits on a Supabase
+// call, and on a slow link idle only arrives (or not) with that call.
+const settled = {
+  '/sign-in': (page: Page) => page.getByRole('button', { name: 'Use a password instead' }),
+  '/invite/not-a-real-token': (page: Page) => page.getByText('Ask your treasurer for a new one.'),
+};
+
+for (const [path, ready] of Object.entries(settled)) {
   test(`no horizontal scroll at 360px on ${path}`, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto(path);
-    await page.waitForLoadState('networkidle');
+    await expect(ready(page)).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
