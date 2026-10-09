@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { AuthLayout } from '@/app/AuthLayout';
@@ -13,12 +13,20 @@ import { Alert, Button, Skeleton, useToast } from '@/ui';
 
 type Preview = { status: 'valid' | 'expired' | 'revoked' | 'used' | 'not_found'; group_name?: string; member_name?: string; email_hint?: string };
 
+/** The sign-in link in the invite email failed (opened after it expired, or twice): Auth sends the person back here with the failure in the hash (implicit flow) or the query. */
+function linkFailed({ hash, search }: { hash: string; search: string }): boolean {
+  const q = new URLSearchParams(search);
+  const h = new URLSearchParams(hash.replace(/^#/, ''));
+  return ['error', 'error_code', 'error_description'].some((k) => q.has(k) || h.has(k));
+}
+
 const linkClass = 'inline-flex min-h-12 items-center font-semibold text-fg underline underline-offset-4';
 
 export function InvitePage() {
   const { token = '' } = useParams();
   const here = `/invite/${encodeURIComponent(token)}`;
   const { session, loading } = useSession();
+  const location = useLocation();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const toast = useToast();
@@ -134,6 +142,12 @@ export function InvitePage() {
         )
       ) : (
         <div className="grid gap-6">
+          {linkFailed(location) && (
+            // Never the provider's error_description: one fixed sentence whatever the failure was.
+            <Alert tone="warning">
+              {friendlyError({ code: 'otp_expired' })} Ask your treasurer to send a new invite.
+            </Alert>
+          )}
           <div>
             <h2 className="text-xl font-semibold text-fg">{heading}</h2>
             <p className="mt-1 text-base text-muted">

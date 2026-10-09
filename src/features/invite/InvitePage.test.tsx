@@ -88,6 +88,28 @@ test('signed out: names the group and member and offers sign-in', async () => {
   expect(accepts()).toHaveLength(0);
 });
 
+test.each([
+  ['hash', '/invite/tok#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired'],
+  ['query', '/invite/tok?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired'],
+  ['hash, another error', '/invite/tok#error=server_error&error_code=unexpected_failure&error_description=Database+exploded'],
+])('signed out, opened from a failed email link (%s): says so, tells them to ask for a new invite, keeps sign-in', async (_where, path) => {
+  rpc.mockResolvedValueOnce(preview('valid'));
+  renderAt(path);
+  const note = await screen.findByText(/This sign-in link has expired or was already used\. Request a new one\. Ask your treasurer to send a new invite\./);
+  expect(note).toBeInTheDocument();
+  expect(screen.queryByText(/invalid or has expired|exploded|unexpected_failure|otp_expired/i)).toBeNull(); // never the provider's text or codes
+  expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+  expect(screen.getByText(/as Tafara/)).toBeInTheDocument();
+  expect(accepts()).toHaveLength(0);
+});
+
+test('signed out, no failure in the URL: no link-expired note', async () => {
+  rpc.mockResolvedValueOnce(preview('valid'));
+  renderAt('/invite/tok#access_token_missing=1');
+  expect(await screen.findByText(/as Tafara/)).toBeInTheDocument();
+  expect(screen.queryByText(/Ask your treasurer to send a new invite/)).toBeNull();
+});
+
 test('signed out: Google sign-in comes back to this invite', async () => {
   rpc.mockResolvedValueOnce(preview('valid'));
   renderAt('/invite/tok');
