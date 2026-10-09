@@ -17,7 +17,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: null,
-      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png', 'theme-init.js'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'theme-init.js'],
       manifest: {
         name: 'Premium Village Bank',
         short_name: 'Premium VB',
