@@ -31,6 +31,16 @@ test('maps network failures', () => {
   expect(friendlyError(new TypeError('Failed to fetch'))).toBe('You seem to be offline. Check your connection and try again.');
 });
 
+test('a timed-out or aborted request reads as a slow or missing connection', () => {
+  const offline = 'You seem to be offline. Check your connection and try again.';
+  expect(friendlyError(new DOMException('The request timed out', 'TimeoutError'))).toBe(offline);
+  expect(friendlyError(new DOMException('signal is aborted without reason', 'AbortError'))).toBe(offline);
+  // supabase-js wraps the fetch failure: PostgREST prefixes the error name, Auth keeps the bare message.
+  expect(friendlyError({ message: 'TimeoutError: The request timed out', code: '' })).toBe(offline);
+  expect(friendlyError({ message: 'AbortError: This operation was aborted', code: '' })).toBe(offline);
+  expect(friendlyError({ message: 'signal timed out', status: 0, name: 'AuthRetryableFetchError' })).toBe(offline);
+});
+
 test('never leaks raw errors', () => {
   expect(friendlyError({ message: 'duplicate key value violates unique constraint "members_group_id_short_name_key"', code: '23505' })).toBe('That name is already used in this group.');
   expect(friendlyError('weird')).toBe(GENERIC);

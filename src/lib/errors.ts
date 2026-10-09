@@ -4,6 +4,7 @@ const NO_ACCOUNT = 'We couldn’t find an account for that email. Ask your treas
 const UNCONFIRMED = 'Confirm your email address first, using the link we sent you.';
 const NEW_PASSWORD = 'Choose a password you haven’t used before.';
 const TOO_MANY = 'Too many attempts. Please wait a minute and try again.';
+const OFFLINE = 'You seem to be offline. Check your connection and try again.';
 const CONFIRM_WITH_CODE = 'For your security, enter the code we emailed you to confirm this change.';
 
 // Keyed by SQL business code, Edge Function code, supabase-js AuthError code, or (older shapes) exact message text.
@@ -58,12 +59,12 @@ const KNOWN: Record<string, string> = {
 // hasOwn: a code or message like "constructor" must not resolve to an Object.prototype member.
 const known = (key: unknown): string | undefined => (typeof key === 'string' && Object.hasOwn(KNOWN, key) ? KNOWN[key] : undefined);
 
-type ErrorLike = { message?: unknown; code?: unknown; status?: unknown };
+type ErrorLike = { message?: unknown; code?: unknown; status?: unknown; name?: unknown };
 
 /** The only place user-facing error text comes from. Never returns a raw error message. */
 export function friendlyError(err: unknown): string {
   if (!err || typeof err !== 'object') return GENERIC;
-  const { message, code, status } = err as ErrorLike;
+  const { message, code, status, name } = err as ErrorLike;
   const msg = typeof message === 'string' ? message : '';
   const hit = known(code) ?? known(msg);
   if (hit) return hit;
@@ -73,7 +74,8 @@ export function friendlyError(err: unknown): string {
   // A check constraint (blank or over-long name, malformed email): retrying the same input can never succeed.
   if (code === '23514') return 'Some details aren’t valid. Check the name, short name and email.';
   if (status === 401 || code === 'PGRST301' || code === 'PGRST303') return 'Your session has expired. Please sign in again.';
-  if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'You seem to be offline. Check your connection and try again.';
+  // Offline, or the 20 s request timeout / an abort (supabase-js wraps those as "TimeoutError: …" or "…timed out").
+  if (name === 'TimeoutError' || name === 'AbortError' || /failed to fetch|networkerror|load failed|timed out|timeouterror|aborterror|operation was aborted/i.test(msg)) return OFFLINE;
   return GENERIC;
 }
 
