@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { bottomNav, moreItems, sidebarItems } from './nav';
+import { bottomNav, moreItems, topNavItems } from './nav';
 
 const keys = (items: { key: string }[]) => items.map((i) => i.key);
 
@@ -10,10 +10,10 @@ test('members: Home, Passbook, Declare, Plan in the bottom nav', () => {
 
 test('admins: Desk replaces Plan, Plan moves into More', () => {
   expect(keys(bottomNav(true))).toEqual(['home', 'passbook', 'declare', 'desk']);
-  expect(keys(moreItems(true))).toEqual(['record', 'group', 'plan', 'rules', 'account']);
+  expect(keys(moreItems(true))).toEqual(['record', 'group', 'plan', 'rules', 'settings', 'account']);
 });
 
-test('sidebar shows Desk only to admins', () => {
-  expect(keys(sidebarItems(false))).not.toContain('desk');
-  expect(keys(sidebarItems(true))).toContain('desk');
+test('desktop nav shows Desk only to admins', () => {
+  expect(keys(topNavItems(false))).not.toContain('desk');
+  expect(keys(topNavItems(true))).toContain('desk');
 });

@@ -35,14 +35,14 @@ test('member bottom nav has Plan and no Desk or gear', () => {
   const nav = screen.getByRole('navigation', { name: 'Main' });
   expect(within(nav).getByRole('link', { name: 'Plan' })).toBeInTheDocument();
   expect(within(nav).queryByRole('link', { name: 'Desk' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Group settings' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Group settings' })).toBeNull();
 });
 
 test('admin bottom nav has Desk and the gear', () => {
   renderShell(true);
   const nav = screen.getByRole('navigation', { name: 'Main' });
   expect(within(nav).getByRole('link', { name: 'Desk' })).toBeInTheDocument();
-  expect(screen.getAllByRole('button', { name: 'Group settings' }).length).toBeGreaterThan(0);
+  expect(screen.getAllByRole('link', { name: 'Group settings' })[0]).toHaveAttribute('href', '/settings');
 });
 
 test('marks the current tab', () => {
