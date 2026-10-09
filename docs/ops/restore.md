@@ -76,12 +76,13 @@ do not go live; re-run B and C, and if it still fails compare against `supabase/
 would collide with what is already there. Empty the stack first. This drill includes A, B and C, so it proves them.
 
 1. Download the artifact from GitHub → Actions → "Nightly encrypted backup" → a run → Artifacts.
-2. Decrypt and unpack:
+2. Fetch `pvb-backup.key` from its offline storage for this drill only. Decrypt and unpack:
 
 ```
 age -d -i pvb-backup.key -o backup.tar.gz pvb-YYYY-MM-DD.tar.gz.age
 tar xzf backup.tar.gz
 export DB='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+echo "$DB"   # must show 127.0.0.1:54322 before any psql command below; an empty $DB would make psql use its defaults
 ```
 
 3. Start the local stack, then empty `public`, `private` (the bootstrap functions; `schema.sql` recreates it) and the
@@ -118,6 +119,9 @@ psql --single-transaction --variable ON_ERROR_STOP=1 \
 6. Run **B**, then **C**. `pass` must be `t` on all six rows.
 7. Check: `psql "$DB" -c "select count(*) from public.members"` matches production, and
    `select count(*) from auth.users` matches too.
+8. Clean up. The dump is real member data and `pvb-backup.key` opens every backup: delete the decrypted copies
+   (`rm -rf backup backup.tar.gz`, and the downloaded `.age` file), delete the key from this machine (it lives offline),
+   and run `bun x supabase stop --no-backup` so the local database volume goes too.
 
 ## Restore into production
 
@@ -134,12 +138,12 @@ and keep it until the new project is verified.
 5. Link the CLI to the new project and mark the migrations as already applied. The dump does not include
    `supabase_migrations`, so a plain `supabase db push` would run `20261008000100_core_schema.sql` again and fail.
    Repair every file in `supabase/migrations` (currently `20261008000100`, `20261008000200`, `20261008000300`,
-   `20261008000400` and `20261008000500`; add any later ones):
+   `20261008000400`, `20261008000500` and `20261009000600`; add any later ones):
 
 ```
 supabase link --project-ref <new-ref>
 supabase migration repair --status applied \
-  20261008000100 20261008000200 20261008000300 20261008000400 20261008000500
+  20261008000100 20261008000200 20261008000300 20261008000400 20261008000500 20261009000600
 supabase migration list
 ```
 
@@ -152,14 +156,18 @@ supabase migration list
 Do these on the new project before pointing the app at it:
 
 - [ ] Auth providers: Google, email magic link, email + password (and sign-ups disabled, as in `SECURITY_AUDIT.md` H-1).
-- [ ] Auth URL configuration: set **Site URL** to the production domain, and the redirect URLs to the production
-      domain, the Vercel preview pattern and `http://localhost:3000`.
+- [ ] Auth URL configuration: set **Site URL** to the production domain, and the only redirect URL to
+      `https://<production domain>/**`. No Vercel preview wildcard and no `localhost`: with the implicit flow a wildcard
+      lets any lookalike Vercel project receive members' sign-in tokens (previews use password sign-in only).
+- [ ] Auth Email OTP expiration `86400` (24 hours, the maximum), so invite emails stay usable overnight; and an email
+      rate limit that fits the group (see `docs/ops/setup.md` section 2).
 - [ ] Google OAuth client (Google Cloud console): add `https://<new-ref>.supabase.co/auth/v1/callback` as an authorised
       redirect URI, and enter the client ID and secret in the new project's Google provider.
 - [ ] SMTP: Resend credentials in the new project's Auth SMTP settings.
-- [ ] Edge Function secrets: `supabase secrets set SITE_URL=https://<production domain> ALLOWED_ORIGINS=<extra origins>`
-      (`SITE_URL` is required and is always allowed; `ALLOWED_ORIGINS` is a comma-separated list of additional
-      origins, such as the Vercel preview URL, and may be left empty). Supabase injects the service-role key itself.
+- [ ] Edge Function secrets: `supabase secrets set SITE_URL=https://<production domain>`, or, to also allow invites from
+      a preview, `supabase secrets set SITE_URL=https://<production domain> ALLOWED_ORIGINS=<extra origins>`
+      (`SITE_URL` is required and is always allowed; `ALLOWED_ORIGINS` is a comma-separated list of additional exact
+      origins and is not needed in production). Supabase injects the service-role key itself.
 - [ ] Redeploy `invite-member`: `supabase functions deploy invite-member --project-ref <new-ref>`.
 - [ ] Vercel: set `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` to the new project and redeploy.
 - [ ] GitHub: update the `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_DB_URL`, `SUPABASE_URL` and

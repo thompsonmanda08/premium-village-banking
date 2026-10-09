@@ -16,7 +16,9 @@ project's policy: **at least 12 characters, with letters and digits**.
 ## 1. Supabase project: use the existing one
 
 The hosted project in `eu-west-1` already exists and served as the dev/test database during the build.
-Production uses that same project. (Only if you are starting over: supabase.com, New project, name
+Production uses that same project. That is a known and accepted deviation from the pre-release checklist in
+`SECURITY_AUDIT.md` ("Production is a separate project from dev/test"): the cleanup below is what makes it acceptable,
+so do not skip it. (Only if you are starting over: supabase.com, New project, name
 `premium-village-bank`, region closest to Lusaka that is offered, strong database password. Then repeat
 every step below, and the "Non-database setup" list in `docs/ops/restore.md`.)
 
@@ -27,6 +29,11 @@ every step below, and the "Non-database setup" list in `docs/ops/restore.md`.)
    - `SUPABASE_DB_URL`: Connect, **Session pooler** string (port 5432) with the password filled in.
      Percent-encode special characters in the password.
    - `SUPABASE_ACCESS_TOKEN`: Account, Access Tokens, new token. Use a token from a bot or dedicated account if you can.
+2. **Rotate `SUPABASE_DB_PASSWORD` and `SUPABASE_ACCESS_TOKEN` before go-live.** Both were used from a development
+   machine during the build, and the database password was once exposed in a chat transcript. Reset the database
+   password (Project Settings, Database), rebuild `SUPABASE_DB_URL` with the new one, revoke the old access token and
+   create a new one. Put the new values in the password manager and in the GitHub secrets (section 6), and delete the
+   old values from every `.env.local`.
 
 ### Before go-live: clean the dev/test use
 
@@ -51,14 +58,15 @@ select
       section 4 (it refuses to run twice).
 - [ ] `pgtap_installed`: decide. It is harmless but unused in production. To remove it: `drop extension if exists pgtap;`.
       `bun run db:test` recreates it, which is one more reason not to run that command here.
-- [ ] Put `PROD_PROJECT_REF=SUPABASE_PROJECT_REF` in your local `.env.local`. From then on `bun run db:reset` refuses
-      any `SUPABASE_DB_URL` that names this project (while it is unset the guard does nothing). Do not test the
-      guard by running `db:reset`. The guard covers that script only: the Supabase CLI's own `db reset --linked` is not
+- [ ] Put `PROD_PROJECT_REF=SUPABASE_PROJECT_REF` in your local `.env.local`. From then on `bun run db:reset` and
+      `bun run db:test` refuse any `SUPABASE_DB_URL` that names this project (while it is unset the guards do nothing),
+      and `db:reset` also refuses any non-local URL unless `--allow-hosted` is passed. Do not test the guards by running
+      the commands against production. They cover those scripts only: the Supabase CLI's own `db reset --linked` is not
       guarded, so never run it after section 1.
-- [ ] Stop running `bun run db:test` against this project. CI runs the suite on its own local stack. To keep working
-      on the database locally, run `bun run db:start` (needs Docker) and point `SUPABASE_DB_URL` in `.env.local` at
-      `postgresql://postgres:postgres@127.0.0.1:54322/postgres`. Production migrations then go out through the
-      "Deploy database and functions" workflow (section 6).
+- [ ] Do day-to-day database work on the local stack: `bun run db:start` (needs Docker) and `SUPABASE_DB_URL` in
+      `.env.local` set to `postgresql://postgres:postgres@127.0.0.1:54322/postgres` (see `README.md`). CI runs the
+      pgTAP suite on its own local stack. Production migrations go out through the "Deploy database and functions"
+      workflow (section 6).
 
 ### Link and check migrations
 
@@ -68,8 +76,10 @@ bun x supabase link --project-ref SUPABASE_PROJECT_REF
 bun x supabase db push --dry-run
 ```
 
-The migrations were applied with `bun run db:push` during the build, so the dry run should list nothing pending
-(or only migrations added since). If it lists some, run `bun x supabase db push`.
+`link` and `db push` ask for the database password (`SUPABASE_DB_PASSWORD`, the new one after the rotation above): type
+it at the prompt. The dry run lists what is not yet on production: at least the migration added after the build
+(`20261009000600_one_live_invite_per_member.sql`). **Leave those to the gated "Deploy database and functions" workflow
+(section 6), which applies them after a reviewer approves.** Do not run a manual `supabase db push`.
 
 ## 2. Auth settings (Dashboard, Authentication)
 
@@ -88,17 +98,27 @@ Open each page and confirm; set whatever differs. Dashboard menu names move arou
       review; in Testing mode only listed test users can sign in). Then Credentials, Create OAuth client ID, Web application.
       Authorised redirect URI `https://SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback`; authorised JavaScript origin
       `https://PROD_DOMAIN`. Paste the client ID and secret into the Supabase Google provider.
-- [ ] URL Configuration: **Site URL** `https://PROD_DOMAIN`. **Redirect URLs** `https://PROD_DOMAIN/**` and
-      `https://*-VERCEL_TEAM_SLUG.vercel.app/**` (Vercel previews). No `localhost` entries in production.
+- [ ] URL Configuration: **Site URL** `https://PROD_DOMAIN`. **Redirect URLs**: only `https://PROD_DOMAIN/**`. No
+      `localhost` entries and **no Vercel preview wildcard**: sign-in uses the implicit flow, so the tokens travel in
+      the redirect URL, and a wildcard would let any lookalike Vercel project receive members' sign-in tokens. Previews
+      use password sign-in only (the E2E tests do), which needs no redirect.
       (Until this is done the hosted Site URL is `http://localhost:3000` and auth emails point at localhost.)
+- [ ] Sign In / Providers, **Email**, **Email OTP Expiration**: `86400` seconds (24 hours, the maximum). The sign-in
+      link in an invite email stops working when this runs out (the default is 1 hour, far too short for a family
+      member who opens the email the next day). Tell the treasurer: **an invite email's link lasts 24 hours**. When it
+      has lapsed, the invite page says so and asks the member to request a new invite; re-inviting from the group
+      settings works for any member who has not joined yet.
 - [ ] SMTP (Authentication, Emails, SMTP Settings): custom SMTP through Resend. First verify your domain in Resend
       (DNS records), then create an API key with sending access. Host `smtp.resend.com`, port `465`, user `resend`,
       password = the Resend API key, sender email `no-reply@VERIFIED_DOMAIN`, sender name `Premium Village Bank`.
       Without custom SMTP, Supabase's mailer only sends to project team members, at 2 emails an hour: invites will not arrive.
-- [ ] Rate Limits: lower the email rate limit to a figure that fits the group (about 20 emails an hour is plenty for
-      roughly twenty members), and leave sign-in and token-verification limits at their defaults or lower. Someone can
-      probe whether an address belongs to a member by how the magic-link request answers (rate-limit errors, timing); a
-      low email cap limits how much of that they can do.
+- [ ] Rate Limits, email: **raise it for the onboarding week** (about 18 invites plus members' magic-link requests
+      in a few days; 60 an hour is plenty), then **lower it again** to a figure that fits the group (about 20 an hour for
+      roughly twenty members). Put the date to lower it in your calendar. When the limit is hit, Auth answers 429, the
+      invite function passes it on and the app says "Too many attempts. Please wait a minute and try again."
+      Leave sign-in and token-verification limits at their defaults or lower. Someone can probe whether an address
+      belongs to a member by how the magic-link request answers (rate-limit errors, timing); a low email cap limits how
+      much of that they can do.
 - [ ] Project Settings, Database: **SSL enforcement on** (turned on during the audit). Leave network restrictions as
       they are unless you have checked that the backup and deploy workflows still connect: GitHub's runner addresses change.
 - [ ] Leaked-password protection (HIBP) needs a paid plan; skip on the free tier.
@@ -107,32 +127,54 @@ Open each page and confirm; set whatever differs. Dashboard menu names move arou
 
 The function sends invite emails. It refuses to start without `SITE_URL`.
 
-### Before the first deploy: confirm these fixes are in the code
+### Before the first deploy: the code checklist
 
-Do not deploy until every box is ticked. If one is missing, it needs a code change first, not a workaround here.
+This is the developer's (or coding agent's) job on `feat/foundation`, **before** the pull request is merged: the merge
+is what deploys the function. Do not merge until every box is ticked. A box that is not ticked needs a code change, not
+a workaround here.
 
-- [ ] `SITE_URL` handling: a trailing slash is stripped (so links are `https://PROD_DOMAIN/invite/…`, not `…//invite/…`),
-      and a missing or empty `SITE_URL` fails closed (the function refuses to start; no localhost fallback).
-- [ ] The supabase-js import is pinned to an exact version (not `@2`), **or** a `deno.lock` is committed
-      (it is currently listed in `.gitignore`).
-- [ ] A migration adds a partial unique index on `invites` so a member can never have two live invites
-      (unique on `member_id` where `accepted_at` and `revoked_at` are both null).
-- [ ] "Already registered" is detected by the Auth error `code === 'email_exists'`, not by HTTP status or message text.
-- [ ] `bun run fn:test` passes.
+Done in the code (confirm with the quick look below):
 
-Quick look (each should show what the item above says):
+- [x] `SITE_URL` handling: a trailing slash is stripped (links are `https://PROD_DOMAIN/invite/…`, not `…//invite/…`; the
+      CORS origin match ignores it too), and a missing or empty `SITE_URL` fails closed (the function refuses to start).
+- [x] The supabase-js import is pinned to an exact version (`jsr:@supabase/supabase-js@2.117.3`), so no lockfile is
+      needed (the root `deno.lock` stays git-ignored). Bump it on purpose.
+- [x] Migration `20261009000600_one_live_invite_per_member.sql` adds the partial unique index on `invites`; a double
+      tap gets `409 invite_in_progress` ("An invite is already being sent. Wait a moment and try again.").
+- [x] "Already registered" is detected by the Auth error `code === 'email_exists'`, not by status or message text.
+- [x] An Auth rate limit (429) comes back as `429 over_email_send_rate_limit`.
+- [x] `bun run fn:test` and `bun x deno check supabase/functions/invite-member/index.ts` pass (CI's `edge` job runs both).
+
+Still to do:
+
+- [ ] The pgTAP case for the new index (`supabase/tests/database/03_invites_admins.sql`) is green on a local stack
+      (`bun run db:start`, then `bun run db:test`) or in the CI `db` job on the pull request.
+- [ ] The Auth settings in section 2 are done, including the 24-hour OTP expiry.
+
+Quick look (each should show what the list above says):
 
 ```bash
-grep -n "supabase-js@" supabase/functions/invite-member/index.ts
+grep -n "supabase-js@" supabase/functions/invite-member/index.ts   # an exact x.y.z, not @2
 grep -n "email_exists" supabase/functions/invite-member/index.ts
-git ls-files deno.lock
-ls supabase/migrations
+git ls-files '*deno.lock'                                           # prints nothing: the pin does the job
+ls supabase/migrations                                              # ends with 20261009000600_…
 ```
 
 ### Secrets and deploy
 
+Set the secrets in one of two forms (use exactly one):
+
 ```bash
-bun x supabase secrets set SITE_URL=https://PROD_DOMAIN ALLOWED_ORIGINS=https://PROD_DOMAIN,https://PREVIEW_ORIGIN
+# Normal production: members sign in and the treasurer invites from PROD_DOMAIN only.
+bun x supabase secrets set SITE_URL=https://PROD_DOMAIN
+
+# Only if you also want to send invites from a preview deployment (list each preview origin; exact match, no wildcards):
+bun x supabase secrets set SITE_URL=https://PROD_DOMAIN ALLOWED_ORIGINS=https://PREVIEW_ORIGIN
+```
+
+Then:
+
+```bash
 bun x supabase secrets list
 bun x supabase functions deploy invite-member --project-ref SUPABASE_PROJECT_REF
 ```
@@ -141,8 +183,9 @@ bun x supabase functions deploy invite-member --project-ref SUPABASE_PROJECT_REF
   and it is always allowed to call the function from a browser.
 - `ALLOWED_ORIGINS` is a comma-separated list of **extra** browser origins that may call the function, for example
   the Vercel preview origin (`https://premium-village-bank-git-BRANCH-VERCEL_TEAM_SLUG.vercel.app`). Matching is exact:
-  no wildcards, so each preview origin you want to send invites from has to be listed. Production only needs `SITE_URL`;
-  list nothing else if you never invite from a preview. Never list localhost in production.
+  no wildcards, so each preview origin you want to send invites from has to be listed. Production only needs `SITE_URL`
+  (the first form); use the second only if you invite from a preview. Never list localhost in production. To remove a
+  value later, run `secrets unset ALLOWED_ORIGINS`.
 - Supabase injects `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` itself. Do not set them.
 - Set the secrets before the function is deployed by anyone, including the "Deploy database and functions"
   workflow (section 6), or the function will not start.
@@ -200,12 +243,15 @@ bun run e2e
 
 1. Settings, Environments, `production`, Required reviewers: the owner and the treasurer. The workflow
    "Deploy database and functions" runs in this environment, so **no migration or function deploy reaches
-   production until a reviewer approves it**.
+   production until a reviewer approves it**. **Save, then reopen the page and confirm both reviewers are listed.**
+   On a private repository, required reviewers need a paid GitHub plan (on GitHub Free the setting is missing or does
+   not save). If you cannot save it, **stop**: with no reviewer the merge in step 4 deploys immediately. Fix the plan (or
+   the repository's visibility, after checking the repo holds no secrets) first.
 2. Settings, Secrets and variables, Actions, repository secrets:
 
    | Secret | Used by |
    |---|---|
-   | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` | Deploy database and functions |
+   | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (the rotated values, section 1) | Deploy database and functions |
    | `SUPABASE_DB_URL`, `AGE_RECIPIENT` | Nightly encrypted backup |
    | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Keep Supabase awake |
    | `E2E_MEMBER_EMAIL`, `E2E_MEMBER_PASSWORD`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `VERCEL_AUTOMATION_BYPASS_SECRET` | E2E on preview |
@@ -234,7 +280,21 @@ restrictions, dependency upgrade) are decisions for the owner: write down which 
 ## 8. Restore drill (once, before real money data goes in)
 
 Follow `docs/ops/restore.md`, "Restore into a local stack", using last night's backup artifact. It needs
-`age`, `psql` and Docker. The procedure includes the privilege hardening (steps **A**, **B**, **C**). Add two things to it,
+`age`, `psql` and Docker. The backup holds real member data, so:
+
+- Fetch `pvb-backup.key` from its offline storage just for the drill, and **delete it from the machine afterwards**.
+- Define the target explicitly and look at it before any `psql` command runs (an empty `$DB` makes `psql` talk to
+  whatever it finds by default):
+
+```bash
+export DB='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+echo "$DB"        # must show 127.0.0.1:54322; stop if it does not
+```
+
+- When you are done, delete the decrypted copies (`rm -rf backup backup.tar.gz`, plus the downloaded `.age` file) and
+  run `bun x supabase stop --no-backup`, which also discards the local database volume.
+
+The procedure includes the privilege hardening (steps **A**, **B**, **C**). Add two things to it,
 so that **C** proves **A** and **B** really remove the extra access that a fresh hosted project hands out:
 
 - Between its step 3 (empty `public`) and step 4 (run **A**), give `anon` and `authenticated` the default access a
@@ -264,12 +324,12 @@ backup workflow or to the migrations.
 
 ## 9. Known issues
 
-- **A Supabase request that never answers leaves the page on its loading skeleton.** The app has no client-side
-  request timeout yet. On a slow link or while Supabase is waking up (the hosted project sometimes takes 2 to 10
-  seconds or longer), a screen can sit on the skeleton instead of showing an error. Reload the page or pull to
-  refresh. If it persists, check the Supabase dashboard and status page, and whether the project has paused.
+- **A slow or stalled Supabase request fails after 20 seconds.** The app then shows "You seem to be offline. Check your
+  connection and try again." with a retry. While Supabase is waking up (the hosted project sometimes takes 2 to 10
+  seconds or longer) a screen can show its skeleton that long first. If the message persists on a good connection,
+  check the Supabase dashboard and status page, and whether the project has paused.
 - **Free projects pause after 7 idle days.** The "Keep Supabase awake" workflow prevents that (Mondays and Thursdays).
-  A pause shows up as the problem above, on every screen. Resume the project in the dashboard.
+  A pause shows up as the error above, on every screen. Resume the project in the dashboard.
 - **The nightly encrypted backup is your backup.** Check Actions now and then: it fails loudly if the dump is missing
   members or users. Artifacts are kept for 90 days. A restore into a new project signs every member out (see
   `docs/ops/restore.md`).

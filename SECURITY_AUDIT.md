@@ -102,7 +102,7 @@ Status legend: **FIXED** (in this change set) · **OPEN** (reason given).
 - **Where:** `scripts/db-cli.mjs:14`, `scripts/db-test.mjs`, `package.json` scripts; README describes the hosted project as the target.
 - **Description:** `bun run db:reset` runs `supabase db reset --yes` against `SUPABASE_DB_URL`, which **wipes every table** with no prompt. `db:test` creates `auth.users` rows and a temporary `tests` schema of security-definer functions on the same database (dropped after each run, and not exposed through the API). Harmless while the database is empty; once real member and money data lives there, one command destroys it.
 - **Fix (done, approved):** `db:reset` refuses any `SUPABASE_DB_URL` naming `PROD_PROJECT_REF` (new, in `.env.example`). Tested in `scripts/seed-guard.test.mjs` and proven against the real URL (exit 1, nothing run).
-- **Open:** create the production project separately and set `PROD_PROJECT_REF` to its ref in every `.env.local`; while it is unset, the guard does nothing. `db:test` has no such guard yet.
+- **Open:** create the production project separately and set `PROD_PROJECT_REF` to its ref in every `.env.local`; while it is unset, the guard does nothing. `db:test` now refuses that ref too, and `db:reset` refuses any non-local URL unless `--allow-hosted` is passed (`scripts/seed-guard.mjs`, tested in `scripts/seed-guard.test.mjs`). Production is the former dev/test project, an accepted deviation covered by the cleanup in `docs/ops/setup.md` section 1.
 
 ### M-5 · Medium · No security headers or CSP; sessions live in `localStorage` — FIXED
 - **Where:** no `vercel.json` / hosting config; `index.html` loads `/theme-init.js` (external file, so a strict CSP without `'unsafe-inline'` scripts is achievable).
