@@ -1,11 +1,11 @@
-// Runs the Supabase CLI against the hosted project: push | reset | types.
+// Runs the Supabase CLI: push | reset | types. `reset` only touches a local stack (see resetRefusal).
 // A script wrapper because `bun run` does not expose .env.local to package.json shell expansion,
 // and so the connection string can be scrubbed from anything the CLI prints.
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { clean } from './scrub.mjs'
-import { isLocalUrl, seedsRemote, targetsProject } from './seed-guard.mjs'
+import { isLocalUrl, resetRefusal, seedsRemote } from './seed-guard.mjs'
 
 const env = process.env
 const args = {
@@ -26,9 +26,10 @@ if (seedsRemote(args, env.SUPABASE_DB_URL)) {
   console.error('Refusing to apply supabase/seed.sql to a database that is not localhost.')
   process.exit(1)
 }
-// db reset deletes every row: never against production.
-if (process.argv[2] === 'reset' && targetsProject(env.SUPABASE_DB_URL, env.PROD_PROJECT_REF)) {
-  console.error('Refusing to reset the production project (PROD_PROJECT_REF).')
+// db reset deletes every row: never against production, and only against localhost unless --allow-hosted.
+const refusal = process.argv[2] === 'reset' && resetRefusal(env.SUPABASE_DB_URL, env.PROD_PROJECT_REF, process.argv.includes('--allow-hosted'))
+if (refusal) {
+  console.error(refusal)
   process.exit(1)
 }
 

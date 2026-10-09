@@ -1,14 +1,20 @@
-// pgTAP runner for the hosted Supabase database (no Docker, no `supabase test db`).
+// pgTAP runner for a Postgres reached by SUPABASE_DB_URL: the local stack (`bun run db:start`), never production.
 // Each supabase/tests/database/*.sql file carries its own begin; ... rollback;.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import postgres from 'postgres'
 import { clean } from './scrub.mjs'
-import { isLocalUrl } from './seed-guard.mjs'
+import { isLocalUrl, testRefusal } from './seed-guard.mjs'
 
 const url = process.env.SUPABASE_DB_URL
 if (!url) {
   console.error('SUPABASE_DB_URL is not set. Copy .env.example to .env.local and fill it in.')
+  process.exit(1)
+}
+
+const refusal = testRefusal(url, process.env.PROD_PROJECT_REF)
+if (refusal) {
+  console.error(refusal)
   process.exit(1)
 }
 

@@ -27,3 +27,17 @@ export const seedsRemote = (args, url) => seeds(args) && (args.includes('--linke
 // Supabase puts the project ref in every connection string (pooler user `postgres.<ref>`, direct
 // host `db.<ref>.supabase.co`), so naming it anywhere means the URL points at that project.
 export const targetsProject = (url, ref) => Boolean(ref) && String(url).toLowerCase().includes(ref.toLowerCase())
+
+// `db reset` deletes every row. The production project is refused outright; any other non-local database needs
+// --allow-hosted (a hosted scratch project). Returns the refusal message, or null when the reset may go ahead.
+export const resetRefusal = (url, prodRef, allowHosted) => {
+  if (targetsProject(url, prodRef)) return 'Refusing to reset the production project (PROD_PROJECT_REF).'
+  if (!allowHosted && !isLocalUrl(url)) {
+    return 'Refusing to reset a database that is not localhost. Use `bun run db:start` and the local URL; --allow-hosted is for a hosted scratch project only.'
+  }
+  return null
+}
+
+// db:test creates the pgtap extension and a `tests` schema of security definer helpers: never in production.
+export const testRefusal = (url, prodRef) =>
+  targetsProject(url, prodRef) ? 'Refusing to run the pgTAP suite against the production project (PROD_PROJECT_REF). Use the local stack.' : null
