@@ -218,8 +218,10 @@ web3 = 30
 # secret = ""
 
 [auth.email]
-# Allow/disallow new user signups via email to your project.
-enable_signup = false
+# In the Supabase CLI this is the email provider's on/off switch (GOTRUE_EXTERNAL_EMAIL_ENABLED), not just "new
+# signups": false turns off email + password sign-in and magic links altogether. Keep it true; invite-only is
+# enforced by `enable_signup = false` under [auth] above.
+enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
