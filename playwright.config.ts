@@ -15,7 +15,9 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL,
-    trace: 'retain-on-failure',
+    // No traces in CI: they record typed values (E2E passwords) and request headers, and the workflow uploads the report.
+    trace: process.env.CI ? 'off' : 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [
     { name: 'phone', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },

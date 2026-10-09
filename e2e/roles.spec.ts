@@ -53,7 +53,8 @@ test.describe('roles', () => {
     await signIn(page, member);
     for (const path of ['/', '/group', '/rules', '/account']) {
       await page.goto(path);
-      await page.waitForLoadState('networkidle');
+      // Every page renders its PageHeader h1 once its data has loaded; measure then, not on network idle.
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, path).toBeLessThanOrEqual(0);
     }
