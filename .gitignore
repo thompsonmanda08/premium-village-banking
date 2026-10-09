@@ -33,3 +33,10 @@ supabase/.temp
 supabase/.branches
 supabase/functions/.env
 /deno.lock
+
+# Treasurer workbooks and other private group data: never commit (the repo is public).
+/data/private/
+/data/content/
+*.xlsx
+*.xls
+*.csv
