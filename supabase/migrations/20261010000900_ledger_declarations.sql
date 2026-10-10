@@ -18,22 +18,27 @@ begin
   -- A member declares for themselves; the treasurer may type in any member's (WhatsApp) declaration.
   -- Anyone else learns nothing, not even whether the member exists.
   select * into v_m from members where id = p_member;
-  if not found or not (v_m.user_id is not distinct from v_uid or is_admin(v_m.group_id)) then
+  if not found or not ((v_m.user_id = v_uid and v_m.status = 'active') or is_admin(v_m.group_id)) then
     raise exception 'member_not_found' using errcode = 'P0001';
   end if;
   select * into v_p from periods where id = p_period and group_id = v_m.group_id;
   if not found or v_p.status <> 'open' then raise exception 'period_not_open' using errcode = 'P0001'; end if;
   if exists (select 1 from unnest(array[p_saving, p_loan_repayment, p_excess, p_membership, p_penalty, p_txn_fee,
                                         p_borrowing_request]) as a
-             where a is null or a < 0 or a <> round(a, 2)) then
+             where a is null or not (a >= 0 and a <= 9999999999.99) or a <> round(a, 2)) then
     raise exception 'invalid_amount' using errcode = 'P0001';
   end if;
+  -- NaN fails the range test (it sorts above every number) and so does Infinity; numeric(12,2) holds up to 9999999999.99.
+  if length(trim(coalesce(p_note, ''))) > 500 then raise exception 'invalid_note' using errcode = 'P0001'; end if;
   v_sent := p_saving + p_loan_repayment + p_excess + p_membership + p_penalty + p_txn_fee;
   if v_sent = 0 and p_borrowing_request = 0 then raise exception 'invalid_amount' using errcode = 'P0001'; end if;
   if (v_sent > 0 or p_wallet is not null)
      and not exists (select 1 from wallets w where w.id = p_wallet and w.group_id = v_m.group_id and w.active) then
     raise exception 'wallet_not_found' using errcode = 'P0001';
   end if;
+
+  -- Serialise submits for one member (a double tap, two devices): the second waits, then sees the first as the live one.
+  perform 1 from members where id = p_member for no key update;
 
   -- A resubmission replaces the member's waiting or returned declaration. An approved one stays; a new one stands beside it.
   select d.id into v_old from declarations d
@@ -48,6 +53,8 @@ begin
   values (v_m.group_id, p_period, p_member, p_saving, p_loan_repayment, p_excess, p_membership, p_penalty, p_txn_fee,
     p_borrowing_request, p_wallet, nullif(trim(p_note), ''), v_uid, v_old)
   returning * into v;
+  perform private.audit(v.group_id, 'declaration.submitted', 'declarations', v.id,
+    jsonb_build_object('period_id', v.period_id, 'member_id', v.member_id));
   return v;
 end $$;
 
@@ -63,6 +70,7 @@ begin
     raise exception 'declaration_not_found' using errcode = 'P0001';
   end if;
   if coalesce(trim(p_reason), '') = '' then raise exception 'reason_required' using errcode = 'P0001'; end if;
+  if length(trim(p_reason)) > 500 then raise exception 'invalid_note' using errcode = 'P0001'; end if;
 
   update declarations set status = 'returned', return_reason = trim(p_reason), decided_at = now(), decided_by = auth.uid()
    where id = v.id returning * into v;
@@ -74,7 +82,7 @@ end $$;
 create or replace function public.approve_declaration(p_declaration uuid)
 returns public.declarations
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare v declarations; v_status text;
+declare v declarations; v_status text; v_member_status text;
 begin
   select * into v from declarations where id = p_declaration for update;
   if not found then raise exception 'declaration_not_found' using errcode = 'P0001'; end if;
@@ -85,6 +93,8 @@ begin
   -- FOR SHARE: an approval waits for a close in progress (which locks the month FOR UPDATE), and the close waits for it.
   select status into v_status from periods where id = v.period_id for share;
   if v_status <> 'open' then raise exception 'period_not_open' using errcode = 'P0001'; end if;
+  select status into v_member_status from members where id = v.member_id;
+  if v_member_status is distinct from 'active' then raise exception 'member_not_active' using errcode = 'P0001'; end if;
   if v.saving + v.loan_repayment + v.excess + v.membership + v.penalty + v.txn_fee > 0
      and not exists (select 1 from wallets w where w.id = v.wallet_id and w.group_id = v.group_id and w.active) then
     raise exception 'wallet_not_found' using errcode = 'P0001';
