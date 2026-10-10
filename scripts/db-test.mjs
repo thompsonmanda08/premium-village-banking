@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import postgres from 'postgres'
 import { clean } from './scrub.mjs'
-import { isLocalUrl, testRefusal } from './seed-guard.mjs'
+import { hostedWithoutRef, isLocalUrl, testRefusal } from './seed-guard.mjs'
 
 const url = process.env.SUPABASE_DB_URL
 if (!url) {
@@ -15,6 +15,10 @@ if (!url) {
 const refusal = testRefusal(url, process.env.PROD_PROJECT_REF)
 if (refusal) {
   console.error(refusal)
+  process.exit(1)
+}
+if (hostedWithoutRef(url, process.env.PROD_PROJECT_REF)) {
+  console.error('PROD_PROJECT_REF is not set (.env.local). Set it so production can be identified before running tests.')
   process.exit(1)
 }
 

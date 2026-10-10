@@ -55,7 +55,7 @@ function summary(periods: LedgerPeriod[]) {
   const checked = periods.filter((p) => p.checked);
   const diffs = checked.flatMap((p) => p.diff);
   const unexplained = diffs.filter((d) => d.reason_code === 'unexplained').length;
-  return `${unexplained} unexplained · ${diffs.length} ${diffs.length === 1 ? 'difference' : 'differences'} · ${checked.length} of ${periods.length} months checked`;
+  return { unexplained, text: `${checked.length} of ${periods.length} months checked · ${diffs.length} ${diffs.length === 1 ? 'difference' : 'differences'}` };
 }
 
 function Differences({ period }: { period: LedgerPeriod }) {
@@ -148,11 +148,20 @@ export function LedgerCheckPage() {
           title="No months to check yet"
           action={<Button size="sm" variant="secondary" onClick={refetch}>Check again</Button>}
         >
-          Months appear here once the 2026 workbooks are imported or a month is opened.
+          Months appear here once workbook figures are imported or a month is opened.
         </EmptyState>
       ) : (
         <div className="grid gap-4">
-          <p className="text-sm text-muted">{summary(data.periods)}</p>
+          {(() => {
+            const { unexplained, text } = summary(data.periods);
+            const checked = data.periods.filter((p) => p.checked).length;
+            if (checked === 0) return <p className="text-sm text-muted">No workbook figures have been uploaded yet.</p>;
+            return unexplained > 0 ? (
+              <Alert tone="danger">{`${unexplained} unexplained · ${text}`}</Alert>
+            ) : (
+              <p className="text-sm text-muted">{text}</p>
+            );
+          })()}
           {data.periods.map((p) => (
             <PeriodCard key={p.id} period={p} />
           ))}

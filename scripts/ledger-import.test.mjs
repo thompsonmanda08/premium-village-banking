@@ -52,6 +52,13 @@ test('arguments: a stray word or a --flag=value is refused, naming the valid opt
   expect(() => parseArgs(['--write'], { target: undefined })).toThrow('Unknown option --write. Valid options: --target')
 })
 
+test('arguments: duplicate value options are rejected', () => {
+  expect(() => parseArgs(['--through', 'Sep', '--through', 'Oct'])).toThrow(/--through given twice/)
+  expect(() => parseArgs(['--target', 'abc', '--target', 'xyz'])).toThrow(/--target given twice/)
+  // flags (booleans) are idempotent — passing --write twice is not an error
+  expect(parseArgs(['--write', '--write'])).toMatchObject({ write: true })
+})
+
 test('--through is a month from Feb to Nov, by name or number; anything else is an error, never "latest"', () => {
   expect(throughMonth(undefined)).toBeUndefined()
   for (const [v, n] of [['Feb', 1], ['Sep', 8], ['Sept', 8], ['september', 8], ['OCT', 9], ['Nov', 10], ['1', 1], ['10', 10]])

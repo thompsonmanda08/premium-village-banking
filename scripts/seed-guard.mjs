@@ -42,6 +42,11 @@ export const resetRefusal = (url, prodRef, allowHosted) => {
 export const testRefusal = (url, prodRef) =>
   targetsProject(url, prodRef) ? 'Refusing to run the pgTAP suite against the production project (PROD_PROJECT_REF). Use the local stack.' : null
 
+// When running against a non-local, non-localhost database, PROD_PROJECT_REF must be set so the
+// database can be identified. Without it, production cannot be told apart from a scratch project.
+export const hostedWithoutRef = (url, prodRef) =>
+  !isLocalUrl(url) && !prodRef
+
 // ledger:import and ledger:check read real member data, and ledger:import --write changes the ledger. --write needs an
 // explicit --target that the URL really points at (`local` for localhost); production only when --target names it.
 // Without PROD_PROJECT_REF production cannot be told apart, so only localhost is allowed.

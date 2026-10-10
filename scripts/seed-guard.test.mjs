@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
-import { importRefusal, isLocalUrl, resetRefusal, seeds, seedsRemote, targetsProject, testRefusal } from './seed-guard.mjs'
+import { hostedWithoutRef, importRefusal, isLocalUrl, resetRefusal, seeds, seedsRemote, targetsProject, testRefusal } from './seed-guard.mjs'
 
 const reset = (...more) => ['db', 'reset', '--db-url', 'u', '--yes', ...more]
 
@@ -78,6 +78,15 @@ test('db:test is refused only for the production project', () => {
   expect(testRefusal(LOCAL, REF)).toBeNull()
   expect(testRefusal(HOSTED, REF)).toBeNull()
   expect(testRefusal(PROD, undefined)).toBeNull()
+})
+
+test('hostedWithoutRef: true when the URL is not local and no ref is set', () => {
+  expect(hostedWithoutRef(HOSTED, undefined)).toBe(true)
+  expect(hostedWithoutRef(HOSTED, '')).toBe(true)
+  expect(hostedWithoutRef(PROD, undefined)).toBe(true)
+  expect(hostedWithoutRef(HOSTED, REF)).toBe(false)
+  expect(hostedWithoutRef(LOCAL, undefined)).toBe(false)
+  expect(hostedWithoutRef(LOCAL, '')).toBe(false)
 })
 
 // The scripts themselves: refusals happen before anything connects, and no CLI argument can lift the production block.

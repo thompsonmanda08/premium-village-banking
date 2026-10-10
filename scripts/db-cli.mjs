@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { clean } from './scrub.mjs'
-import { isLocalUrl, resetRefusal, seedsRemote, targetsProject } from './seed-guard.mjs'
+import { hostedWithoutRef, isLocalUrl, resetRefusal, seedsRemote, targetsProject } from './seed-guard.mjs'
 
 const env = process.env
 const args = {
@@ -36,6 +36,10 @@ if (refusal) {
 // Types are generated from the development database; production lacks the unreleased migrations.
 if (process.argv[2] === 'types' && targetsProject(env.SUPABASE_DB_URL, env.PROD_PROJECT_REF)) {
   console.error('Refusing to generate types from the production project (PROD_PROJECT_REF).')
+  process.exit(1)
+}
+if (process.argv[2] === 'types' && hostedWithoutRef(env.SUPABASE_DB_URL, env.PROD_PROJECT_REF)) {
+  console.error('PROD_PROJECT_REF is not set (.env.local). Set it so production can be identified before generating types.')
   process.exit(1)
 }
 

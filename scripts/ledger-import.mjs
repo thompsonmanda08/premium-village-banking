@@ -19,6 +19,7 @@ const LAST_IMPORTABLE = 10
 export function parseArgs(argv, spec = { target: undefined, through: undefined, write: false, dir: 'data/content' }) {
   const out = { ...spec }
   const valid = `Valid options: ${Object.keys(spec).map((k) => `--${k}`).join(', ')}`
+  const seen = new Set()
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--') continue
@@ -29,6 +30,8 @@ export function parseArgs(argv, spec = { target: undefined, through: undefined, 
     else {
       const v = argv[++i]
       if (!v || v.startsWith('--')) throw new Error(`${a} needs a value`)
+      if (seen.has(key)) throw new Error(`--${key} given twice`)
+      seen.add(key)
       out[key] = v
     }
   }

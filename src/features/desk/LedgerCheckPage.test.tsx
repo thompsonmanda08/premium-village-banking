@@ -81,6 +81,12 @@ test('empty: no months yet', async () => {
   expect(screen.getByRole('button', { name: 'Check again' }).className).toContain('h-12');
 });
 
+test('no checked months shows an upload-pending message instead of counts', async () => {
+  rpc.mockResolvedValue({ data: { ...REPORT, periods: REPORT.periods.map((p) => ({ ...p, checked: false, diff: [] })) }, error: null });
+  renderPage();
+  expect(await screen.findByText('No workbook figures have been uploaded yet.')).toBeInTheDocument();
+});
+
 test('each month shows its status, group figures and differences grouped by reason', async () => {
   rpc.mockResolvedValue({ data: REPORT, error: null });
   renderPage();
@@ -118,7 +124,7 @@ test('the cycle summary counts unexplained differences; unknown codes and a miss
   };
   rpc.mockResolvedValue({ data: odd, error: null });
   renderPage();
-  expect(await screen.findByText('1 unexplained · 2 differences · 1 of 2 months checked')).toBeInTheDocument();
+  expect(await screen.findByText('1 unexplained · 1 of 2 months checked · 2 differences')).toBeInTheDocument();
   const feb = screen.getByRole('region', { name: 'Feb 2026' });
   expect(within(feb).getByText('App none · Workbook K 350 · Difference not available')).toBeInTheDocument();
   expect(within(feb).getByRole('heading', { level: 3, name: /Other differences/ })).toBeInTheDocument();
