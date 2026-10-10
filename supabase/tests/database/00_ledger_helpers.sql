@@ -88,6 +88,23 @@ create or replace function tests.gfig(p_name text, p_field text) returns numeric
   select (tests.kept(p_name) -> 'group' ->> p_field)::numeric
 $$;
 
+-- February in the synthetic group: savings 1,000 + 500 + 2,000 + 250 + 300 + 250 + 12 × 250 = 7,300;
+-- membership 50 from each of the 18 savers (900); Ann and Ben declare transfer fees of 10 and 5.
+create or replace function tests.ledger_feb_savings() returns void
+language plpgsql security definer set search_path = public, tests as $$
+declare n text;
+begin
+  perform tests.ledger_pay('Ann', 1, 1000, 0, 50, 10);
+  perform tests.ledger_pay('Ben', 1, 500, 0, 50, 5);
+  perform tests.ledger_pay('Cid', 1, 2000, 0, 50);
+  perform tests.ledger_pay('Dee', 1, 250, 0, 50);
+  perform tests.ledger_pay('Eve', 1, 300, 0, 50);
+  perform tests.ledger_pay('Fay', 1, 250, 0, 50);
+  foreach n in array tests.plain() loop
+    perform tests.ledger_pay(n, 1, 250, 0, 50);
+  end loop;
+end $$;
+
 -- Later tasks add helpers above this line.
 
 grant execute on all functions in schema tests to anon, authenticated;
