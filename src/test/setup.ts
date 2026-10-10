@@ -5,7 +5,8 @@ import { cleanup } from '@testing-library/react';
 
 afterEach(() => cleanup());
 
-if (!window.matchMedia) {
+// Script tests run under `// @vitest-environment node`, where there is no window.
+if (typeof window !== 'undefined' && !window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
       matches: false,

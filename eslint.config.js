@@ -27,4 +27,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   { files: ['scripts/**/*.mjs', '*.config.{js,ts}', 'public/**/*.js'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
+  // Workbook parsing is a local script (scripts/ledger-*.mjs); it must never reach the browser bundle.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [{ name: 'exceljs', message: 'exceljs is for the local ledger scripts only.' }] }],
+    },
+  },
 );
