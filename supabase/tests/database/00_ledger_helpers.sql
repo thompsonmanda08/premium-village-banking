@@ -136,6 +136,12 @@ begin
   end if;
 end $$;
 
+-- The reason code a kept close preview gives one difference (member null for group fields).
+create or replace function tests.reason(p_name text, p_member text, p_field text) returns text language sql stable as $$
+  select d ->> 'reason_code' from jsonb_array_elements(tests.kept(p_name) -> 'diff') d
+  where d ->> 'short_name' is not distinct from p_member and d ->> 'field' = p_field
+$$;
+
 -- Later tasks add helpers above this line.
 
 grant execute on all functions in schema tests to anon, authenticated;
