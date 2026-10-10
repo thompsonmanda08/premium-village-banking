@@ -67,6 +67,11 @@ reset role;
 select tests.login_as(tests.id('owner2'));
 select throws_ok($$select apply_penalty(tests.lm('Dee'), tests.lp(1), 50, 'other', 'x')$$, '42501', 'not_admin', 'nor another group''s admin');
 reset role;
+update members set status = 'left' where id = tests.lm('Eve');
+select tests.login_as(tests.id('admin'));
+select throws_ok($$select apply_penalty(tests.lm('Eve'), tests.lp(1), 50, 'other', 'x')$$, 'P0001', 'member_not_active', 'no penalty for a member who has left');
+reset role;
+update members set status = 'active' where id = tests.lm('Eve');
 select is((select count(*)::int from entries where kind = 'penalty' and group_id = tests.id('lg')), 1, 'no refusal left a penalty behind');
 select is((select count(*)::int from audit_log where action = 'penalty.applied' and group_id = tests.id('lg')), 1, 'penalties are audited');
 select is((select data ->> 'ground' || '|' || (data ->> 'reason') from audit_log where action = 'penalty.applied' and group_id = tests.id('lg')),
@@ -130,6 +135,10 @@ select is((select data ->> 'reason' from audit_log where action = 'member.defaul
   'no payments since February', 'the audit row for the marking records its reason');
 select is((select data ->> 'reason' from audit_log where action = 'member.default_changed' and entity_id = tests.lm('Dee') and data ->> 'defaulted' = 'false'),
   'paid everything back', 'and so does the reversal');
+select is((select data ->> 'from' from audit_log where action = 'member.default_changed' and entity_id = tests.lm('Dee') and data ->> 'defaulted' = 'true'),
+  'false', 'the audit row for the marking records the previous flag (not defaulted)');
+select is((select data ->> 'from' from audit_log where action = 'member.default_changed' and entity_id = tests.lm('Dee') and data ->> 'defaulted' = 'false'),
+  'true', 'and the reversal records that it was defaulted');
 select tests.login_as(tests.id('member'));
 select throws_ok($$select set_default(tests.lm('Dee'), tests.id('lcycle'), true, 'x')$$, '42501', 'not_admin', 'members cannot mark defaults');
 reset role;
@@ -225,6 +234,12 @@ select tests.login_as(tests.id('owner2'));
 select throws_ok($$select post_waiver(tests.id('e_dee_pen'), 10, 'x')$$, '42501', 'not_admin', 'nor another group''s admin');
 reset role;
 select is((select count(*)::int from audit_log where action = 'entry.corrected' and entity_id = tests.id('e_cid_interest')), 1, 'waivers are audited');
+select is((select (data ->> 'from') || '>' || (data ->> 'to') || ' waived ' || (data ->> 'waived') from audit_log
+           where action = 'entry.corrected' and entity_id = tests.id('e_cid_interest')),
+  '150.00>0.00 waived 150', 'the waiver audit row records the effective amount before and after');
+select is((select (data ->> 'from') || '>' || (data ->> 'to') from audit_log
+           where action = 'entry.corrected' and entity_id = tests.id('e_dee_pen') and data ->> 'waived' = '30'),
+  '120.00>90.00', 'and for a part waiver of a raised charge');
 
 -- a saving corrected down to nothing: the entry is voided by an adjustment, never deleted
 select tests.login_as(tests.id('admin'));
@@ -232,6 +247,44 @@ select is((select kind || ' ' || amount from post_correction(tests.id('e_ben_sav
   'a correction to zero cancels the whole amount');
 reset role;
 select is((select sum(amount) from private.ledger_lines where member_id = tests.lm('Ben') and kind = 'saving'), 0.00, 'effective saving 0');
+
+-- only amounts the ledger alone decides can be corrected: loans and interest shares have their own writers ------------
+insert into entries (group_id, period_id, member_id, kind, amount, source, created_by) values
+  (tests.id('lg'), tests.lp(1), tests.lm('Eve'), 'interest_share', 10, 'close', tests.id('admin'));
+select tests.remember('e_eve_share', (select id from entries where member_id = tests.lm('Eve') and kind = 'interest_share'));
+select tests.remember('e_cid_sent', (select id from entries where member_id = tests.lm('Cid') and kind = 'loan_sent'));
+select tests.keep('before_refused', jsonb_build_object('entries', (select count(*) from entries), 'audit', (select count(*) from audit_log)));
+select tests.login_as(tests.id('admin'));
+select throws_ok($$select post_correction(tests.id('e_cid_sent'), 5000, 'x')$$, 'P0001', 'entry_not_found', 'a loan is not corrected here: it has a schedule and a cash check');
+select throws_ok($$select post_correction(tests.id('e_cid_interest'), 0, 'x')$$, 'P0001', 'entry_not_found', 'loan interest is waived, not corrected');
+select throws_ok($$select post_correction(tests.id('e_eve_share'), 500, 'x')$$, 'P0001', 'entry_not_found', 'an interest share is not corrected: it never came out of the pool');
+reset role;
+select is((select jsonb_build_object('entries', (select count(*) from entries), 'audit', (select count(*) from audit_log))), tests.kept('before_refused'),
+  'the refusals wrote no entry and no audit row');
+
+-- the allowed kinds, each with its effective total checked
+insert into entries (group_id, period_id, member_id, kind, amount, wallet_id, source, created_by) values
+  (tests.id('lg'), tests.lp(1), tests.lm('Ann'), 'membership', 50, tests.id('w_airtel'), 'app', tests.id('admin')),
+  (tests.id('lg'), tests.lp(1), tests.lm('Ann'), 'txn_fee', 10, tests.id('w_airtel'), 'app', tests.id('admin')),
+  (tests.id('lg'), tests.lp(1), tests.lm('Ann'), 'payment', 100, tests.id('w_airtel'), 'app', tests.id('admin')),
+  (tests.id('lg'), tests.lp(1), tests.lm('Ann'), 'excess_charge', 80, null, 'close', tests.id('admin')),
+  (tests.id('lg'), tests.lp(1), null, 'payout_fee', 10, tests.id('w_airtel'), 'app', tests.id('admin'));
+select tests.remember('e_ann_mem', (select id from entries where member_id = tests.lm('Ann') and kind = 'membership'));
+select tests.remember('e_ann_fee', (select id from entries where member_id = tests.lm('Ann') and kind = 'txn_fee'));
+select tests.remember('e_ann_pay', (select id from entries where member_id = tests.lm('Ann') and kind = 'payment'));
+select tests.remember('e_ann_exc', (select id from entries where member_id = tests.lm('Ann') and kind = 'excess_charge'));
+select tests.remember('e_pot_fee', (select id from entries where member_id is null and kind = 'payout_fee' and group_id = tests.id('lg')));
+select tests.login_as(tests.id('admin'));
+select is((select kind || ' ' || amount from post_correction(tests.id('e_ann_mem'), 60, 'membership is K60 here')), 'membership 10.00', 'membership can be corrected');
+select is((select kind || ' ' || amount from post_correction(tests.id('e_ann_fee'), 4, 'fee was K4')), 'adjustment 6.00', 'a transfer fee can be corrected');
+select is((select kind || ' ' || amount from post_correction(tests.id('e_ann_pay'), 130, 'Ann paid K130')), 'payment 30.00', 'a payment can be corrected');
+select is((select kind || ' ' || amount from post_correction(tests.id('e_ann_exc'), 100, 'excess re-billed')), 'excess_charge 20.00', 'an excess charge can be corrected');
+select is((select kind || ' ' || amount from post_correction(tests.id('e_pot_fee'), 15, 'fee was K15')), 'payout_fee 5.00', 'a pot fee (no member) can be corrected');
+reset role;
+select is((select string_agg(kind || '=' || t, ' ' order by kind) from (select kind, sum(amount) t from private.ledger_lines
+           where id in (select id from entries where member_id = tests.lm('Ann') or member_id is null) and group_id = tests.id('lg')
+             and kind in ('membership', 'txn_fee', 'payment', 'excess_charge', 'payout_fee') group by kind) x),
+  'excess_charge=100.00 membership=60.00 payment=130.00 payout_fee=15.00 txn_fee=4.00', 'every effective total is its new amount');
 
 -- a correction to a closed month lands in the open month -----------------------------------------------
 select tests.ledger_jump(2);
@@ -255,7 +308,26 @@ insert into statements (group_id, period_id, member_id, next_minimum, source) va
   (tests.id('lg'), tests.lp(1), tests.lm('Ben'), 300, 'close');
 select tests.ledger_pay('Ann', 2, 0, 400);
 select tests.ledger_pay('Ben', 2, 0, 100);
+-- Corrections of February that land in March are not March's saving: Eve saved 250 in March and her February saving of 100
+-- was voided (−100 in March's lines), so she is not under the minimum. Fay's own March saving corrected down is.
+select tests.ledger_pay('Eve', 1, 100, 0);
+select tests.ledger_pay('Eve', 2, 250, 0);
+select tests.ledger_pay('Fay', 2, 250, 0);
+select tests.remember('e_eve_feb', (select id from entries where member_id = tests.lm('Eve') and kind = 'saving' and period_id = tests.lp(1)));
+select tests.remember('e_fay_mar', (select id from entries where member_id = tests.lm('Fay') and kind = 'saving' and period_id = tests.lp(2)));
 select tests.login_as(tests.id('admin'));
+select post_correction(tests.id('e_eve_feb'), 0, 'Eve''s February transfer bounced');
+select post_correction(tests.id('e_fay_mar'), 100, 'Fay sent K100');
+reset role;
+select is((select sum(amount) from private.ledger_lines where member_id = tests.lm('Eve') and period_id = tests.lp(2) and kind = 'saving'), 150.00,
+  'March''s lines for Eve do net to 150 (250 less the February correction)');
+select tests.login_as(tests.id('admin'));
+select is((select count(*)::int from suggest_penalties(tests.lp(2)) where short_name = 'Eve' and ground = 'under_saving'), 0,
+  'a correction of an earlier month does not make Eve under-saved');
+select is((select detail from suggest_penalties(tests.lp(2)) where short_name = 'Fay' and ground = 'under_saving'),
+  'Saved K100.00 of the K250.00 minimum', 'a correction of this month''s own entry does count');
+select is((select count(*)::int from suggest_penalties(tests.lp(2)) where short_name = 'Ann' and ground = 'under_saving'), 1,
+  'Ann saved nothing in March (her February top-up is not March''s saving)');
 select is((select count(*)::int from suggest_penalties(tests.lp(2)) where ground = 'missed_minimum'), 1, 'one member paid under the minimum');
 select is((select short_name || ' ' || amount || ' ' || detail from suggest_penalties(tests.lp(2)) where ground = 'missed_minimum'),
   'Ben 50.00 Paid K100.00 of the K300.00 minimum', 'Ben is suggested K50 and the shortfall is shown');
@@ -266,6 +338,16 @@ select tests.login_as(tests.id('admin'));
 select throws_ok($$select post_correction(tests.id('e_ann_saving'), 1000, 'x')$$, 'P0001', 'period_not_open', 'no open month, no correction');
 select throws_ok($$select post_waiver(tests.id('e_cid_interest'), 1, 'x')$$, 'P0001', 'period_not_open', 'no open month, no waiver');
 reset role;
+
+-- another cycle of the same group with an open month does not take the correction: it belongs to its own cycle's open month
+select tests.remember('c2', private.create_cycle(tests.id('lg'), 'Second cycle', date '2028-02-15', date '2029-02-15', date '2029-02-06'));
+select private.ensure_periods(tests.id('c2'));
+update periods set status = 'open' where cycle_id = tests.id('c2') and month_index = 1;
+select tests.login_as(tests.id('admin'));
+select throws_ok($$select post_correction(tests.id('e_ann_saving'), 1000, 'x')$$, 'P0001', 'period_not_open', 'another cycle''s open month is not this cycle''s');
+select throws_ok($$select post_waiver(tests.id('e_cid_interest'), 1, 'x')$$, 'P0001', 'period_not_open', 'nor for a waiver');
+reset role;
+select is((select count(*)::int from entries where period_id in (select id from periods where cycle_id = tests.id('c2'))), 0, 'nothing landed in the other cycle');
 
 select * from finish();
 rollback;

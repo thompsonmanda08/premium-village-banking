@@ -10,6 +10,7 @@ begin
   select * into v_m from members where id = p_member;
   if not found then raise exception 'member_not_found' using errcode = 'P0001'; end if;
   if not is_admin(v_m.group_id) then raise exception 'not_admin' using errcode = '42501'; end if;
+  if v_m.status <> 'active' then raise exception 'member_not_active' using errcode = 'P0001'; end if;
   -- The ground is the first half of the reason: without a known ground and a written reason there is no penalty.
   if p_ground is null or p_ground not in ('late_declaration', 'missed_minimum', 'under_saving', 'other')
      or coalesce(trim(p_reason), '') = '' then
@@ -44,6 +45,8 @@ begin
   select * into v_p from periods where id = p_period;
   if not found then raise exception 'period_not_open' using errcode = 'P0001'; end if;
   if not is_admin(v_p.group_id) then raise exception 'not_admin' using errcode = '42501'; end if;
+  -- Corrections of an earlier month that land in this month's lines say nothing about this month's saving or payments,
+  -- so they are left out below (a correction of this month's own entry still counts).
   -- Days "so far" only mean something while the month is open.
   if v_p.status <> 'open' then raise exception 'period_not_open' using errcode = 'P0001'; end if;
   select * into v_r from cycle_rules where cycle_id = v_p.cycle_id;
@@ -62,9 +65,13 @@ begin
   paid as (
     select mem.id, mem.short_name,
            coalesce((select sum(l.amount) from private.ledger_lines l
-                     where l.period_id = p_period and l.member_id = mem.id and l.kind = 'saving'), 0) as saving,
+                     where l.period_id = p_period and l.member_id = mem.id and l.kind = 'saving'
+                       and not exists (select 1 from entries c join entries r on r.id = c.corrects_entry_id
+                                       where c.id = l.id and r.period_id <> c.period_id)), 0) as saving,
            coalesce((select sum(l.amount) from private.ledger_lines l
-                     where l.period_id = p_period and l.member_id = mem.id and l.kind = 'payment'), 0) as payment,
+                     where l.period_id = p_period and l.member_id = mem.id and l.kind = 'payment'
+                       and not exists (select 1 from entries c join entries r on r.id = c.corrects_entry_id
+                                       where c.id = l.id and r.period_id <> c.period_id)), 0) as payment,
            coalesce((select s.next_minimum from periods prev join statements s on s.period_id = prev.id and s.member_id = mem.id
                      where prev.cycle_id = v_p.cycle_id and prev.month_index = v_p.month_index - 1), 0) as minimum
     from mem
@@ -87,7 +94,7 @@ end $$;
 create or replace function public.set_default(p_member uuid, p_cycle uuid, p_defaulted boolean, p_reason text)
 returns public.member_status
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare v_m members; v member_status;
+declare v_m members; v member_status; v_prev boolean;
 begin
   select * into v_m from members where id = p_member;
   if not found then raise exception 'member_not_found' using errcode = 'P0001'; end if;
@@ -98,13 +105,15 @@ begin
   if p_defaulted is null or coalesce(trim(p_reason), '') = '' then raise exception 'reason_required' using errcode = 'P0001'; end if;
   if length(trim(p_reason)) > 500 then raise exception 'invalid_note' using errcode = 'P0001'; end if;
 
+  select coalesce(defaulted, false) into v_prev from member_status where member_id = p_member and cycle_id = p_cycle;
+  v_prev := coalesce(v_prev, false);
   insert into member_status (group_id, member_id, cycle_id, defaulted, changed_by, reason)
   values (v_m.group_id, p_member, p_cycle, p_defaulted, auth.uid(), trim(p_reason))
   on conflict (member_id, cycle_id) do update
     set defaulted = excluded.defaulted, changed_at = now(), changed_by = excluded.changed_by, reason = excluded.reason
   returning * into v;
   perform private.audit(v_m.group_id, 'member.default_changed', 'members', p_member,
-    jsonb_build_object('cycle_id', p_cycle, 'defaulted', p_defaulted, 'reason', trim(p_reason)));
+    jsonb_build_object('cycle_id', p_cycle, 'from', v_prev, 'defaulted', p_defaulted, 'reason', trim(p_reason)));
   return v;
 end $$;
 
@@ -120,7 +129,12 @@ begin
   select * into v_e from entries where id = p_entry;
   if not found then raise exception 'entry_not_found' using errcode = 'P0001'; end if;
   if not is_admin(v_e.group_id) then raise exception 'not_admin' using errcode = '42501'; end if;
-  if v_e.source = 'correction' then raise exception 'entry_not_found' using errcode = 'P0001'; end if;
+  -- Only amounts the ledger alone decides can be corrected. Loans (principal, interest, schedule) and interest shares
+  -- have their own writers; their interest is waived through post_waiver, and a correction is never corrected.
+  if v_e.source = 'correction' or v_e.kind not in
+     ('saving', 'payment', 'membership', 'txn_fee', 'penalty', 'excess_charge', 'payout_fee') then
+    raise exception 'entry_not_found' using errcode = 'P0001';
+  end if;
   if coalesce(trim(p_reason), '') = '' then raise exception 'reason_required' using errcode = 'P0001'; end if;
   if length(trim(p_reason)) > 500 then raise exception 'invalid_note' using errcode = 'P0001'; end if;
   if p_new_amount is null or not (p_new_amount >= 0 and p_new_amount <= 9999999999.99) or p_new_amount <> round(p_new_amount, 2) then
@@ -173,7 +187,7 @@ begin
           trim(p_reason), auth.uid())
   returning * into v;
   perform private.audit(v_e.group_id, 'entry.corrected', 'entries', v_e.id, jsonb_build_object(
-    'kind', v_e.kind, 'waived', p_amount, 'reason', trim(p_reason), 'correction_id', v.id));
+    'kind', v_e.kind, 'waived', p_amount, 'from', v_eff, 'to', v_eff - p_amount, 'reason', trim(p_reason), 'correction_id', v.id));
   return v;
 end $$;
 
