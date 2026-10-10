@@ -96,6 +96,42 @@ select tests.login_anon();
 select throws_ok($$select ledger_check(tests.id('lg'))$$, '42501', null, 'nor anon');
 reset role;
 
+-- March again, with more workbook figures. App figures (Task 6's hand-worked close): received 6,353.73, so opening cash
+-- 299 + 6,353.73 = 6,652.73; idle 6,652.73 + 7,050 saved − 750 lent = 12,952.73; excess 1,295.27, a 500 saver's
+-- share 45.13, which is also what she owes and her minimum. Ben's minimum is 1,815.84, all of it principal left.
+-- The month's loan fees: February 10 (Cid), March 5 (Fay).
+insert into members (group_id, full_name, short_name, status) values (tests.id('lg'), 'Xan Test', 'Xan', 'left');
+insert into workbook_figures (group_id, period_id, member_id, field, value) values
+  (tests.id('lg'), tests.lp(2), null, 'opening_cash', 6642.73),                  -- +10, February's fee → fee_pot_vs_cash
+  (tests.id('lg'), tests.lp(2), null, 'idle_cash', 12942.73),                    -- +10, not a run ending in March (5, 15)
+                                                                                 --   → unexplained
+  (tests.id('lg'), tests.lp(2), tests.lm('Gus'), 'excess_charged', 43.13),       -- +2.00, no group excess figure → unexplained
+  (tests.id('lg'), tests.lp(2), tests.lm('Hal'), 'closing_owed', 40.13),         -- +5.00, no excess or waiver → unexplained
+  (tests.id('lg'), tests.lp(2), tests.lm('Ivy'), 'next_minimum', 40.13),         -- +5.00, no principal left → unexplained
+  (tests.id('lg'), tests.lp(2), tests.lm('Ben'), 'next_minimum', 3815.84),       -- −2,000.00, more than the 1,815.84 left
+                                                                                 --   → unexplained
+  (tests.id('lg'), tests.lp(2), tests.lm('Jon'), 'next_minimum', -4.87),         -- +50.00: the app asking K50 more is not a
+                                                                                 --   fee the workbook charged → unexplained
+  ((select group_id from members where short_name = 'Xan'), tests.lp(2),
+   (select id from members where short_name = 'Xan'), 'cum_savings', 100);       -- no app figure (left, no lines) → unexplained
+select tests.login_as(tests.id('admin'));
+select tests.keep('mar2', close_month(tests.lp(2)));
+select throws_ok($$select close_month(tests.lp(2), false, repeat('x', 501))$$, 'P0001', 'invalid_note',
+  'a reason over 500 characters is refused');
+reset role;
+select is(tests.reason('mar2', null, 'opening_cash'), 'fee_pot_vs_cash', 'opening cash differs by last month''s fee');
+select is(tests.reason('mar2', null, 'idle_cash'), 'unexplained', 'a group difference no fee run explains');
+select is(tests.reason('mar2', 'Gus', 'excess_charged'), 'unexplained', 'an excess difference of K2 is not rounding');
+select is(tests.reason('mar2', 'Hal', 'closing_owed'), 'unexplained', 'nor is K5 owed with nothing to explain it');
+select is(tests.reason('mar2', 'Ivy', 'next_minimum'), 'unexplained', 'no principal left, so no term to differ');
+select is(tests.reason('mar2', 'Ben', 'next_minimum'), 'unexplained', 'a term cannot explain more than the principal left');
+select is(tests.reason('mar2', 'Jon', 'next_minimum'), 'unexplained', 'the app higher by K50 is not a penalty left out');
+select is(tests.reason('mar2', 'Xan', 'cum_savings'), 'unexplained', 'a workbook figure the app has no row for is shown');
+select is((select d -> 'app' from jsonb_array_elements(tests.kept('mar2') -> 'diff') d where d ->> 'short_name' = 'Xan'),
+  'null'::jsonb, 'with no app figure');
+select is(tests.reason('mar2', 'Fay', 'closing_owed'), 'waiver', 'the waiver still explains Fay');
+select is((tests.kept('mar2') ->> 'unexplained')::int, 7, 'seven unexplained in March now');
+
 -- The workbook's figures obey the same money guard as the ledger.
 select throws_ok($$insert into workbook_figures (group_id, period_id, member_id, field, value)
                   values (tests.id('lg'), tests.lp(3), tests.lm('Ann'), 'cum_savings', 'NaN')$$,
