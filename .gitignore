@@ -25,7 +25,8 @@ dist-ssr
 
 # App
 .env
-.env*.local
+.env.*
+!.env.example
 dev-dist
 playwright-report
 test-results
