@@ -10,6 +10,16 @@ test('maps SQL business codes', () => {
   expect(friendlyError(new Error('rules_locked'))).toBe('Rules can only change before the cycle starts.');
 });
 
+test('ledger refusals say what to do next', () => {
+  expect(friendlyError({ message: 'insufficient_cash', code: 'P0001' })).toBe('There isn’t enough lending cash for this loan right now.');
+  expect(friendlyError({ message: 'over_cap_needs_reason', code: 'P0001' })).toBe(
+    'This loan is over the member’s limit. Add a reason to send it anyway.',
+  );
+  expect(friendlyError({ message: 'unexplained_differences', code: 'P0001' })).toBe(
+    'Some differences from the workbook aren’t explained. Add a reason to close the month anyway.',
+  );
+});
+
 test('maps permission errors', () => {
   expect(friendlyError({ code: '42501', message: 'new row violates row-level security policy for table "members"' })).toBe('Only admins can do this.');
 });
@@ -52,6 +62,11 @@ const SQL_CODES = [
   'invite_not_found', 'invite_expired', 'invite_revoked', 'invite_used', 'email_mismatch', 'already_linked',
   'member_taken', 'member_not_active', 'member_not_found', 'last_admin', 'not_admin', 'not_signed_in',
   'already_bootstrapped', 'owner_member_not_found',
+  // ledger (sub-project 2a)
+  'period_not_open', 'previous_period_open', 'declarations_pending', 'loans_closed', 'insufficient_cash',
+  'over_cap_needs_reason', 'reason_required', 'entry_not_found', 'already_closed', 'unexplained_differences',
+  'already_opened', 'invalid_amount', 'invalid_date', 'wallet_not_found', 'declaration_not_found', 'append_only',
+  'cycle_overlap', 'invalid_note',
 ];
 const FUNCTION_CODES = [
   'invalid_body', 'invalid_member', 'invalid_email', 'not_signed_in', 'not_admin', 'member_taken', 'member_not_active', 'invite_failed',

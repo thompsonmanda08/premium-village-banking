@@ -5,21 +5,22 @@ import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { clean } from './scrub.mjs'
-import { isLocalUrl, resetRefusal, seedsRemote } from './seed-guard.mjs'
+import { isLocalUrl, resetRefusal, seedsRemote, targetsProject } from './seed-guard.mjs'
 
 const env = process.env
 const args = {
   push: ['db', 'push', '--db-url', env.SUPABASE_DB_URL, '--yes'],
   // seed.sql (public-password accounts) is for the local/CI stack only: never seed a hosted database.
   reset: ['db', 'reset', '--db-url', env.SUPABASE_DB_URL, '--yes', ...(isLocalUrl(env.SUPABASE_DB_URL) ? [] : ['--no-seed'])],
-  types: ['gen', 'types', 'typescript', '--project-id', env.SUPABASE_PROJECT_REF, '--schema', 'public'],
+  // --db-url (not --project-id) needs no access token and reads the schema of the database the URL names.
+  types: ['gen', 'types', 'typescript', '--db-url', env.SUPABASE_DB_URL, '--schema', 'public'],
 }[process.argv[2]]
 if (!args) {
   console.error('Usage: bun scripts/db-cli.mjs <push|reset|types>')
   process.exit(1)
 }
 if (args.includes(undefined) || args.includes('')) {
-  console.error('Missing SUPABASE_DB_URL / SUPABASE_PROJECT_REF. Copy .env.example to .env.local and fill it in.')
+  console.error('Missing SUPABASE_DB_URL. Copy .env.example to .env.local and fill it in.')
   process.exit(1)
 }
 if (seedsRemote(args, env.SUPABASE_DB_URL)) {
@@ -30,6 +31,11 @@ if (seedsRemote(args, env.SUPABASE_DB_URL)) {
 const refusal = process.argv[2] === 'reset' && resetRefusal(env.SUPABASE_DB_URL, env.PROD_PROJECT_REF, process.argv.includes('--allow-hosted'))
 if (refusal) {
   console.error(refusal)
+  process.exit(1)
+}
+// Types are generated from the development database; production lacks the unreleased migrations.
+if (process.argv[2] === 'types' && targetsProject(env.SUPABASE_DB_URL, env.PROD_PROJECT_REF)) {
+  console.error('Refusing to generate types from the production project (PROD_PROJECT_REF).')
   process.exit(1)
 }
 
