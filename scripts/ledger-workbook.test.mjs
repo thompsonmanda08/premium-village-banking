@@ -14,7 +14,7 @@ const FEB = {
 const FEB2 = { ...FEB, O: 'Amount received', P: 'Variance' }
 const MAR = {
   A: 'S/N', B: 'Name', D: 'Savings', E: 'Cumm. Savings', F: 'Transaction fee', G: 'Total sent', H: 'Loan C/F', I: 'Loan',
-  J: 'Interest on loan', K: 'Excess', L: 'fee spent', M: 'Loan Repayment', O: 'Minimum amount payable',
+  J: 'Interest on loan', K: 'Excess', L: 'fee spent', M: 'Loan Repayment', O: 'Minimum amount payable', P: 'Membership fee',
 }
 const febRows = [
   { A: 1, B: 'Ann', D: 3000, E: 10, F: 50, I: 0, J: 75, L: 75, N: 75 },
@@ -44,18 +44,24 @@ function addSheet(wb, name, headers, rows, group) {
   })
 }
 
-async function build(tweak = () => {}) {
+// Dan has nothing but zero-result formulas (=B1*0): exceljs drops `result` from those when it reads a file back.
+const zero = { formula: 'B1*0', result: 0 }
+const danFeb = { A: 4, B: 'Dan', D: zero, I: zero, J: zero, L: zero, N: zero }
+const danMar = { A: 4, B: 'Dan', D: zero, E: zero, M: zero, O: zero }
+
+async function build(tweak = () => {}, { dan = false } = {}) {
   const wb = new ExcelJS.Workbook()
   const febGroup = [['Excess Amount', 1000], ['Interest on excess', 100]]
-  addSheet(wb, 'Feb 1', FEB, febRows, febGroup)
-  addSheet(wb, 'Feb 2', FEB2, febRows.map((r, i) => ({ ...r, O: received[i] })), febGroup)
-  addSheet(wb, 'Mar 1', MAR, marRows,
+  const feb = dan ? [...febRows, danFeb] : febRows
+  addSheet(wb, 'Feb 1', FEB, feb, febGroup)
+  addSheet(wb, 'Feb 2', FEB2, feb.map((r, i) => ({ ...r, O: received[i] ?? zero })), febGroup)
+  addSheet(wb, 'Mar 1', MAR, dan ? [...marRows, danMar] : marRows,
     [['Opening balance', 3075], ['Total funds', 3825], ['Excess Amount', 3215], ['Interest on excess', 321.5]])
   const interest = wb.addWorksheet('Interest ')
   interest.getCell('B2').value = 'Name'
   interest.getCell('D2').value = 'Feb'
   interest.getCell('E2').value = 'Mar'
-  ;[['Ann', 3000, 3000], ['ben', 500, 1000], [' Cid Gamma ', 500, 750]].forEach(([name, feb, mar], i) => {
+  ;[['Ann', 3000, 3000], ['ben', 500, 1000], [' Cid Gamma ', 500, 750], ...(dan ? [['Dan', zero, zero]] : [])].forEach(([name, feb, mar], i) => {
     interest.getCell(`B${i + 3}`).value = name
     interest.getCell(`D${i + 3}`).value = feb
     interest.getCell(`E${i + 3}`).value = mar
@@ -153,6 +159,7 @@ test('later layouts: the total payable column wins over the repayment subtotal, 
   const headers = {
     B: 'Name', D: 'Savings', E: 'Cumm. Savings', F: 'Transaction fee', I: 'Loan', J: 'Interest on loan', K: 'Excess', L: 'fee spent',
     M: 'Loan Repayment', N: 'Penalties', O: 'Total amount payable', P: 'Minimum amount payable', Q: 'Amount received (2)',
+    R: 'Membership fee',
   }
   for (const [col, label] of Object.entries(headers)) ws.getCell(`${col}2`).value = label
   Object.entries({ B: 'Dee', D: 0, E: 250, K: 5, M: 105, N: 1350, O: 1455, P: 105, Q: 0 })
@@ -164,7 +171,6 @@ test('later layouts: the total payable column wins over the repayment subtotal, 
 test('loan cells typed as sums are several loans', () => {
   expect(loanParts({ formula: '4100+900+2600', result: 7600 })).toEqual([4100, 900, 2600])
   expect(loanParts({ formula: 'H4*2', result: 600 })).toEqual([600])
-  expect(loanParts({ formula: '.+5', result: 5 })).toEqual([5])
   expect(loanParts(2500)).toEqual([2500])
   expect(loanParts(null)).toEqual([])
 })
@@ -221,7 +227,147 @@ test('a statement with no member rows is refused', () => {
   expect(() => readSheet(sheetWith((ws) => { ws.getCell('B3').value = null }))).toThrow(/Mar 1: no member rows/)
 })
 
-test('"through" must be a whole month from 1 to 12', async () => {
+test('"through" must be a whole month from 1 to 10, as the ledger takes', async () => {
   const wb = await build()
-  for (const bad of [0, 13, 1.5, 'Mar', undefined]) expect(() => parseWorkbook(wb, bad)).toThrow(/through/)
+  for (const bad of [0, 11, 12, 1.5, 'Mar', undefined]) expect(() => parseWorkbook(wb, bad)).toThrow(/through/)
+})
+
+test('formulas that work out to 0 are read as 0 after a round trip (exceljs drops their result)', async () => {
+  const wb = await build((w) => {
+    // The group block's last value, on the Mar statement (4 members: totals row 7, labels in rows 9 to 12).
+    w.getWorksheet('Mar 1').getCell('D12').value = { formula: 'D7*0', result: 0 }
+  }, { dan: true })
+  // Precondition: exceljs really does hand back the formula without a result.
+  expect(wb.getWorksheet('Feb 1').getCell('I6').value).toEqual({ formula: 'B1*0' })
+  const [feb, mar] = parseWorkbook(wb, 2).months
+  expect(feb.rows[3]).toMatchObject({ name: 'Dan', saving: 0, cum_savings: 0, interest: 0, excess: 0, total: 0, minimum: 0, received: 0, loans: [] })
+  expect(mar.rows[3]).toMatchObject({ name: 'Dan', cum_savings: 0, total: 0, minimum: 0 })
+  expect(mar.group).toEqual({ opening_cash: 3075, idle_cash: 3215, excess_billed: 0 })
+})
+
+test('a formula with no stored result at all is still refused', () => {
+  expect(() => num({ formula: 'A1*2', result: undefined })).toThrow(/no stored result/)
+})
+
+test('the reconciliation sheet of a month before the last must have the receipts column', async () => {
+  const wb = await build((w) => { w.getWorksheet('Feb 2').getCell('O2').value = 'Variance 2' })
+  expect(() => parseWorkbook(wb, 2)).toThrow(/Feb 2: no "received" column \(headers found: .*Variance 2/)
+})
+
+test.each([
+  ['transaction fee', 'Feb 2', 'E2', 'txn_fee'],
+  ['membership fee', 'Feb 2', 'F2', 'membership'],
+  ['fee spent', 'Mar 1', 'L2', 'fee_spent'],
+  ['loan repayment before April', 'Mar 1', 'M2', 'repayment'],
+])('every statement needs its %s column', async (_what, sheet, cell, key) => {
+  const wb = await build((w) => { w.getWorksheet(sheet).getCell(cell).value = 'Other' })
+  expect(() => parseWorkbook(wb, 2)).toThrow(new RegExp(`${sheet}: no "${key}" column \\(headers found: `))
+})
+
+test('from April the total payable column is required (no fallback to the repayment subtotal), and penalties April to July', () => {
+  const sheet = (name, drop) => {
+    const ws = new ExcelJS.Workbook().addWorksheet(name)
+    const headers = {
+      B: 'Name', D: 'Savings', F: 'Transaction fee', G: 'Membership fee', I: 'Loan', J: 'Interest on loan', K: 'Excess', L: 'fee spent',
+      M: 'Loan Repayment', N: 'Penalties', O: 'Total amount payable', P: 'Minimum amount payable',
+    }
+    delete headers[drop]
+    for (const [col, label] of Object.entries(headers)) ws.getCell(`${col}2`).value = label
+    ws.getCell('B3').value = 'Dee'
+    return ws
+  }
+  expect(() => readSheet(sheet('Apr 1', 'O'))).toThrow(/Apr 1: no "total" column \(headers found: /)
+  expect(() => readSheet(sheet('Jul 1', 'N'))).toThrow(/Jul 1: no "penalty" column/)
+  expect(readSheet(sheet('Aug 1', 'N')).rows[0].penalty).toBe(0)
+})
+
+test('a blank name inside the members must not cut the rest off', async () => {
+  const wb = await build((w) => { w.getWorksheet('Mar 1').getCell('B4').value = null })
+  expect(() => parseWorkbook(wb, 2)).toThrow(/Mar 1, row 5: "Cid Gamma" looks like a member but follows the blank name in row 4/)
+})
+
+test('an Interest-sheet member with savings in a month but no row on that statement is an error', async () => {
+  const wb = await build((w) => { w.getWorksheet('Feb 2').getCell('B4').value = 'bob' })
+  expect(() => parseWorkbook(wb, 2)).toThrow(/"ben" holds 500 for Feb \(row 4\) but is not on the Feb statement/)
+})
+
+test('the Interest sheet reports everything wrong at once', async () => {
+  const wb = await build((w) => {
+    const ws = w.getWorksheet('Interest ')
+    ws.getCell('D3').value = 1
+    ws.getCell('B4').value = 'zed'
+    ws.getCell('E2').value = 'Total'
+  })
+  const message = await Promise.resolve().then(() => { try { parseWorkbook(wb, 2) } catch (e) { return e.message } return '' })
+  expect(message).toMatch(/no column for Mar \(headers found: Name \| Feb \| Total\)/)
+  expect(message).toMatch(/"zed" is on no statement/)
+  expect(message).toMatch(/no row for "ben"/)
+  expect(message).toMatch(/disagrees with the Feb statement.*"ann": 1, statement 3000/)
+})
+
+test('a negative loan is refused; a zero loan is none', () => {
+  expect(() => loanParts(-100)).toThrow(/negative loan/)
+  expect(loanParts(0)).toEqual([])
+  expect(() => readSheet(sheetWith((ws) => { ws.getCell('I3').value = -100 }))).toThrow(/Mar 1, row 3, column I \("Loan"\).*negative loan/)
+})
+
+test('loan formulas: terms must add up to the result; anything that cannot be split safely is refused', () => {
+  expect(loanParts({ formula: '1000', result: 1000 })).toEqual([1000])
+  expect(loanParts({ formula: 'H4*2', result: 600 })).toEqual([600])
+  expect(loanParts({ formula: '1000.5+20', result: 1020.5 })).toEqual([1000.5, 20])
+  expect(() => loanParts({ formula: '4100+900+2600', result: 7000 })).toThrow(/adds up to 7600 but the cell shows 7000/)
+  for (const formula of ['+4100+900', '4100+900-200', 'SUM(4100,900)', 'SUM(H4:H6)', '4100*2', '(4100+900)']) {
+    expect(() => loanParts({ formula, result: 5000 })).toThrow(/unsupported loan formula/)
+  }
+})
+
+test('two header cells for one column are refused', () => {
+  const ws = sheetWith((w) => { w.getCell('Q2').value = 'Excess' })
+  expect(() => readSheet(ws)).toThrow(/Mar 1: more than one "excess" column \(K "Excess", Q "Excess"\)/)
+})
+
+test('a group-block label with text or an error beside it is an error, not a skip', () => {
+  const add = (value) => sheetWith((ws) => {
+    ws.getCell('C6').value = 'Opening balance'
+    ws.getCell('D6').value = value
+  })
+  expect(readSheet(add(3075)).group.opening_cash).toBe(3075)
+  expect(() => readSheet(add('n/a'))).toThrow(/Mar 1, row 6, column D \("Opening balance"\).*"n\/a"/)
+  expect(() => readSheet(add({ error: '#REF!' }))).toThrow(/#REF!/)
+})
+
+test('text numbers are plain decimals only; float dust below an ngwee is zero, not negative', () => {
+  for (const bad of ['0x10', '1e3', '1,200', 'Infinity', '--1']) expect(() => num(bad)).toThrow()
+  expect(num('.5')).toBe(0.5)
+  expect(num('-3.25')).toBe(-3.25)
+  const { rows } = readSheet(sheetWith((ws) => { ws.getCell('D3').value = -1e-12 }))
+  expect(rows[0].saving).toBe(0)
+  expect(() => readSheet(sheetWith((ws) => { ws.getCell('D3').value = -0.01 }))).toThrow(/negative/)
+})
+
+test('the last month receipts go through as typed: SQL reports them and the first app month enters them', async () => {
+  const wb = await build((w) => {
+    addSheet(w, 'Mar 2', { ...MAR, Q: 'Amount received' }, marRows.map((r, i) => ({ ...r, Q: [10, 0, 20][i] })),
+      [['Opening balance', 3075], ['Total funds', 3825], ['Excess Amount', 3215], ['Interest on excess', 321.5]])
+  })
+  const { months } = parseWorkbook(wb, 2)
+  expect(months[1].rows.map((r) => r.received)).toEqual([10, 0, 20])
+  expect(months[0].rows.map((r) => r.received)).toEqual([75, 2000, 0])
+})
+
+// pickWorkbook: the cycle runs Feb 2026 to Jan 2027
+test('pickWorkbook respects the year, skips lock files, and refuses ties', () => {
+  const files = ['Premium VB March 2026.xlsx', 'Premium VB March 2025.xlsx', '~$Premium VB March 2026.xlsx', 'Premium VB Jan 2027.xlsx',
+    'Premium VB Sept 2026.xlsx', 'Premium VB Mar 2026 copy.txt']
+  expect(pickWorkbook(files, 'Mar')).toEqual({ file: 'Premium VB March 2026.xlsx', through: 2 })
+  expect(pickWorkbook(files, 'Jan')).toEqual({ file: 'Premium VB Jan 2027.xlsx', through: 12 })
+  expect(pickWorkbook(files, 'Sep')).toEqual({ file: 'Premium VB Sept 2026.xlsx', through: 8 })
+  expect(pickWorkbook(files)).toEqual({ file: 'Premium VB Jan 2027.xlsx', through: 12 })
+  expect(() => pickWorkbook(['Premium VB Jan 2026.xlsx'], 'Jan')).toThrow(/No workbook for Jan.*Premium VB Jan 2026.xlsx/)
+  expect(() => pickWorkbook(['Premium VB March.xlsx'], 'Mar')).toThrow(/No workbook for Mar.*no year/)
+  expect(() => pickWorkbook(['Premium VB Mar 2026.xlsx', 'Premium VB March 2026 (2).xlsx'], 'Mar'))
+    .toThrow(/More than one workbook for Mar: Premium VB Mar 2026.xlsx, Premium VB March 2026 \(2\).xlsx/)
+  // May is not Mar or March, and a name with two months in it is not guessed at
+  expect(pickWorkbook(['Premium VB Mar 2026.xlsx', 'Premium VB May 2026.xlsx'], 'May').through).toBe(4)
+  expect(() => pickWorkbook(['Premium VB March and May 2026.xlsx'], 'May')).toThrow(/No workbook for May/)
 })

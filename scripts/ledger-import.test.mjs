@@ -27,7 +27,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }))
 async function workbook(file, { loan = 0, interest = 0 } = {}) {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Feb 1')
-  ;['S/N', 'Name', '', 'Savings', 'Loan', 'Interest on loan', 'Excess interest', 'Loan Repayment', 'Minimum amount payable'].forEach(
+  ;['S/N', 'Name', '', 'Savings', 'Loan', 'Interest on loan', 'Excess interest', 'Loan Repayment', 'Minimum amount payable', 'Transaction fee', 'Membership fee', 'Transaction fee spent'].forEach(
     (h, i) => { if (h) ws.getRow(2).getCell(i + 1).value = h },
   )
   const row = ws.getRow(3)
