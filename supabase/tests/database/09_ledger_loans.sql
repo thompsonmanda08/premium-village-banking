@@ -204,14 +204,14 @@ select is((select i.amount_due from loan_instalments i join loans l on l.id = i.
 
 -- Arrears: Lee's November statement shows an unpaid minimum. He may still borrow; the loan records a warning.
 -- Lee's cap: 1 × (250 + 600) = 850 ≥ 500, so only the arrears warning.
-insert into statements (group_id, period_id, member_id, unpaid_minimum, closing_owed, source)
-values (tests.id('lg'), tests.lp(10), tests.lm('Lee'), 20, 20, 'close');
+insert into statements (group_id, period_id, member_id, next_minimum, unpaid_minimum, closing_owed, source)
+values (tests.id('lg'), tests.lp(10), tests.lm('Lee'), 20, 20, 20, 'close');
 select tests.ledger_pay('Lee', 11, 600, 0);
 select tests.login_as(tests.id('admin'));
 select ok((select arrears_warning is not null and cap_warning is null from send_loan(tests.lm('Lee'), 500, tests.id('w_airtel'))),
   'a member in arrears can borrow, with a warning');
 reset role;
-select is((select arrears_warning from loans where member_id = tests.lm('Lee')), 'K20.00 of last month''s minimum is unpaid; already owes K20.00 in all',
+select is((select arrears_warning from loans where member_id = tests.lm('Lee')), 'K20.00 of last month''s minimum unpaid (K20.00 due, K0.00 paid so far); already owes K20.00 in all',
   'the warning says what is unpaid and what is owed in all');
 
 -- What a member owes on loans, from the statements and this month's entries ---------------------

@@ -53,8 +53,8 @@ insert into declarations (group_id, period_id, member_id, saving, wallet_id, sub
   (tests.id('lg'), tests.lp(1), tests.lm('Cid'), 700, tests.id('w_airtel'), tests.id('other'));
 
 -- integrity -----------------------------------------------------------------------
-select throws_ok($$insert into entries (group_id, period_id, kind, amount, source)
-  values (tests.id('group2'), tests.lp(1), 'saving', 1, 'app')$$, '23503', null, 'an entry cannot point at another group''s month');
+select throws_ok($$insert into entries (group_id, period_id, member_id, kind, amount, source)
+  values (tests.id('group2'), tests.lp(1), tests.id('m_g2'), 'saving', 1, 'app')$$, '23503', null, 'an entry cannot point at another group''s month');
 select throws_ok($$insert into entries (group_id, period_id, member_id, kind, amount, source)
   values (tests.id('lg'), tests.lp(1), tests.id('m_g2'), 'saving', 1, 'app')$$, '23503', null, 'an entry cannot point at another group''s member');
 select throws_ok($$insert into entries (group_id, period_id, member_id, kind, amount, source)

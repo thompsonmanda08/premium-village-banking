@@ -95,10 +95,8 @@ select is(array(select r || ' ' || p || ' ' || t
   '{}'::text[], 'anon and authenticated hold no write privilege on any ledger table');
 
 -- Append-only: 06_ledger_tables checks UPDATE and DELETE on entries, statements, group_statements, workbook_figures.
--- TRUNCATE skips row triggers and only the table owner can run it (app roles hold no TRUNCATE privilege, checked above),
--- but nothing stops the owner yet. Known gap, closed by the hardening migration after Task 14; then replace the skip with:
---   select throws_ok('truncate entries', 'P0001', 'append_only', 'entries cannot be truncated');
-select skip('known gap: entries has no TRUNCATE trigger yet (hardening migration)', 1);
+-- TRUNCATE is blocked by ledger_truncate_guard() added by the hardening migration (20261010001700).
+select throws_ok('truncate entries', 'P0001', 'append_only', 'entries cannot be truncated');
 
 -- the matrix ---------------------------------------------------------------------------------------
 select tests.login_anon();
