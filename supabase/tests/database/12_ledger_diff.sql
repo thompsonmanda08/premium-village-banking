@@ -25,7 +25,7 @@ insert into workbook_figures (group_id, period_id, member_id, field, value) valu
                                                                               --   instalment → workbook_missed_loan
   (tests.id('lg'), tests.lp(1), tests.lm('Cid'), 'next_minimum', 1737.27),    -- app 3,458.27: +1,721.00 and Cid owes principal
                                                                               --   → workbook_term_differs
-  (tests.id('lg'), tests.lp(1), tests.lm('Fay'), 'next_minimum', 51.02),      -- app 1.02: −50.00, a membership fee → penalty_not_charged
+  (tests.id('lg'), tests.lp(1), tests.lm('Fay'), 'next_minimum', 51.02),      -- app 1.02: −50.00, one penalty_per_day → penalty_not_charged
   (tests.id('lg'), tests.lp(1), tests.lm('Dee'), 'next_minimum', 2.00),       -- app 1.02: −0.98 → workbook_rounded
   (tests.id('lg'), tests.lp(1), tests.lm('Eve'), 'cum_savings', 350),         -- app 300: −50 → unexplained
   (tests.id('lg'), tests.lp(1), tests.lm('Gus'), 'cum_savings', 250);         -- app 250: same, not listed
@@ -42,7 +42,16 @@ select is(tests.reason('feb', 'Cid', 'excess_charged'), 'fee_pot_vs_cash', 'Cid'
 select is(tests.reason('feb', 'Cid', 'closing_owed'), 'fee_pot_vs_cash', 'carried into what he owes');
 select is(tests.reason('feb', 'Ben', 'next_minimum'), 'workbook_missed_loan', 'the workbook left a new loan out of the minimum');
 select is(tests.reason('feb', 'Cid', 'next_minimum'), 'workbook_term_differs', 'the workbook spread the loan differently');
-select is(tests.reason('feb', 'Fay', 'next_minimum'), 'penalty_not_charged', 'the workbook asked for K50 the app does not charge');
+select is(tests.reason('feb', 'Fay', 'next_minimum'), 'penalty_not_charged', 'the workbook asked for one penalty_per_day the app does not charge');
+-- Confirm the threshold is penalty_per_day, not membership_fee: with membership_fee changed to K25,
+-- Fay's −50.00 difference still equals penalty_per_day (K50) and must stay 'penalty_not_charged'.
+update cycle_rules set membership_fee = 25 where cycle_id = tests.id('lcycle');
+select tests.login_as(tests.id('admin'));
+select tests.keep('feb2', close_month(tests.lp(1)));
+reset role;
+select is(tests.reason('feb2', 'Fay', 'next_minimum'), 'penalty_not_charged',
+  'penalty_not_charged still fires when membership_fee ≠ penalty_per_day — threshold is penalty_per_day');
+update cycle_rules set membership_fee = 50 where cycle_id = tests.id('lcycle');  -- restore for subsequent tests
 select is(tests.reason('feb', 'Dee', 'next_minimum'), 'workbook_rounded', 'under K1 is rounding');
 select is(tests.reason('feb', 'Eve', 'cum_savings'), 'unexplained', 'a savings difference nobody can explain');
 select is((select d -> 'difference' from jsonb_array_elements(tests.kept('feb') -> 'diff') d where d ->> 'short_name' = 'Ben'),
