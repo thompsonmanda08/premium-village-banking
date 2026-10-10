@@ -55,7 +55,7 @@ The ledger (wallets, months, declarations, entries, loans, statements) is descri
 
 `ledger:import` also takes `--through <month>` (Feb to Nov, by name or number 1 to 10; default the latest workbook)
 and `--dir <folder>` (default `data/content`); `ledger:check` takes only `--target`. Unknown options are refused.
-Both need the owner connection (`SUPABASE_DB_URL` for the `postgres` role) and print counts and totals only;
+Both need the owner connection (`SUPABASE_DB_URL` for the `postgres` role) and print counts and totals only on success (a failure may name the workbook rows it could not match);
 `ledger:check` writes member-level detail to `data/private/ledger-check.json` and exits 1 if any difference is
 unexplained.
 
