@@ -14,11 +14,12 @@
     "check:tokens": "node scripts/check-tokens.mjs src",
     "e2e": "playwright test",
     "db:start": "supabase start",
-    "ledger:import": "bun scripts/ledger-import.mjs",
     "db:push": "bun scripts/db-cli.mjs push",
     "db:reset": "bun scripts/db-cli.mjs reset",
     "db:test": "bun scripts/db-test.mjs",
     "db:types": "bun scripts/db-cli.mjs types",
+    "ledger:import": "bun scripts/ledger-import.mjs",
+    "ledger:check": "bun scripts/ledger-check.mjs",
     "fn:test": "bun x deno test --allow-env supabase/functions/invite-member/lib.test.ts"
   },
   "dependencies": {

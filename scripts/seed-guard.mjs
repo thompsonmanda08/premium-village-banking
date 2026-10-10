@@ -41,3 +41,29 @@ export const resetRefusal = (url, prodRef, allowHosted) => {
 // db:test creates the pgtap extension and a `tests` schema of security definer helpers: never in production.
 export const testRefusal = (url, prodRef) =>
   targetsProject(url, prodRef) ? 'Refusing to run the pgTAP suite against the production project (PROD_PROJECT_REF). Use the local stack.' : null
+
+// ledger:import and ledger:check read real member data, and ledger:import --write changes the ledger. --write needs an
+// explicit --target that the URL really points at (`local` for localhost); production only when --target names it.
+// Without PROD_PROJECT_REF production cannot be told apart, so only localhost is allowed.
+// Returns the refusal message, or null when the command may go ahead.
+// --target must be the project's whole ref (pooler user `postgres.<ref>` or host `db.<ref>.supabase.co`), not any
+// substring of the URL such as `postgres`.
+const projectRef = (url) => {
+  try {
+    const u = new URL(url)
+    return (/^postgres\.([a-z0-9]+)$/i.exec(u.username) ?? /^db\.([a-z0-9]+)\.supabase\.co$/i.exec(u.hostname))?.[1].toLowerCase()
+  } catch {
+    return undefined
+  }
+}
+export const importRefusal = (url, prodRef, target, write) => {
+  if (write && !target) return '--write needs --target <project ref> (or --target local), naming the database it changes.'
+  if (target && !(target === 'local' ? isLocalUrl(url) : projectRef(url) === target.toLowerCase())) {
+    return `SUPABASE_DB_URL does not point at --target ${target}.`
+  }
+  if (!prodRef && !isLocalUrl(url)) return 'PROD_PROJECT_REF is not set (.env.local), so production cannot be told apart. Set it first.'
+  if (targetsProject(url, prodRef) && target !== prodRef) {
+    return 'Refusing to touch the production project (PROD_PROJECT_REF) unless --target names it.'
+  }
+  return null
+}

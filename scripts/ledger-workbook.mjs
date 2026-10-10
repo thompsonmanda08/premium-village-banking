@@ -70,7 +70,7 @@ export function pickWorkbook(fileNames, through) {
   if (hits.length > 1) throw new Error(`More than one workbook for ${MONTHS[want - 1]}: ${hits.map((h) => h.file).join(', ')}`)
   if (hits.length === 0) {
     const other = seen.filter((b) => b.month === want).map((b) => b.file)
-    throw new Error(`No workbook for ${through ?? 'any month'} in the folder${other.length ? ` (other years or no year in the name: ${other.join(', ')})` : ''}`)
+    throw new Error(`No workbook for ${want ? MONTHS[want - 1] : 'any month'} in the folder${other.length ? ` (other years or no year in the name: ${other.join(', ')})` : ''}`)
   }
   return { file: hits[0].file, through: want }
 }

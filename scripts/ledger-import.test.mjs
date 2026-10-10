@@ -1,114 +1,235 @@
 // @vitest-environment node
-// The workbook is synthetic (made-up members and amounts); postgres is mocked, so nothing here touches a database.
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+// Workbooks here are synthetic (made-up members and amounts, built with exceljs in a temp folder); postgres is mocked,
+// so nothing here reads data/ or touches a database.
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import ExcelJS from 'exceljs'
-import { afterAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { main as check, reportLines, summarise } from './ledger-check.mjs'
+import { failure, main as runImport, parseArgs, summaryLines, throughMonth } from './ledger-import.mjs'
 
-const calls = []
-let reply
-const query = vi.fn(async (strings, ...values) => {
-  calls.push({ text: strings.join('?'), values })
-  return reply()
+const db = vi.hoisted(() => {
+  const state = { calls: [], respond: () => [], committed: undefined, ended: 0 }
+  const sql = async (strings, ...values) => {
+    const text = strings.join('?')
+    state.calls.push({ text, values })
+    return state.respond(text)
+  }
+  sql.begin = async (fn) => {
+    try {
+      const out = await fn(sql)
+      state.committed = true
+      return out
+    } catch (e) {
+      state.committed = false
+      throw e
+    }
+  }
+  sql.end = async () => {
+    state.ended++
+  }
+  return { state, connect: vi.fn(() => sql) }
 })
-query.end = vi.fn(async () => {})
-const connect = vi.fn(() => query)
-vi.mock('postgres', () => ({ default: connect }))
+vi.mock('postgres', () => ({ default: db.connect }))
 
-const { runImport } = await import('./ledger-import.mjs')
+test('arguments: dry run by default, flags with values, nothing unknown', () => {
+  expect(parseArgs([])).toEqual({ target: undefined, through: undefined, write: false, dir: 'data/content' })
+  expect(parseArgs(['--', '--target', 'abc', '--write', '--through', 'Oct'])).toEqual({
+    target: 'abc', through: 'Oct', write: true, dir: 'data/content',
+  })
+  expect(() => parseArgs(['--target'])).toThrow(/--target needs a value/)
+  expect(() => parseArgs(['--target', '--write'])).toThrow(/--target needs a value/)
+  expect(() => parseArgs(['--force'])).toThrow(/Unknown option --force/)
+})
 
+test('arguments: a stray word or a --flag=value is refused, naming the valid options', () => {
+  expect(() => parseArgs(['abc'])).toThrow('Unexpected argument abc. Valid options: --target, --through, --write, --dir')
+  expect(() => parseArgs(['--write=true'])).toThrow(/Unknown option --write=true\. Valid options: --target, --through, --write, --dir/)
+  expect(() => parseArgs(['--write', 'Sep'])).toThrow(/Unexpected argument Sep/)
+  // ledger:check takes --target only.
+  expect(parseArgs(['--target', 'local'], { target: undefined })).toEqual({ target: 'local' })
+  expect(() => parseArgs(['--write'], { target: undefined })).toThrow('Unknown option --write. Valid options: --target')
+})
+
+test('--through is a month from Feb to Nov, by name or number; anything else is an error, never "latest"', () => {
+  expect(throughMonth(undefined)).toBeUndefined()
+  for (const [v, n] of [['Feb', 1], ['Sep', 8], ['Sept', 8], ['september', 8], ['OCT', 9], ['Nov', 10], ['1', 1], ['10', 10]])
+    expect(throughMonth(v), v).toBe(n)
+  for (const v of ['Dec', 'Jan', '0', '11', '-1', '1.5', 'Se', 'Octo2', 'latest', ''])
+    expect(() => throughMonth(v), v).toThrow(/--through takes a month from Feb to Nov/)
+})
+
+const SUMMARY = {
+  cycle_id: 'c1', months: 9, members: 18, entries: 1234, loans: 56, open_loans: 12, savings: 123456.5, owed: 7890,
+  idle_cash: 1000.25, fee_pot_balance: 250, meeting_pot_balance: 40.5, receipts_not_imported: { count: 15, total: 16250 },
+}
+
+test('the import summary prints counts and totals, nothing per member', () => {
+  expect(summaryLines(SUMMARY, false)).toEqual([
+    'DRY RUN (nothing written): Cycle 2026, Feb to Oct',
+    '  members 18, entries 1234, loans 56 (12 still owed)',
+    '  savings K 123,456.50, owed K 7,890.00, idle cash K 1,000.25',
+    '  fee pot K 250.00, meeting pot K 40.50',
+    '  15 receipts totalling K 16,250.00 left out: enter these in Nov',
+  ])
+  expect(summaryLines({ ...SUMMARY, months: 8 }, true)[0]).toBe('IMPORTED: Cycle 2026, Feb to Sep')
+})
+
+test('a negative pot gets a warning to reconcile with the real wallets', () => {
+  const lines = summaryLines({ ...SUMMARY, months: 8, fee_pot_balance: -120, receipts_not_imported: { count: 1, total: 500 } }, true)
+  expect(lines.slice(3)).toEqual([
+    '  fee pot K -120.00, meeting pot K 40.50',
+    '  1 receipt totalling K 500.00 left out: enter these in Oct',
+    'WARNING: a pot is negative. Reconcile idle cash + fee pot + meeting pot with the real wallet balances before the first month opens.',
+  ])
+  expect(summaryLines({ ...SUMMARY, meeting_pot_balance: -0.01 }, false).at(-1)).toMatch(/^WARNING: a pot is negative/)
+  expect(summaryLines(SUMMARY, false).join('\n')).not.toMatch(/WARNING/)
+})
+
+test('the check report counts reason codes per month', () => {
+  const report = {
+    periods: [
+      { label: 'Feb 2026', checked: true, diff: [] },
+      { label: 'Apr 2026', checked: true, diff: [
+        { reason_code: 'fee_pot_vs_cash' }, { reason_code: 'workbook_rounded' }, { reason_code: 'fee_pot_vs_cash' },
+        { reason_code: 'unexplained' }] },
+      { label: 'Nov 2026', checked: false, diff: [] },
+    ],
+  }
+  const rows = summarise(report)
+  expect(rows.map((r) => r.unexplained)).toEqual([0, 1, 0])
+  expect(reportLines(rows)).toEqual([
+    'Feb 2026: 0 differences',
+    'Apr 2026: 4 differences (fee_pot_vs_cash 2, unexplained 1, workbook_rounded 1)',
+    'Nov 2026: no workbook figures',
+  ])
+})
+
+test('errors: business codes keep their detail, permission problems say which connection to use, URLs never print', () => {
+  const pg = (message, code, detail) => Object.assign(new Error(message), { code, detail })
+  expect(failure('ledger:import', pg('member_not_found', 'P0001', 'No single member matches: zoe')))
+    .toBe('ledger:import failed: member_not_found (No single member matches: zoe)')
+  expect(failure('ledger:import', pg('not_admin', '42501', 'No such group')))
+    .toBe('ledger:import failed: the group was not found in this database.')
+  expect(failure('ledger:check', pg('permission denied for schema private', '42501'))).toBe(
+    'ledger:check failed: permission denied for schema private. Use the owner connection: SUPABASE_DB_URL must be the database URL for the postgres role.',
+  )
+  vi.stubEnv('SUPABASE_DB_URL', 'postgresql://postgres.devref:s3cret@pooler.example.com:5432/postgres')
+  const out = failure('ledger:import', new Error('connect failed for postgresql://postgres.devref:s3cret@pooler.example.com:5432/postgres'))
+  expect(out).not.toMatch(/s3cret|devref|pooler/)
+  vi.unstubAllEnvs()
+})
+
+// ---- the commands end to end, against the mocked database ----
+
+const DEV = 'postgresql://postgres.devref:s3cret@aws-0-eu.pooler.supabase.com:5432/postgres'
+const LOCAL = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
 const GROUP = '11111111-1111-4111-8111-111111111111'
-const URL = 'postgresql://postgres:s3cret@localhost:54322/postgres'
 const dir = mkdtempSync(join(tmpdir(), 'ledger-import-'))
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 // One month ("Feb 1") plus the Interest sheet the parser insists on.
-async function workbook(file, { loan = 0, interest = 0 } = {}) {
+beforeAll(async () => {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Feb 1')
   ;['S/N', 'Name', '', 'Savings', 'Loan', 'Interest on loan', 'Excess interest', 'Loan Repayment', 'Minimum amount payable', 'Transaction fee', 'Membership fee', 'Transaction fee spent'].forEach(
     (h, i) => { if (h) ws.getRow(2).getCell(i + 1).value = h },
   )
   const row = ws.getRow(3)
-  Object.entries({ 1: 1, 2: 'Ann', 4: 3000, 5: loan, 6: interest, 7: 75, 8: 75, 9: 75 }).forEach(([c, v]) => { row.getCell(Number(c)).value = v })
+  Object.entries({ 1: 1, 2: 'Ann', 4: 3000, 5: 0, 6: 0, 7: 75, 8: 75, 9: 75 }).forEach(([c, v]) => { row.getCell(Number(c)).value = v })
   ws.getRow(4).getCell(2).value = 'Total'
   const sheet = wb.addWorksheet('Interest')
   sheet.getRow(2).getCell(2).value = 'Name'
   sheet.getRow(2).getCell(4).value = 'Feb'
   sheet.getRow(3).getCell(2).value = 'Ann'
   sheet.getRow(3).getCell(4).value = 3000
-  const path = join(dir, file)
-  await wb.xlsx.writeFile(path)
-  return path
-}
-
-const summary = { cycle_id: 'c1', months: 1, members: 1, entries: 4, loans: 0, owed: 75, idle_cash: 3000 }
-const pgError = (message, detail, code = 'P0001') => Object.assign(new Error(message), { code, detail })
-
-beforeEach(() => {
-  calls.length = 0
-  reply = () => [{ summary }]
-  connect.mockClear()
-  query.end.mockClear()
-  vi.stubEnv('SUPABASE_DB_URL', URL)
+  await wb.xlsx.writeFile(join(dir, 'Premium VB February 2026.xlsx'))
 })
 
-test('parses the workbook and hands the bundle to private.import_history', async () => {
-  const path = await workbook('Premium VB February 2026.xlsx')
-  expect(await runImport(GROUP, path)).toEqual(summary)
-  expect(calls).toHaveLength(1)
-  expect(calls[0].text).toContain('private.import_history')
-  expect(calls[0].values[0]).toBe(GROUP)
-  const bundle = JSON.parse(calls[0].values[1])
+let groups
+beforeEach(() => {
+  groups = [{ id: GROUP }]
+  Object.assign(db.state, { calls: [], committed: undefined, ended: 0 })
+  db.state.respond = (text) => {
+    if (text.includes('from groups')) return groups
+    if (text.includes('private.import_history')) return [{ summary: { ...SUMMARY, months: 1 } }]
+    throw new Error(`unexpected query: ${text}`)
+  }
+  db.connect.mockClear()
+  vi.stubEnv('SUPABASE_DB_URL', DEV)
+  vi.stubEnv('PROD_PROJECT_REF', 'prodref')
+})
+
+test('a dry run imports inside a transaction, rolls it back and says so', async () => {
+  const lines = await runImport(['--', '--dir', dir])
+  expect(lines[0]).toBe('DRY RUN (nothing written): Cycle 2026, Feb to Feb')
+  expect(db.state.committed).toBe(false)
+  const call = db.state.calls.find((c) => c.text.includes('private.import_history'))
+  expect(call.values[0]).toBe(GROUP)
+  const bundle = JSON.parse(call.values[1])
   expect(bundle.through).toBe(1)
   expect(bundle.months[0].rows[0]).toMatchObject({ name: 'Ann', saving: 3000, excess: 75 })
-  expect(query.end).toHaveBeenCalled()
+  expect(db.connect.mock.calls[0][1]).toMatchObject({ max: 1, prepare: false, ssl: 'require' })
+  expect(db.state.ended).toBe(1)
 })
 
-test('a folder: the workbook for the named month is picked, "Feb" or 1', async () => {
-  const folder = join(dir, 'folder')
-  mkdirSync(folder)
-  await workbook('folder/Premium VB February 2026.xlsx')
-  for (const through of ['Feb', 'february', '1', undefined]) {
-    calls.length = 0
-    expect(await runImport(GROUP, folder, through)).toEqual(summary)
-    expect(JSON.parse(calls[0].values[1]).through).toBe(1)
-  }
+test('--write with a matching --target commits', async () => {
+  vi.stubEnv('SUPABASE_DB_URL', LOCAL)
+  const lines = await runImport(['--target', 'local', '--write', '--through', 'Feb', '--dir', dir])
+  expect(lines[0]).toBe('IMPORTED: Cycle 2026, Feb to Feb')
+  expect(db.state.committed).toBe(true)
+  expect(db.connect.mock.calls[0][1]).toMatchObject({ ssl: false })
 })
 
 test.each([
-  ['member_not_found', 'No single member matches: zoe', 'That member no longer exists.'],
-  ['cycle_overlap', undefined, 'Another cycle already covers these dates. Check the dates, or close that cycle first.'],
-  ['invalid_amount', 'Interest with no loan: Ann in month 1', 'Check the amount: kwacha and ngwee only, and not below zero.'],
-])('%s from the database is reported as a code, a friendly message and its detail', async (code, detail, message) => {
-  reply = () => { throw pgError(code, detail) }
-  const path = await workbook('Premium VB February 2026.xlsx')
-  expect(await runImport(GROUP, path)).toEqual({ error: code, message, ...(detail && { detail }) })
-  expect(query.end).toHaveBeenCalled()
+  [['--write', '--dir', dir], DEV, /--write needs --target/],
+  [['--dir', dir], 'postgresql://postgres.prodref:x@aws-0-eu.pooler.supabase.com:5432/postgres', /production/],
+  [['--target', 'otherref', '--dir', dir], DEV, /does not point at --target otherref/],
+  [['--through', '11', '--dir', dir], DEV, /--through takes a month/],
+  [['--through', 'Mar', '--dir', dir], DEV, /No workbook for Mar/],
+  [[dir], DEV, /Unexpected argument/],
+  [['--dir', dir], '', /SUPABASE_DB_URL is not set/],
+])('refused before connecting: %j', async (argv, url, message) => {
+  vi.stubEnv('SUPABASE_DB_URL', url)
+  await expect(runImport(argv)).rejects.toThrow(message)
+  expect(db.connect).not.toHaveBeenCalled()
 })
 
-test('a workbook problem is reported without touching the database', async () => {
-  const path = await workbook('Premium VB February 2026.xlsx')
-  const out = await runImport(GROUP, path, 'Mar')
-  expect(out).toMatchObject({ error: 'import_failed' })
-  expect(out.message).toMatch(/Mar|workbook/)
-  expect(connect).not.toHaveBeenCalled()
+test('the group is found by name, exactly once', async () => {
+  groups = []
+  await expect(runImport(['--dir', dir])).rejects.toThrow(/No "Premium Village Banking" group/)
+  groups = [{ id: GROUP }, { id: 'other' }]
+  await expect(runImport(['--dir', dir])).rejects.toThrow(/2 groups are named "Premium Village Banking"/)
+  expect(db.state.calls.some((c) => c.text.includes('import_history'))).toBe(false)
+  expect(db.state.ended).toBe(2)
 })
 
-test('a connection failure is reported with the connection string scrubbed', async () => {
-  reply = () => { throw new Error(`connect failed for ${URL}`) }
-  const path = await workbook('Premium VB February 2026.xlsx')
-  const out = await runImport(GROUP, path)
-  expect(out.error).toBe('import_failed')
-  expect(JSON.stringify(out)).not.toContain('s3cret')
+test('ledger:check prints counts only, writes member detail to its file, and fails on anything unexplained', async () => {
+  const report = {
+    cycle_id: 'c1',
+    periods: [{ label: 'Feb 2026', checked: true, diff: [{ short_name: 'Ann', field: 'savings', difference: 5, reason_code: 'unexplained' }] }],
+  }
+  db.state.respond = (text) => (text.includes('from groups') ? groups : [{ report }])
+  const out = join(dir, 'private', 'ledger-check.json')
+  const { lines, code } = await check(['--target', 'devref'], out)
+  expect(code).toBe(1)
+  expect(lines).toEqual([
+    'Feb 2026: 1 differences (unexplained 1)',
+    `Member-level detail: ${out} (git-ignored; keep it on this machine)`,
+    '1 unexplained difference(s).',
+  ])
+  expect(lines.join('\n')).not.toMatch(/Ann/)
+  expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual(report)
+  expect(db.state.calls.at(-1).values).toContain(GROUP)
 })
 
-test('bad arguments and a missing database URL are refused before anything is read or opened', async () => {
-  const path = await workbook('Premium VB February 2026.xlsx')
-  expect(await runImport('not-a-uuid', path)).toMatchObject({ error: 'usage' })
-  expect(await runImport(GROUP, undefined)).toMatchObject({ error: 'usage' })
-  vi.stubEnv('SUPABASE_DB_URL', '')
-  expect(await runImport(GROUP, path)).toMatchObject({ error: 'usage' })
-  expect(connect).not.toHaveBeenCalled()
+test('ledger:check takes --target only, and needs Cycle 2026 to exist', async () => {
+  await expect(check(['--write'])).rejects.toThrow('Unknown option --write. Valid options: --target')
+  await expect(check(['--through', 'Sep'])).rejects.toThrow(/Unknown option --through/)
+  expect(db.connect).not.toHaveBeenCalled()
+  db.state.respond = (text) => (text.includes('from groups') ? groups : [])
+  const out = join(dir, 'none', 'ledger-check.json')
+  await expect(check([], out)).rejects.toThrow(/No Cycle 2026/)
+  expect(existsSync(out)).toBe(false)
 })

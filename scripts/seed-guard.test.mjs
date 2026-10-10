@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
-import { isLocalUrl, resetRefusal, seeds, seedsRemote, targetsProject, testRefusal } from './seed-guard.mjs'
+import { importRefusal, isLocalUrl, resetRefusal, seeds, seedsRemote, targetsProject, testRefusal } from './seed-guard.mjs'
 
 const reset = (...more) => ['db', 'reset', '--db-url', 'u', '--yes', ...more]
 
@@ -102,4 +102,34 @@ test('db-test exits 1 with the reason when SUPABASE_DB_URL names the production 
   expect(r.status).toBe(1)
   expect(r.stderr).toMatch(/production/)
   expect(r.stdout).not.toMatch(/\.\. (ok|FAILED)/) // no file was run
+})
+
+test('the ledger import names its target before writing, and production only by name', () => {
+  const prod = 'postgresql://postgres.prodref:x@aws-0-eu.pooler.supabase.com:5432/postgres'
+  const dev = 'postgresql://postgres.devref:x@aws-0-eu.pooler.supabase.com:5432/postgres'
+  const local = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+  expect(importRefusal(dev, 'prodref', undefined, false)).toBeNull()
+  expect(importRefusal(dev, 'prodref', undefined, true)).toMatch(/--write needs --target/)
+  expect(importRefusal(dev, 'prodref', 'devref', true)).toBeNull()
+  expect(importRefusal(dev, 'prodref', 'otherref', false)).toMatch(/does not point at --target otherref/)
+  expect(importRefusal(prod, 'prodref', undefined, false)).toMatch(/production/)
+  expect(importRefusal(prod, 'prodref', 'devref', true)).toMatch(/does not point at/)
+  expect(importRefusal(prod, 'prodref', 'prodref', true)).toBeNull()
+  expect(importRefusal(local, 'prodref', 'local', true)).toBeNull()
+  expect(importRefusal(dev, 'prodref', 'local', true)).toMatch(/does not point at --target local/)
+})
+
+test('--target is the whole project ref, not any part of the URL', () => {
+  const dev = 'postgresql://postgres.devref:x@aws-0-eu.pooler.supabase.com:5432/postgres'
+  for (const t of ['postgres', 'pooler', 'dev', 'supabase.com', '5432'])
+    expect(importRefusal(dev, 'prodref', t, true), t).toMatch(/does not point at/)
+  expect(importRefusal('postgresql://postgres:x@db.devref.supabase.co:5432/postgres', 'prodref', 'devref', true)).toBeNull()
+  expect(importRefusal('not a url', 'prodref', 'devref', false)).toMatch(/does not point at/)
+})
+
+test('without PROD_PROJECT_REF the ledger commands only reach localhost', () => {
+  const dev = 'postgresql://postgres.devref:x@aws-0-eu.pooler.supabase.com:5432/postgres'
+  expect(importRefusal(dev, undefined, 'devref', false)).toMatch(/PROD_PROJECT_REF is not set/)
+  expect(importRefusal(dev, '', undefined, false)).toMatch(/PROD_PROJECT_REF is not set/)
+  expect(importRefusal('postgresql://postgres:postgres@127.0.0.1:54322/postgres', undefined, 'local', true)).toBeNull()
 })
