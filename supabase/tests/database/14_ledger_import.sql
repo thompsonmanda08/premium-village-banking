@@ -56,7 +56,7 @@ reset role;
 
 -- refusals before anything is written
 select throws_ok($$select private.import_history(gen_random_uuid(), tests.kept('bundle'))$$,
-  'P0001', 'member_not_found', 'an unknown group has no members to match');
+  '42501', 'not_admin', 'an unknown group is refused as other ledger functions refuse one');
 select throws_ok($$select private.import_history(tests.id('ig'), jsonb_set(tests.kept('bundle'), '{months,0,rows,0,name}', '"Zoe"'))$$,
   'P0001', 'member_not_found', 'a workbook name that matches no member stops the import');
 select throws_ok($$select private.import_history(tests.id('ig'), jsonb_set(tests.kept('bundle'), '{months,0,rows,1,name}', '"ann"'))$$,
@@ -88,6 +88,23 @@ from (values
   ('{cycle,starts_on}', '"soon"', 'a cycle start that is not a date'),
   ('{cycle,payout_on}', '"2027-03-01"', 'a payout after the cycle ends')
 ) as x(path, val, what);
+select throws_ok($$select private.import_history(tests.id('ig'), jsonb_set(tests.kept('bundle'), '{months,1,rows}', 'null'))$$,
+  'P0001', 'invalid_amount', 'malformed: a month whose rows are null');
+select throws_ok($$select private.import_history(tests.id('ig'), tests.kept('bundle') #- '{months,1,rows}')$$,
+  'P0001', 'invalid_amount', 'malformed: a month with no rows');
+-- The refusal says which row carries interest with no loan.
+create function pg_temp.detail(q text) returns text language plpgsql as $f$
+declare d text;
+begin
+  execute q;
+  return null;
+exception when others then
+  get stacked diagnostics d = pg_exception_detail;
+  return d;
+end $f$;
+select is(pg_temp.detail($$select private.import_history(tests.id('ig'),
+            jsonb_set(jsonb_set(tests.kept('bundle'), '{months,0,rows,0,interest}', '10'), '{months,1,rows,2,loans}', '[]'))$$),
+  'Interest with no loan: Ann in month 1, Cid Gamma in month 2', 'interest with no loan names the member and the month');
 select is((select count(*)::int from cycles where group_id = tests.id('ig')), 0, 'a refused import leaves nothing behind');
 -- a name matching two members (one's short name, the other's full name)
 select tests.remember('ig_amb', pg_temp.new_group('Ambiguous Group'));
@@ -192,6 +209,9 @@ select is((tests.kept('summary') ->> 'entries')::int, 27, '27 entries');
 select is((tests.kept('summary') ->> 'open_loans')::int, 2, 'two loans still owed');
 select is((tests.kept('summary') ->> 'owed')::numeric, 2486.49, 'owed 203.05 + 1,530.18 + 753.26');
 select is((tests.kept('summary') ->> 'savings')::numeric, 4750.00, 'savings 4,750');
+select is((tests.kept('summary') ->> 'fee_pot_balance')::numeric || '/' || (tests.kept('summary') ->> 'meeting_pot_balance')::numeric,
+  '-20.00/100.00', 'the pots, so the operator sees a fee pot short by 20');
+select is(tests.kept('summary') -> 'receipts_not_imported', '{"count": 0, "total": 0}'::jsonb, 'March has no receipts left over');
 
 -- Replaying March with the ledger's own rules: every difference is explained.
 select tests.keep('replay', jsonb_build_object('diff', private.close_diff(pg_temp.ip(2), private.close_figures(pg_temp.ip(2), false))));
@@ -243,6 +263,55 @@ select is((select total_owed || '/' || total_savings from group_statements g joi
            where g.group_id = tests.id('ig_wb') and p.month_index = 2), '2493.23/4800.00', 'and the group totals add it up');
 select is((tests.kept('wb_summary') ->> 'owed')::numeric, 2493.23, 'as does the summary');
 
+-- Cycle identity: a relabelled cycle with the same start is the same cycle; a clash is refused.
+select tests.remember('ig_rel', pg_temp.new_group('Relabel Group'));
+select private.create_cycle(tests.id('ig_rel'), '2026 Cycle', date '2026-02-15', date '2027-02-15', date '2027-02-06');
+select lives_ok($$select private.import_history(tests.id('ig_rel'), tests.kept('bundle'))$$, 'an import into a relabelled cycle');
+select is((select array_agg(label || ' ' || status) from cycles where group_id = tests.id('ig_rel')), array['2026 Cycle active'],
+  'reuses it: one cycle, its label kept');
+select is((select count(*)::int from statements where group_id = tests.id('ig_rel')), 6, 'and fills it');
+select tests.remember('ig_clash', pg_temp.new_group('Clash Group'));
+select private.create_cycle(tests.id('ig_clash'), 'Cycle 2026', date '2026-03-01', date '2027-03-01', date '2027-02-20');
+select throws_ok($$select private.import_history(tests.id('ig_clash'), tests.kept('bundle'))$$, 'P0001', 'cycle_overlap',
+  'the label on a cycle with another start date');
+select private.create_cycle(tests.id('ig_clash'), 'Other', date '2026-02-15', date '2027-02-15', date '2027-02-06');
+select throws_ok($$select private.import_history(tests.id('ig_clash'), tests.kept('bundle'))$$, 'P0001', 'cycle_overlap',
+  'the label and the start date on two different cycles');
+select tests.remember('ig_over', pg_temp.new_group('Overlap Group'));
+select private.create_cycle(tests.id('ig_over'), 'Cycle 2025', date '2025-06-01', date '2026-06-01', date '2026-05-20');
+update cycles set status = 'active' where group_id = tests.id('ig_over');
+select throws_ok($$select private.import_history(tests.id('ig_over'), tests.kept('bundle'))$$, 'P0001', 'cycle_overlap',
+  'another active cycle over the same dates');
+select is((select count(*)::int from cycles where group_id = tests.id('ig_over')), 1, 'no second active cycle');
+
+-- The real flow: February first, then again through March. February's receipts wait for the first app month and
+-- the summary says so; the second run moves them into March and rebuilds loans and statements without duplicates.
+select tests.remember('ig_step', pg_temp.new_group('Step Group'));
+select tests.keep('step1', private.import_history(tests.id('ig_step'),
+  jsonb_set(jsonb_set(tests.kept('bundle'), '{through}', '1'), '{months}', jsonb_build_array(tests.kept('bundle') -> 'months' -> 0))));
+create function pg_temp.step_counts() returns text language sql as $$
+  select (select count(*) from entries where group_id = tests.id('ig_step')) || ' entries, '
+      || (select count(*) from entries where group_id = tests.id('ig_step') and kind = 'payment') || ' payments, '
+      || (select count(*) from statements where group_id = tests.id('ig_step')) || ' statements, '
+      || (select count(*) from loans where group_id = tests.id('ig_step')) || ' loans, '
+      || (select string_agg(p.month_index || ':' || i.amount_due, ' ' order by l.principal, p.month_index)
+          from loan_instalments i join loans l on l.id = i.loan_id join periods p on p.id = i.period_id
+          where l.group_id = tests.id('ig_step'))
+$$;
+select is(tests.kept('step1') -> 'receipts_not_imported', '{"count": 2, "total": 2075.00}'::jsonb,
+  'February''s receipts (Ann 75, Ben 2,000) are counted, not imported');
+select is((select data -> 'receipts_not_imported' from audit_log where action = 'ledger.imported' and group_id = tests.id('ig_step')),
+  '{"count": 2, "total": 2075.00}'::jsonb, 'and the audit row says so');
+select is(pg_temp.step_counts(), '14 entries, 0 payments, 3 statements, 2 loans, 2:1150.00 3:1150.00 2:2300.00 3:2300.00',
+  'through February: Ben''s loans fall due again in April, the first month the app asks for');
+select tests.keep('step2', private.import_history(tests.id('ig_step'), tests.kept('bundle')));
+select is(pg_temp.step_counts(), '27 entries, 2 payments, 6 statements, 3 loans, 3:690.00 4:690.00 2:1150.00 2:2300.00 4:1530.18',
+  'through March: payments in March, every statement and loan once, schedules as in a single import');
+select is((select s.closing_owed || '/' || s.next_minimum from statements s join periods p on p.id = s.period_id
+           join members m on m.id = s.member_id
+           where m.group_id = tests.id('ig_step') and m.short_name = 'Ben' and p.month_index = 2), '1530.18/800.00',
+  'Ben''s March statement as in a single import');
+select is(tests.kept('step2') - 'cycle_id', tests.kept('summary') - 'cycle_id', 'the same summary as a single import');
 -- Anything but the import's own rows stops a re-run.
 insert into declarations (group_id, period_id, member_id, saving)
 values (tests.id('ig'), pg_temp.ip(3), pg_temp.im('Ann'), 250);
