@@ -142,6 +142,23 @@ create or replace function tests.reason(p_name text, p_member text, p_field text
   where d ->> 'short_name' is not distinct from p_member and d ->> 'field' = p_field
 $$;
 
+-- One call per admin-only ledger function, with arguments that exist, so the only thing that can fail is the caller.
+create or replace function tests.admin_calls() returns table (name text, call text) language sql immutable as $$
+  values
+    ('open_period', $c$select open_period(tests.id('lcycle'), 2)$c$),
+    ('set_deadline', $c$select set_deadline(tests.lp(1), date '2026-02-20', 'x')$c$),
+    ('return_declaration', $c$select return_declaration(tests.id('decl'), 'x')$c$),
+    ('approve_declaration', $c$select approve_declaration(tests.id('decl'))$c$),
+    ('send_loan', $c$select send_loan(tests.lm('Dee'), 10, tests.id('w_airtel'))$c$),
+    ('apply_penalty', $c$select apply_penalty(tests.lm('Dee'), tests.lp(1), 10, 'other', 'x')$c$),
+    ('suggest_penalties', $c$select * from suggest_penalties(tests.lp(1))$c$),
+    ('set_default', $c$select set_default(tests.lm('Dee'), tests.id('lcycle'), true, 'x')$c$),
+    ('post_correction', $c$select post_correction(tests.id('entry'), 1, 'x')$c$),
+    ('post_waiver', $c$select post_waiver(tests.id('interest'), 1, 'x')$c$),
+    ('close_month', $c$select close_month(tests.lp(1))$c$),
+    ('ledger_check', $c$select ledger_check(tests.id('lg'))$c$)
+$$;
+
 -- Later tasks add helpers above this line.
 
 grant execute on all functions in schema tests to anon, authenticated;
