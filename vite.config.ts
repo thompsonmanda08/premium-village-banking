@@ -17,13 +17,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: null,
-      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png', 'theme-init.js'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'theme-init.js'],
       manifest: {
         name: 'Premium Village Bank',
         short_name: 'Premium VB',
         description: 'Savings, declarations and loans for Premium Village Banking.',
-        theme_color: '#4F46E5',
-        background_color: '#F1F5F9',
+        theme_color: '#0F1113',
+        background_color: '#0F1113',
         display: 'standalone',
         start_url: '/',
         scope: '/',

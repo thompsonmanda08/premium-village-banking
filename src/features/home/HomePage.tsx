@@ -1,10 +1,13 @@
 import { CalendarClock } from 'lucide-react';
 import { useGroup } from '@/features/group/GroupContext';
+import { useGroupMembers } from '@/features/group/GroupPage';
 import { useCycles } from '@/features/cycles/useCycles';
-import { pickCurrentCycle, upcomingDates } from '@/lib/calendar';
+import { daysBetween, pickCurrentCycle, upcomingDates } from '@/lib/calendar';
 import { friendlyError } from '@/lib/errors';
-import { formatDate, localISODate, money } from '@/lib/format';
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton, type Tone } from '@/ui';
+import { formatDate, localISODate, money, rate } from '@/lib/format';
+import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton, type Tone } from '@/ui';
+import { CycleCard } from './CycleCard';
+import { StatTile } from './StatTile';
 import { UpcomingList } from './UpcomingList';
 
 const STATUS: Record<string, { tone: Tone; label: string }> = {
@@ -13,14 +16,21 @@ const STATUS: Record<string, { tone: Tone; label: string }> = {
   closed: { tone: 'neutral', label: 'Closed' },
 };
 
+function payoutNote(today: string, payout: string) {
+  const n = daysBetween(today, payout);
+  return n < 0 ? 'Paid out' : n === 0 ? 'Today' : `In ${n} day${n === 1 ? '' : 's'}`;
+}
+
 export function HomePage() {
   const { group, member } = useGroup();
   const cycles = useCycles(group.id);
+  const members = useGroupMembers(group.id);
   const today = localISODate(new Date());
   const { data } = cycles;
   const cycle = data ? pickCurrentCycle(data, today) : null;
   const status = cycle ? STATUS[cycle.status] ?? STATUS.planned! : null;
   const refetch = () => void cycles.refetch();
+  const active = members.data?.filter((m) => m.status === 'active');
 
   return (
     <>
@@ -32,10 +42,15 @@ export function HomePage() {
             {friendlyError(cycles.error)}
           </Alert>
         ) : (
-          <div role="status" className="grid gap-4 md:grid-cols-2">
+          <div role="status" className="grid gap-4 md:gap-5">
             <span className="sr-only">Loading your cycle…</span>
-            <Skeleton className="h-44" />
-            <Skeleton className="h-44" />
+            <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-2xl md:h-36" />)}
+            </div>
+            <div className="grid gap-4 md:gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+              <Skeleton className="h-80 rounded-2xl" />
+              <Skeleton className="h-80 rounded-2xl" />
+            </div>
           </div>
         )
       ) : !cycle || !status ? (
@@ -47,32 +62,42 @@ export function HomePage() {
           Your treasurer sets up the cycle. It will appear here once they do.
         </EmptyState>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader
-              title={cycle.label}
-              subtitle={<span className="tabular">{formatDate(cycle.starts_on)} – {formatDate(cycle.ends_on)}</span>}
-              action={<Badge tone={status.tone}>{status.label}</Badge>}
+        <div className="grid gap-4 md:gap-5">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+            <StatTile label="Payout day" value={formatDate(cycle.payout_on)} note={payoutNote(today, cycle.payout_on)} to="/plan" linkLabel="Open your plan" />
+            <StatTile
+              label="Minimum saving"
+              value={cycle.rules ? money(cycle.rules.min_saving) : '—'}
+              note={cycle.rules ? 'a month' : 'Not set yet'}
+              to="/declare"
+              linkLabel="Open your declaration"
             />
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="text-sm text-muted">Payout</dt>
-                <dd className="tabular text-lg font-semibold text-fg">{formatDate(cycle.payout_on)}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-muted">Minimum saving</dt>
-                <dd className="tabular text-lg font-semibold text-fg">{cycle.rules ? `${money(cycle.rules.min_saving)} a month` : '—'}</dd>
-              </div>
-            </dl>
-          </Card>
-          <Card>
-            <CardHeader title="Coming up" />
-            {cycle.rules ? (
-              <UpcomingList events={upcomingDates(cycle, cycle.rules, today, 5)} />
-            ) : (
-              <p className="text-base text-muted">Dates appear once your treasurer sets the cycle rules.</p>
-            )}
-          </Card>
+            <StatTile
+              label="Loan interest"
+              value={cycle.rules ? rate(cycle.rules.loan_rate) : '—'}
+              note={cycle.rules ? 'charged once' : 'Not set yet'}
+              to="/rules"
+              linkLabel="Open the group rules"
+            />
+            <StatTile
+              label="Members"
+              value={active ? active.length : '—'}
+              note={active ? `${active.filter((m) => m.linked).length} joined the app` : members.isError ? 'Not available' : 'Loading'}
+              to="/group"
+              linkLabel="Open the group"
+            />
+          </div>
+          <div className="grid gap-4 md:gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <CycleCard cycle={cycle} status={status} today={today} />
+            <Card className="md:p-6">
+              <CardHeader title="Coming up" />
+              {cycle.rules ? (
+                <UpcomingList events={upcomingDates(cycle, cycle.rules, today, 5)} today={today} />
+              ) : (
+                <p className="text-base text-muted">Dates appear once your treasurer sets the cycle rules.</p>
+              )}
+            </Card>
+          </div>
         </div>
       )}
     </>

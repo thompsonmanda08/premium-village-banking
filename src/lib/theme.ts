@@ -1,7 +1,7 @@
 export type ThemePref = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 export const THEME_KEY = 'pvb-theme';
-const CANVAS: Record<ResolvedTheme, string> = { light: '#F1F5F9', dark: '#09090B' };
+const CANVAS: Record<ResolvedTheme, string> = { light: '#EEF0F2', dark: '#0F1113' };
 
 type Reader = Pick<Storage, 'getItem'>;
 type Writer = Pick<Storage, 'setItem' | 'removeItem'>;

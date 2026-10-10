@@ -14,10 +14,10 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: 'bg-accent-solid text-on-accent hover:brightness-110',
-  secondary: 'border border-line bg-surface text-fg hover:bg-surface-2',
-  ghost: 'text-fg hover:bg-surface-2',
-  danger: 'border border-danger/40 bg-surface text-danger hover:bg-danger-soft',
+  primary: 'bg-accent-solid text-on-accent hover:opacity-90 disabled:bg-surface-2 disabled:text-muted',
+  secondary: 'border border-line bg-surface text-fg hover:bg-surface-2 disabled:opacity-50',
+  ghost: 'text-fg hover:bg-surface-2 disabled:opacity-50',
+  danger: 'border border-danger/40 bg-surface text-danger hover:bg-danger-soft disabled:opacity-50',
 };
 const SIZE: Record<ButtonSize, string> = { sm: 'h-12 px-4 text-sm', md: 'h-12 px-5 text-base' };
 
@@ -32,7 +32,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || isLoading}
       aria-busy={isLoading || undefined}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition duration-150 ease-out active:scale-[.97] disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition duration-150 ease-out active:scale-[.97] disabled:pointer-events-none',
         VARIANT[variant],
         SIZE[size],
         fullWidth && 'w-full',

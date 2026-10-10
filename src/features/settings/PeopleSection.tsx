@@ -182,7 +182,7 @@ export function PeopleSection() {
           {friendlyError(members.error)}
         </Alert>
       ) : (
-        <ul role="list" className="grid gap-2">
+        <ul role="list" className="grid grid-cols-1 gap-2">
           {members.data.map((m) => (
             // Key changes whenever server data changes, so the row's form state resets after a save.
             <li key={`${m.id}:${m.full_name}:${m.short_name}:${m.email ?? ''}:${m.phone ?? ''}:${m.role}:${m.status}`}>

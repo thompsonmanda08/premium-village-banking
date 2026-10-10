@@ -83,7 +83,7 @@ export function RulesPage() {
         </Card>
         <Card className="md:col-span-2">
           <CardHeader title="Key dates" />
-          <UpcomingList events={upcomingDates(cycle, r, today, 6)} />
+          <UpcomingList events={upcomingDates(cycle, r, today, 6)} today={today} />
         </Card>
       </div>
     </>

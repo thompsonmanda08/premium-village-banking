@@ -35,7 +35,7 @@ test.describe('roles', () => {
     const nav = page.getByRole('navigation', { name: navName(info.project.name) });
     await expect(nav.getByRole('link', { name: 'Plan' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Desk' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Group settings' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Group settings' })).toHaveCount(0);
     await page.goto('/desk');
     await expect(page.getByText('This page is for admins')).toBeVisible();
   });
@@ -44,8 +44,11 @@ test.describe('roles', () => {
     await signIn(page, admin);
     const nav = page.getByRole('navigation', { name: navName(info.project.name) });
     await expect(nav.getByRole('link', { name: 'Desk' })).toBeVisible();
-    await page.getByRole('button', { name: 'Group settings' }).first().click();
-    await expect(page.getByRole('dialog', { name: 'Group settings' })).toBeVisible();
+    await page.getByRole('link', { name: 'Group settings' }).first().click();
+    await expect(page).toHaveURL(/\/settings\/general$/);
+    await page.getByRole('link', { name: 'Members' }).click();
+    await expect(page).toHaveURL(/\/settings\/members$/);
+    await expect(page.getByRole('heading', { name: 'Members and admins' })).toBeVisible();
   });
 
   test('no horizontal scroll at 360px when signed in', async ({ page }) => {
@@ -59,6 +62,17 @@ test.describe('roles', () => {
       await expect(page.getByText(/^Loading\b/)).toHaveCount(0);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, path).toBeLessThanOrEqual(0);
+    }
+  });
+
+  test('no horizontal scroll at 360px on the settings tabs', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await signIn(page, admin);
+    for (const tab of ['general', 'privacy', 'members', 'rules']) {
+      await page.goto(`/settings/${tab}`);
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, tab).toBeLessThanOrEqual(0);
     }
   });
 });

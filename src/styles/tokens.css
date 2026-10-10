@@ -8,36 +8,39 @@
 }
 
 :root {
-  --canvas: #F1F5F9;
+  --canvas: #EEF0F2;
   --surface: #FFFFFF;
-  --surface-2: #F8FAFC;
-  --line: #E2E8F0;
-  --fg: #0F172A;
-  --muted: #475569;
-  --accent: #4F46E5;
-  --accent-solid: #4F46E5;
-  --on-accent: #FFFFFF;
-  --accent-soft: #EEF2FF;
+  --surface-2: #F4F5F7;
+  --line: #DFE2E6;
+  --fg: #121417;
+  --muted: #555B65;
+  --accent: #3F6212;
+  /* Light mode fills with ink and letters in lime: a lime fill on white has no edge. */
+  --accent-solid: #16181B;
+  --on-accent: #C6F432;
+  --accent-soft: #EAF7C4;
+  --meter: #65A30D; /* chart fills: 3:1 against white, brighter than the text green */
   --success: #047857;
   --warning: #B45309;
   --danger: #E11D48;
   --info: #0369A1;
   --soft: 10%;
-  --scrim: rgb(15 23 42 / 0.45);
+  --scrim: rgb(18 20 23 / 0.45);
   color-scheme: light;
 }
 
 [data-theme=dark] {
-  --canvas: #09090B;
-  --surface: #18181B;
-  --surface-2: #27272A;
-  --line: #3F3F46;
-  --fg: #F4F4F5;
-  --muted: #A1A1AA;
-  --accent: #818CF8;
-  --accent-solid: #4F46E5;
-  --on-accent: #FFFFFF;
-  --accent-soft: rgb(99 102 241 / 0.15);
+  --canvas: #0F1113;
+  --surface: #1A1D20;
+  --surface-2: #24282C;
+  --line: #2E3338;
+  --fg: #F3F4F1;
+  --muted: #9EA3AB;
+  --accent: #C6F432;
+  --accent-solid: #C6F432;
+  --on-accent: #121417;
+  --accent-soft: rgb(198 244 50 / 0.14);
+  --meter: #C6F432;
   --success: #34D399;
   --warning: #FBBF24;
   --danger: #FB7185;
@@ -58,6 +61,7 @@
   --color-accent-solid: var(--accent-solid);
   --color-on-accent: var(--on-accent);
   --color-accent-soft: var(--accent-soft);
+  --color-meter: var(--meter);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
@@ -92,10 +96,21 @@
   *, ::before, ::after {
     border-color: var(--line);
   }
+  ::selection {
+    background: var(--accent-solid);
+    color: var(--on-accent);
+  }
+  html {
+    scrollbar-color: var(--line) transparent;
+  }
 }
 
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+/* Cuts the top-right corner round for the 44px link that sits in it (StatTile). */
+@utility notch {
+  mask: radial-gradient(circle at calc(100% - 22px) 22px, transparent 29.5px, #000 30px);
 }
 @utility sheet-in {
   animation: sheet-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -104,6 +119,15 @@
   animation: drawer-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Home's cycle columns rise in order once, on first paint: the fill is the information, so it arrives as the moment. */
+@utility bar-rise {
+  transform-origin: bottom;
+  animation: bar-rise 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+@keyframes bar-rise {
+  from { transform: scaleY(0); }
+}
 @keyframes sheet-in {
   from { transform: translateY(100%); }
 }

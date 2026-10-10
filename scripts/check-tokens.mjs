@@ -23,7 +23,12 @@ export const RULES = [
   },
   { name: 'theme ternary', re: /\bisLight\b/g },
   { name: 'dark: colour variant', re: new RegExp(String.raw`\bdark:(?:${VARIANT}:)*(?:${DARK_PROPS})-`, 'g') },
-  { name: 'gradient', re: /\bbg-(?:gradient|linear|radial|conic)(?![A-Za-z0-9_])|\b(?:repeating-)?(?:linear|radial|conic)-gradient\(/g },
+  {
+    name: 'gradient',
+    re: /\bbg-(?:gradient|linear|radial|conic)(?![A-Za-z0-9_])|\b(?:repeating-)?(?:linear|radial|conic)-gradient\(/g,
+    // A gradient inside a mask cuts a shape (the stat tile's notch); it paints no colour.
+    keep: (_m, line) => !/\bmask(?:-image)?\s*:/.test(line),
+  },
 ];
 
 export function scan(text) {
@@ -31,7 +36,7 @@ export function scan(text) {
   text.split('\n').forEach((line, i) => {
     for (const rule of RULES) {
       for (const m of line.matchAll(rule.re)) {
-        if (!rule.keep || rule.keep(m)) hits.push({ line: i + 1, rule: rule.name, match: m[0] });
+        if (!rule.keep || rule.keep(m, line)) hits.push({ line: i + 1, rule: rule.name, match: m[0] });
       }
     }
   });

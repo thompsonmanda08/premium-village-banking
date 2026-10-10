@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { LogOut } from 'lucide-react';
+import { ChevronRight, LogOut } from 'lucide-react';
 import { ThemeChoice } from '@/app/ThemeChoice';
 import { useSession } from '@/features/auth/SessionProvider';
 import { useSignOut } from '@/features/auth/useSignOut';
@@ -232,6 +232,11 @@ export function AccountPage() {
           <CardHeader title="Appearance" />
           <ThemeChoice />
         </Card>
+
+        <Link to="/terms" className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 text-base font-medium text-fg shadow-sm transition duration-150 hover:bg-surface-2 active:scale-[.98] dark:shadow-none">
+          Terms and privacy
+          <ChevronRight aria-hidden className="size-5 text-muted" />
+        </Link>
       </div>
       <Button className="mt-6" variant="secondary" fullWidth isLoading={pending} leftIcon={<LogOut className="size-5" />} onClick={() => void signOut()}>
         Sign out

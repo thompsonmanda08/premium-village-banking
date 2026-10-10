@@ -34,6 +34,11 @@ test('flags Tailwind v4 gradients and gradient() strings', () => {
   }
 });
 
+test('allows a gradient that only cuts a mask shape', () => {
+  expect(rules('  mask: radial-gradient(circle at 0 0, transparent 10px, #000 11px);')).toEqual([]);
+  expect(rules('  background: radial-gradient(circle, red, blue);')).toEqual(['gradient']);
+});
+
 test('flags small arbitrary text in px and rem, including fractions', () => {
   for (const cls of ['text-[10px]', 'text-[11px]', 'text-[9px]', 'text-[10.5px]', 'text-[11.9px]', 'text-[0.7rem]', 'text-[.5rem]', 'text-[0.74rem]']) {
     expect(rules(cls)).toEqual(['text under 12px']);

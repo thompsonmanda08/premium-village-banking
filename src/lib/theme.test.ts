@@ -43,16 +43,16 @@ test('applyTheme sets data-theme, color-scheme and theme-color', () => {
   applyTheme('dark', document.documentElement);
   expect(document.documentElement.dataset.theme).toBe('dark');
   expect(document.documentElement.style.colorScheme).toBe('dark');
-  expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#09090B');
+  expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#0F1113');
   applyTheme('light', document.documentElement);
-  expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#F1F5F9');
+  expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#EEF0F2');
 });
 
 test('theme-init.js respects system preference when storage throws', () => {
   // Reset to clean state
   document.documentElement.dataset.theme = '';
   document.documentElement.style.colorScheme = '';
-  document.head.innerHTML = '<meta name="theme-color" content="#F1F5F9" />';
+  document.head.innerHTML = '<meta name="theme-color" content="#EEF0F2" />';
 
   // Read the actual theme-init.js file
   const themeInitPath = resolve(__dirname, '../../public/theme-init.js');
@@ -82,7 +82,7 @@ test('theme-init.js respects system preference when storage throws', () => {
     // Verify: even though storage threw, matchMedia was consulted and dark was applied
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement.style.colorScheme).toBe('dark');
-    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#09090B');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#0F1113');
   } finally {
     // Clean up
     getItemSpy.mockRestore();
