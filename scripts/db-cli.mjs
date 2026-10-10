@@ -43,7 +43,7 @@ if (process.argv[2] === 'types' && targetsProject(env.SUPABASE_DB_URL, env.PROD_
 try {
   const bin = fileURLToPath(new URL('../node_modules/.bin/supabase', import.meta.url))
   const r = spawnSync(bin, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  if (process.argv[2] === 'types' && r.status === 0) {
+  if (process.argv[2] === 'types' && r.status === 0 && r.stdout.length > 0) {
     writeFileSync('src/lib/database.types.ts', r.stdout)
   } else {
     process.stdout.write(clean(r.stdout ?? ''))

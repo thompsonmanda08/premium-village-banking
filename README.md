@@ -27,10 +27,11 @@ Database scripts (all read `.env.local`; the CLI-only values never reach the bro
     bun run db:reset    # wipe the local DB (including auth.users) and re-apply migrations and seed
     bun run db:test     # pgTAP suite in supabase/tests/database against SUPABASE_DB_URL (the local stack)
     bun run db:push     # apply new migrations to the database SUPABASE_DB_URL names
-    bun run db:types    # regenerate src/lib/database.types.ts from the hosted schema (read only)
+    bun run db:types    # regenerate src/lib/database.types.ts from the database SUPABASE_DB_URL names (never production; read only)
+                        # then format it: bunx oxfmt src/lib/database.types.ts
 
 Guards: `db:reset` refuses any `SUPABASE_DB_URL` that is not localhost unless you pass `--allow-hosted` (for a throwaway
-hosted scratch project), and refuses the production project (`PROD_PROJECT_REF`) whatever you pass. `db:test` refuses the
+hosted scratch project), and refuses the production project (`PROD_PROJECT_REF`) whatever you pass. `db:test` and `db:types` refuse the
 production project too. Production migrations and function deploys go out through the gated "Deploy database and
 functions" workflow, not `db:push` (`docs/ops/setup.md`).
 
