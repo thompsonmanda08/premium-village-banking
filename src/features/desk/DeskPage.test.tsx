@@ -16,7 +16,10 @@ test('members get a not-available screen', () => {
   expect(screen.getByText('This page is for admins')).toBeInTheDocument();
 });
 
-test('admins get the desk placeholder', () => {
+test('admins get the desk placeholder and a way to the ledger check', () => {
   render(<MemoryRouter><GroupProvider value={membership(true)}><DeskPage /></GroupProvider></MemoryRouter>);
   expect(screen.getByText('The treasurer desk arrives with the ledger')).toBeInTheDocument();
+  const link = screen.getByRole('link', { name: 'Open the ledger check' });
+  expect(link).toHaveAttribute('href', '/desk/ledger-check');
+  expect(link.className).toContain('h-12');
 });
