@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url'
 import { connect, failure, groupId, guardedUrl, parseArgs } from './ledger-import.mjs'
 import { CYCLE_2026 } from './ledger-workbook.mjs'
 
-const DETAIL = 'data/private/ledger-check.json'
+// Resolved against the repo, not the working directory, so a stray cwd can't write member detail outside data/private.
+const DETAIL = fileURLToPath(new URL('../data/private/ledger-check.json', import.meta.url))
 
 export function summarise(report) {
   return report.periods.map((p) => {
