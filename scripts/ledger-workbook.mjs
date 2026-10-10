@@ -78,8 +78,11 @@ export function pickWorkbook(fileNames, through) {
 // exceljs hands back a formula cell as {formula, result?} and drops `result` when the cached result is 0 or '' (the
 // cell's own .result still says 0), so formula cells are read through the cell, never from cell.value.
 const isFormula = (v) => v !== null && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v)
-export const cellValue = (cell) =>
-  cell.type === ExcelJS.ValueType.Formula ? { formula: cell.formula ?? cell.sharedFormula, result: cell.result } : cell.value
+// exceljs also repeats a merged cell's value in every other cell of the merge; only the master cell holds it.
+export const cellValue = (cell) => {
+  if (cell.isMerged && cell.master !== cell) return null
+  return cell.type === ExcelJS.ValueType.Formula ? { formula: cell.formula ?? cell.sharedFormula, result: cell.result } : cell.value
+}
 // A formula's cached result; a formula with no result stays an object, which num() refuses.
 const raw = (v) => (isFormula(v) && v.result !== undefined ? v.result : v)
 const errorOf = (r) => (r !== null && typeof r === 'object' && typeof r.error === 'string' ? r.error : null)
@@ -123,7 +126,8 @@ const ngwee = (n) => Math.round(n * 100) / 100
  */
 export function loanParts(v) {
   const value = num(v)
-  if (value < 0) throw new Error(`${value} is a negative loan`)
+  // To the ngwee first, so float dust such as -1e-12 is no loan rather than a negative one.
+  if (ngwee(value) < 0) throw new Error(`${value} is a negative loan`)
   const formula = isFormula(v) && typeof v.formula === 'string' ? v.formula : null
   if (formula !== null) {
     if (/^\s*\d+(\.\d+)?(\s*\+\s*\d+(\.\d+)?)+\s*$/.test(formula)) {
@@ -138,7 +142,7 @@ export function loanParts(v) {
       throw new Error(`unsupported loan formula =${formula}; type the loans as =a+b+c or enter plain amounts`)
     }
   }
-  return value > 0 ? [value] : []
+  return ngwee(value) > 0 ? [value] : []
 }
 
 /** Run a cell reader and say where the cell is if it fails. */
@@ -259,7 +263,8 @@ export function readSheet(ws) {
       const label = text(cellValue(row.getCell(c))).trim()
       const key = Object.keys(GROUP).find((k) => GROUP[k].test(label))
       if (!key) continue
-      // The value is the first non-blank cell to the right; text or an error there is a problem, not something to skip.
+      // The value is the first non-blank cell to the right; text or an error there is a problem, not something to skip
+      // (cells merged into the label read as blank, so a label merged across C:D is not mistaken for text).
       for (let v = c + 1; v <= c + 3; v++) {
         const value = cellValue(row.getCell(v))
         const r2 = raw(value)
@@ -332,14 +337,23 @@ function checkInterestSheet(wb, months, through) {
     }
   }
 
-  // The latest month's column holds that month's savings, not the running total: compare earlier months only.
-  for (let t = 1; t < through; t++) {
+  // Earlier months' columns hold cumulative savings and must agree with the statement. The latest month's column holds
+  // that month's savings only, so it cannot be compared, but a member with savings there must be on that statement
+  // (a blank name on the last statement would otherwise drop them without a word).
+  for (let t = 1; t <= through; t++) {
     const c = head.monthCols.get(t)
     if (!c) continue
     for (const { row, name } of listed) {
       if (unknown.has(name)) continue
-      const found = at(ws, row, c, MONTHS[t - 1], () => num(cellValue(ws.getRow(row).getCell(c))))
       const expected = months[t - 1].rows.find((x) => x.name.toLowerCase() === name)?.cum_savings
+      if (expected !== undefined && t === through) continue
+      let found
+      try {
+        found = at(ws, row, c, MONTHS[t - 1], () => num(cellValue(ws.getRow(row).getCell(c))))
+      } catch (e) {
+        problems.push(`Interest sheet: ${e.message.slice(ws.name.length + 2)}`)
+        continue
+      }
       if (expected === undefined) {
         if (Math.abs(found) > 0.005) problems.push(`Interest sheet: "${name}" holds ${found} for ${MONTHS[t - 1]} (row ${row}) but is not on the ${MONTHS[t - 1]} statement`)
       } else if (Math.abs(found - expected) > 0.01) {

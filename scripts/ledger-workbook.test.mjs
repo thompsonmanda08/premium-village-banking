@@ -316,7 +316,7 @@ test('loan formulas: terms must add up to the result; anything that cannot be sp
   expect(loanParts({ formula: 'H4*2', result: 600 })).toEqual([600])
   expect(loanParts({ formula: '1000.5+20', result: 1020.5 })).toEqual([1000.5, 20])
   expect(() => loanParts({ formula: '4100+900+2600', result: 7000 })).toThrow(/adds up to 7600 but the cell shows 7000/)
-  for (const formula of ['+4100+900', '4100+900-200', 'SUM(4100,900)', 'SUM(H4:H6)', '4100*2', '(4100+900)']) {
+  for (const formula of ['.+5', '+4100+900', '4100+900-200', 'SUM(4100,900)', 'SUM(H4:H6)', '4100*2', '(4100+900)']) {
     expect(() => loanParts({ formula, result: 5000 })).toThrow(/unsupported loan formula/)
   }
 })
@@ -370,4 +370,78 @@ test('pickWorkbook respects the year, skips lock files, and refuses ties', () =>
   // May is not Mar or March, and a name with two months in it is not guessed at
   expect(pickWorkbook(['Premium VB Mar 2026.xlsx', 'Premium VB May 2026.xlsx'], 'May').through).toBe(4)
   expect(() => pickWorkbook(['Premium VB March and May 2026.xlsx'], 'May')).toThrow(/No workbook for May/)
+})
+
+test('a member whose name is blank on the last statement is not dropped: their savings on the Interest sheet give them away', async () => {
+  const wb = await build((w) => { w.getWorksheet('Mar 1').getCell('B5').value = null })
+  expect(() => parseWorkbook(wb, 2)).toThrow(/"cid gamma" holds 750 for Mar \(row 5\) but is not on the Mar statement/)
+})
+
+test('a label merged across columns is not read as its own value; the number beside it is', () => {
+  const merged = sheetWith((ws) => {
+    ws.getCell('C6').value = 'Opening balance'
+    ws.mergeCells('C6:D6')
+    ws.getCell('E6').value = 3075
+  })
+  expect(readSheet(merged).group.opening_cash).toBe(3075)
+  // Genuine text beside a label is still an error
+  const text = sheetWith((ws) => {
+    ws.getCell('C6').value = 'Opening balance'
+    ws.mergeCells('C6:D6')
+    ws.getCell('E6').value = 'see note'
+  })
+  expect(() => readSheet(text)).toThrow(/Mar 1, row 6, column E \("Opening balance"\).*"see note"/)
+})
+
+test('merged cells read the same after a round trip through a file', async () => {
+  const src = sheetWith((ws) => {
+    ws.getCell('C6').value = 'Opening balance'
+    ws.mergeCells('C6:D6')
+    ws.getCell('E6').value = { formula: 'D2*0', result: 0 }
+  })
+  const back = new ExcelJS.Workbook()
+  await back.xlsx.load(await src.workbook.xlsx.writeBuffer())
+  expect(readSheet(back.getWorksheet('Mar 1')).group.opening_cash).toBe(0)
+})
+
+test('float dust is no loan, not a negative one', () => {
+  expect(loanParts(-1e-12)).toEqual([])
+  expect(loanParts(1e-12)).toEqual([])
+  expect(() => loanParts(-0.01)).toThrow(/negative loan/)
+})
+
+// Shared formulas: the clone cells of a shared formula carry no formula text of their own in the file.
+async function sharedSheet(secondResult) {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Mar 1')
+  for (const [col, label] of Object.entries(MAR)) ws.getCell(`${col}2`).value = label
+  ws.getCell('B3').value = 'Ann'
+  ws.getCell('B4').value = 'Ben'
+  ws.getCell('D3').value = 100
+  ws.getCell('D4').value = 100
+  ws.getCell('J3').value = { formula: 'D3*0', result: 0, shareType: 'shared', ref: 'J3:J4' }
+  ws.getCell('J4').value = secondResult === undefined ? { sharedFormula: 'J3' } : { sharedFormula: 'J3', result: secondResult }
+  const back = new ExcelJS.Workbook()
+  await back.xlsx.load(await wb.xlsx.writeBuffer())
+  return back.getWorksheet('Mar 1')
+}
+
+test('a shared-formula clone with a zero result reads as 0; one with no result is refused', async () => {
+  const ok = readSheet(await sharedSheet(0))
+  expect(ok.rows.map((r) => r.interest)).toEqual([0, 0])
+  const bad = await sharedSheet(undefined)
+  expect(() => readSheet(bad)).toThrow(/Mar 1, row 4, column J \("Interest on loan"\).*no stored result/)
+})
+
+test('unreadable Interest cells are reported with the other mismatches, not thrown alone', async () => {
+  const wb = await build((w) => {
+    const ws = w.getWorksheet('Interest ')
+    ws.getCell('D3').value = 'abc'
+    ws.getCell('D4').value = { error: '#REF!' }
+    ws.getCell('D5').value = 1
+  })
+  const message = (() => { try { parseWorkbook(wb, 2) } catch (e) { return e.message } return '' })()
+  expect(message).toMatch(/Interest sheet: row 3, column D \("Feb"\).*"abc"/)
+  expect(message).toMatch(/Interest sheet: row 4, column D \("Feb"\).*#REF!/)
+  expect(message).toMatch(/disagrees with the Feb statement.*"cid gamma": 1/)
 })
