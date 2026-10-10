@@ -1,8 +1,9 @@
 begin;
 select * from no_plan();
 
--- The local seed already created Premium VB; remove it inside this transaction.
-delete from public.groups where name = 'Premium Village Banking';
+-- The local seed already created Premium VB. Rename it inside this transaction rather than deleting it: on a database
+-- where the 2026 import has run, its ledger rows are append-only and would block the delete.
+update public.groups set name = 'Premium Village Banking (moved aside by 04_bootstrap)' where name = 'Premium Village Banking';
 
 select tests.remember('boss', tests.create_user('boss@test.local'));
 select tests.remember('pvb', private.bootstrap_premium_vb(tests.id('boss')));
