@@ -105,6 +105,37 @@ begin
   end loop;
 end $$;
 
+-- The close scenario's inputs, entered as the treasurer (Ann). Role switching is not allowed inside a security
+-- definer function, but the JWT claims are: auth.uid() reads them, so is_admin() sees the treasurer.
+create or replace function tests.ledger_inputs(p_month int) returns void
+language plpgsql security definer set search_path = public, tests as $$
+declare n text; v_loan uuid;
+begin
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', tests.id('admin'), 'role', 'authenticated', 'email', 'admin@test.local')::text, true);
+  perform open_period(tests.id('lcycle'), p_month);
+  if p_month = 1 then
+    perform tests.ledger_feb_savings();
+    perform send_loan(tests.lm('Cid'), 3000, tests.id('w_airtel'), null, 10);
+    perform send_loan(tests.lm('Ben'), 1000, tests.id('w_mtn'));
+    perform send_loan(tests.lm('Ben'), 3001, tests.id('w_mtn'), 'agreed at the meeting');
+  elsif p_month = 2 then
+    perform tests.ledger_pay('Ann', 2, 1000, 4.09);
+    perform tests.ledger_pay('Ben', 2, 500, 2877.61);
+    perform tests.ledger_pay('Cid', 2, 2000, 3458.27);
+    perform tests.ledger_pay('Eve', 2, 300, 0.50);
+    perform tests.ledger_pay('Fay', 2, 250, 1.02);
+    foreach n in array tests.plain() loop
+      perform tests.ledger_pay(n, 2, 250, 1.02);
+    end loop;
+    v_loan := (send_loan(tests.lm('Fay'), 750, tests.id('w_airtel'), null, 5)).id;
+    perform post_waiver((select id from entries where loan_id = v_loan and kind = 'loan_interest'), 112.50,
+                        'zero-interest loan agreed by the group');
+    perform apply_penalty(tests.lm('Dee'), tests.lp(2), 100, 'late_declaration', 'declared 2 days late');
+    perform set_default(tests.lm('Dee'), tests.id('lcycle'), true, 'no payments since February');
+  end if;
+end $$;
+
 -- Later tasks add helpers above this line.
 
 grant execute on all functions in schema tests to anon, authenticated;
