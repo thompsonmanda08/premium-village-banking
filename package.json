@@ -14,6 +14,7 @@
     "check:tokens": "node scripts/check-tokens.mjs src",
     "e2e": "playwright test",
     "db:start": "supabase start",
+    "ledger:import": "bun scripts/ledger-import.mjs",
     "db:push": "bun scripts/db-cli.mjs push",
     "db:reset": "bun scripts/db-cli.mjs reset",
     "db:test": "bun scripts/db-test.mjs",
