@@ -123,13 +123,19 @@ export async function main(argv) {
     const group = await groupId(sql)
     let summary
     try {
-      await sql.begin(async (tx) => {
-        const [row] = await tx`select private.import_history(${group}::uuid, ${JSON.stringify(bundle)}::jsonb) as summary`
-        summary = row.summary
-        if (!args.write) throw ROLLBACK
-      })
+      // Use sql.json() helper to send bundle as jsonb (not text). Can't use tx.json inside begin
+      // because transaction-scoped sql objects don't inherit helpers from the outer connection.
+      await sql.unsafe('begin')
+      const [row] = await sql`select private.import_history(${group}::uuid, ${sql.json(bundle)}) as summary`
+      summary = row.summary
+      if (!args.write) {
+        await sql.unsafe('rollback')
+      } else {
+        await sql.unsafe('commit')
+      }
     } catch (e) {
-      if (e !== ROLLBACK) throw e
+      await sql.unsafe('rollback').catch(() => {})
+      throw e
     }
     return summaryLines(summary, args.write)
   } finally {

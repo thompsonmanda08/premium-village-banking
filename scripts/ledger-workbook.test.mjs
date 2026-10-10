@@ -256,12 +256,19 @@ test('the reconciliation sheet of a month before the last must have the receipts
 
 test.each([
   ['transaction fee', 'Feb 2', 'E2', 'txn_fee'],
-  ['membership fee', 'Feb 2', 'F2', 'membership'],
   ['fee spent', 'Mar 1', 'L2', 'fee_spent'],
   ['loan repayment before April', 'Mar 1', 'M2', 'repayment'],
 ])('every statement needs its %s column', async (_what, sheet, cell, key) => {
   const wb = await build((w) => { w.getWorksheet(sheet).getCell(cell).value = 'Other' })
   expect(() => parseWorkbook(wb, 2)).toThrow(new RegExp(`${sheet}: no "${key}" column \\(headers found: `))
+})
+
+test('membership fee column is optional — defaults to 0 when absent', async () => {
+  // Real workbooks only include membership in months it is charged (Feb, May, Aug, Nov).
+  const wb = await build((w) => { w.getWorksheet('Feb 2').getCell('F2').value = 'Other' })
+  const bundle = parseWorkbook(wb, 2)
+  // All membership values should be 0 when the column is missing
+  expect(bundle.months[0].rows.every((r) => r.membership === 0)).toBe(true)
 })
 
 test('from April the total payable column is required (no fallback to the repayment subtotal), and penalties April to July', () => {

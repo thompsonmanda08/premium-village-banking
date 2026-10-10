@@ -26,7 +26,8 @@ const COLUMNS = {
   minimum: /^minimum/i,
   received: /^amount received/i,
 }
-const REQUIRED = ['name', 'saving', 'txn_fee', 'membership', 'loan', 'interest', 'excess', 'fee_spent', 'minimum']
+// membership is only charged quarterly (Feb, May, Aug, Nov) and absent from other months' sheets — optional here.
+const REQUIRED = ['name', 'saving', 'txn_fee', 'loan', 'interest', 'excess', 'fee_spent', 'minimum']
 // The ledger refuses a negative here (private.import_history); only the workbook's own totals may be negative.
 const UNSIGNED = ['saving', 'txn_fee', 'membership', 'interest', 'excess', 'penalty', 'fee_spent', 'received']
 const GROUP = { opening_cash: /^opening/i, idle_cash: /^excess amount$/i, excess_billed: /^interest on excess$/i }
@@ -299,11 +300,18 @@ function checkInterestSheet(wb, months, through) {
       if (/^name/i.test(t)) nameCol = c
       else if (t) {
         try {
-          const m = monthIndex(t)
+          // Strip parenthetical/compound suffixes before parsing the month:
+          // "Mar(Cumm)" → "Mar", "April(cumm)" → "April", "June(Cumm)" → "June".
+          // Skip compound headers like "Feb to August" (contain multiple month references or "to"/"–"/"-").
+          const hasSecondMonth = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\b.+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(t)
+          const isRange = /\bto\b|–|—/.test(t)
+          if (hasSecondMonth || isRange) throw new Error('compound header, skip')
+          const monthWord = t.replace(/[\s(].*/, '').trim()
+          const m = monthIndex(monthWord)
           if (monthCols.has(m)) dupes.push(MONTHS[m - 1])
           monthCols.set(m, c)
         } catch {
-          // a header that is not a month
+          // a header that is not a month (or a compound range we skip)
         }
       }
     })
@@ -311,9 +319,15 @@ function checkInterestSheet(wb, months, through) {
   }
   if (!head) throw new Error('Interest sheet: no "Name" header in rows 1 to 4')
 
+  // Skip any subheader rows immediately after the main header (e.g. a row of "Savings" labels under month headings,
+  // a repeated "Name" header row, or a merged-cell slave that reads as blank). A subheader has a name-column cell
+  // that looks like a column label or is empty/merged — not a person's name.
+  const isSubheader = (name) => !name || /^(savings|s\/n|s\.n|no\.?|total|name)$/i.test(name) || /^\d+$/.test(name)
   const listed = []
   for (let r = head.row + 1; r <= ws.rowCount; r++) {
     const name = text(cellValue(ws.getRow(r).getCell(head.nameCol))).trim().toLowerCase()
+    // Once we have members, an empty/total row ends the list. Before we have any, skip blanks and subheaders.
+    if (listed.length === 0 && isSubheader(name)) continue
     if (!name || /^total/.test(name)) break
     listed.push({ row: r, name })
   }

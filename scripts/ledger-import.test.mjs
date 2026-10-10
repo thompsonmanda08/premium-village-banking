@@ -16,6 +16,13 @@ const db = vi.hoisted(() => {
     state.calls.push({ text, values })
     return state.respond(text)
   }
+  sql.unsafe = async (text, values = []) => {
+    state.calls.push({ text, values })
+    if (text === 'commit') state.committed = true
+    if (text === 'rollback') state.committed = false
+    return state.respond(text)
+  }
+  sql.json = (x) => x  // mock: just return the object as-is for test inspection
   sql.begin = async (fn) => {
     try {
       const out = await fn(sql)
@@ -159,6 +166,7 @@ beforeEach(() => {
   groups = [{ id: GROUP }]
   Object.assign(db.state, { calls: [], committed: undefined, ended: 0 })
   db.state.respond = (text) => {
+    if (text === 'begin' || text === 'commit' || text === 'rollback') return []
     if (text.includes('from groups')) return groups
     if (text.includes('private.import_history')) return [{ summary: { ...SUMMARY, months: 1 } }]
     throw new Error(`unexpected query: ${text}`)
@@ -174,7 +182,7 @@ test('a dry run imports inside a transaction, rolls it back and says so', async 
   expect(db.state.committed).toBe(false)
   const call = db.state.calls.find((c) => c.text.includes('private.import_history'))
   expect(call.values[0]).toBe(GROUP)
-  const bundle = JSON.parse(call.values[1])
+  const bundle = call.values[1]  // now the bundle object directly (via sql.json mock)
   expect(bundle.through).toBe(1)
   expect(bundle.months[0].rows[0]).toMatchObject({ name: 'Ann', saving: 3000, excess: 75 })
   expect(db.connect.mock.calls[0][1]).toMatchObject({ max: 1, prepare: false, ssl: 'require' })
