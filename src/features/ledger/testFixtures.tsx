@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { GroupProvider } from '@/features/group/GroupContext';
 import type { GroupRow, MemberRow } from '@/features/group/useMembership';
 import { ToastProvider } from '@/ui';
+import type { EntryRow, InstalmentRow, LoanRow, StatementRow } from './memberViews';
 import type { DeclarationRow, PeriodRow } from './model';
 
 export const GROUP: GroupRow = { id: 'g1', name: 'Test Group', currency: 'ZMW', owner_user_id: 'u0', figures_visibility: 'open' };
@@ -50,3 +51,25 @@ export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member
   );
   return render(ui, { wrapper });
 }
+
+export const statement = (o: Partial<StatementRow> = {}): StatementRow => ({
+  id: 's8', created_at: '2026-10-01T00:00:00Z', group_id: 'g1', period_id: 'p8', member_id: 'm1',
+  opening_owed: 0, saving: 250, cum_savings: 2000, loan_principal_sent: 0, loan_interest_charged: 0, excess_charged: 0,
+  penalties_charged: 0, paid_total: 250, paid_to_excess: 0, paid_to_penalties: 0, paid_to_interest: 0, paid_to_principal: 0,
+  closing_owed: 0, next_minimum: 0, unpaid_minimum: 0, interest_earned: 0, interest_earned_to_date: 0, source: 'import', ...o,
+});
+
+export const entry = (o: Partial<EntryRow> = {}): EntryRow => ({
+  id: 'e1', created_at: '2026-09-05T08:00:00Z', group_id: 'g1', period_id: 'p8', member_id: 'm1', kind: 'saving', amount: 250,
+  loan_id: null, wallet_id: null, source: 'import', declaration_id: null, corrects_entry_id: null, reason: null, created_by: null, ...o,
+});
+
+export const loan = (o: Partial<LoanRow> = {}): LoanRow => ({
+  id: 'l1', created_at: '2026-09-02T09:00:00Z', group_id: 'g1', member_id: 'm1', period_id: 'p8', principal: 1000, interest: 150,
+  term_months: 3, sent_at: '2026-09-02T09:00:00Z', wallet_id: null, cap_warning: null, arrears_warning: null, approved_reason: null,
+  status: 'open', ...o,
+});
+
+export const instalment = (o: Partial<InstalmentRow> = {}): InstalmentRow => ({
+  id: 'i1', created_at: '2026-09-02T09:00:00Z', group_id: 'g1', loan_id: 'l1', period_id: 'p9', amount_due: 383.33, ...o,
+});
