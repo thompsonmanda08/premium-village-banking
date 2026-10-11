@@ -98,15 +98,3 @@ export function friendlyError(err: unknown): string {
   if (name === 'TimeoutError' || name === 'AbortError' || /failed to fetch|networkerror|load failed|timed out|timeouterror|aborterror|operation was aborted/i.test(msg)) return OFFLINE;
   return GENERIC;
 }
-
-const UNKNOWN_ACCOUNT_CODES = ['otp_disabled', 'signup_disabled', 'user_not_found'];
-
-/**
- * True when an auth error only says "no member has this email" (magic link with shouldCreateUser: false). Sign-in screens
- * must answer exactly as they do for a real member, otherwise anyone can probe which emails belong to the group.
- */
-export function isUnknownAccount(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const { message, code } = err as ErrorLike;
-  return (typeof code === 'string' && UNKNOWN_ACCOUNT_CODES.includes(code)) || message === 'Signups not allowed for otp';
-}

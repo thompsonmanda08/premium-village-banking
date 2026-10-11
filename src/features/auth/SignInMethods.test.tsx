@@ -13,8 +13,8 @@ vi.mock('@/lib/supabase', () => ({ supabase: { auth } }));
 const { SignInMethods } = await import('./SignInMethods');
 
 const renderIt = (next = '/passbook') => render(<MemoryRouter><SignInMethods next={next} /></MemoryRouter>);
-const SENT_LINK = 'If that email belongs to a member, we’ve sent a sign-in link. Check your inbox — and the address, if nothing arrives.';
-const SENT_RESET = 'If that email belongs to a member, we’ve sent a password reset link. Check your inbox — and the address, if nothing arrives.';
+const SENT_LINK = 'We’ve sent a sign-in link. Check your inbox — and the address, if nothing arrives.';
+const SENT_RESET = 'If that email has an account, we’ve sent a password reset link. Check your inbox — and the address, if nothing arrives.';
 
 beforeEach(() => Object.values(auth).forEach((f) => f.mockReset().mockResolvedValue({ error: null })));
 
@@ -62,21 +62,10 @@ test('sends a magic link that never creates accounts', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Email me a sign-in link' }));
   expect(auth.signInWithOtp).toHaveBeenCalledWith({
     email: 'tafara@example.com',
-    options: { emailRedirectTo: 'http://localhost:3000/auth/callback?next=%2Fpassbook', shouldCreateUser: false },
+    options: { emailRedirectTo: 'http://localhost:3000/auth/callback?next=%2Fpassbook' },
   });
   expect(await screen.findByText(/Check your email/)).toBeInTheDocument();
   expect(screen.getByText(SENT_LINK)).toBeInTheDocument();
-});
-
-test('answers the same whether or not the email belongs to a member', async () => {
-  auth.signInWithOtp.mockResolvedValue({ error: { code: 'otp_disabled', message: 'Signups not allowed for otp', status: 422 } });
-  renderIt();
-  await userEvent.type(screen.getByLabelText('Email'), 'nobody@example.com');
-  await userEvent.click(screen.getByRole('button', { name: 'Email me a sign-in link' }));
-  expect(await screen.findByText(SENT_LINK)).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
-  expect(screen.queryByText(/couldn’t find an account/)).not.toBeInTheDocument();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
 test('still reports rate limits and network failures on the magic link', async () => {

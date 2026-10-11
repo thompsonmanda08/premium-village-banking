@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { Mail } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { friendlyError, isUnknownAccount } from '@/lib/errors';
+import { friendlyError } from '@/lib/errors';
 import { Alert, Button, TextField } from '@/ui';
 import { safeNext } from './safeNext';
 
@@ -81,11 +81,7 @@ export function SignInMethods({ next: rawNext, email: initialEmail = '' }: { nex
     if (needEmail()) return;
     void run(
       'link',
-      async () => {
-        const res = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: callback(next), shouldCreateUser: false } });
-        // Same answer for a stranger's address as for a member's, so this screen cannot be used to probe who is in the group.
-        return isUnknownAccount(res.error) ? { error: null } : res;
-      },
+      () => supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: callback(next) } }),
       () => setSent('link'),
     );
   };
@@ -112,7 +108,7 @@ export function SignInMethods({ next: rawNext, email: initialEmail = '' }: { nex
         <Alert tone="success">
           <h2 ref={headingRef} tabIndex={-1} className="font-semibold">Check your email</h2>
           <p>
-            If that email belongs to a member, we’ve sent {sent === 'link' ? 'a sign-in link' : 'a password reset link'}. Check your
+            {sent === 'link' ? 'We’ve sent a sign-in link.' : 'If that email has an account, we’ve sent a password reset link.'} Check your
             inbox — and the address, if nothing arrives.
           </p>
         </Alert>

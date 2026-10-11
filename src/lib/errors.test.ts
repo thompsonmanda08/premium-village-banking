@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { friendlyError, isUnknownAccount } from './errors';
+import { friendlyError } from './errors';
 
 const GENERIC = 'Something went wrong. Please try again.';
 const CONFIRM = 'For your security, enter the code we emailed you to confirm this change.';
@@ -140,15 +140,6 @@ test('names that exist on Object.prototype are not table hits', () => {
   for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
     expect(friendlyError({ message: name })).toBe(GENERIC);
     expect(friendlyError({ code: name, message: 'x' })).toBe(GENERIC);
-  }
-});
-
-test('recognises "no such account" auth errors', () => {
-  for (const err of [{ code: 'otp_disabled' }, { code: 'signup_disabled' }, { code: 'user_not_found' }, { message: 'Signups not allowed for otp' }]) {
-    expect(isUnknownAccount(err), JSON.stringify(err)).toBe(true);
-  }
-  for (const err of [null, undefined, 'otp_disabled', {}, { code: 'over_email_send_rate_limit', status: 429 }, { code: 'invalid_credentials' }, new TypeError('Failed to fetch')]) {
-    expect(isUnknownAccount(err), String(err)).toBe(false);
   }
 });
 
