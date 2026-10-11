@@ -86,6 +86,12 @@ export function useRefreshLedger(groupId: string) {
       qc.invalidateQueries({ queryKey: ['month-penalties', groupId] }),
       qc.invalidateQueries({ queryKey: ['suggested-penalties', groupId] }),
       qc.invalidateQueries({ queryKey: ['loan-check'] }),
+      qc.invalidateQueries({ queryKey: ['close-preview'] }),
+      qc.invalidateQueries({ queryKey: ['statements'] }),
+      qc.invalidateQueries({ queryKey: ['entries'] }),
+      qc.invalidateQueries({ queryKey: ['loans'] }),
+      qc.invalidateQueries({ queryKey: ['payout-preview'] }),
+      qc.invalidateQueries({ queryKey: ['minimum-payable'] }),
     ]);
 }
 
@@ -216,6 +222,78 @@ export function useMonthPenalties(groupId: string, periodId: string | undefined)
       const { data, error } = await supabase.from('entries').select('*').eq('period_id', periodId!).or('kind.eq.penalty,source.eq.correction').order('created_at', { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+}
+
+export type CloseGroup = {
+  opening_cash: number;
+  received: number;
+  savings: number;
+  loans_sent: number;
+  idle_cash: number;
+  excess_billed: number;
+  interest_collected: number;
+  fee_pot_balance: number;
+  meeting_pot_balance: number;
+  total_savings: number;
+  total_owed: number;
+};
+export type CloseMember = {
+  member_id: string;
+  short_name: string;
+  opening_owed: number;
+  saving: number;
+  cum_savings: number;
+  loan_principal_sent: number;
+  loan_interest_charged: number;
+  excess_charged: number;
+  penalties_charged: number;
+  paid_total: number;
+  paid_to_excess: number;
+  paid_to_penalties: number;
+  paid_to_interest: number;
+  paid_to_principal: number;
+  closing_owed: number;
+  next_minimum: number;
+  interest_earned: number;
+  interest_earned_to_date: number;
+};
+export type CloseDiff = {
+  member_id: string | null;
+  short_name: string | null;
+  field: string;
+  app: number | null;
+  workbook: number;
+  difference: number | null;
+  reason_code: string;
+};
+export type ClosePreview = {
+  period_id: string;
+  label: string;
+  month_index: number;
+  committed: boolean;
+  group: CloseGroup;
+  members: CloseMember[];
+  diff: CloseDiff[];
+  unexplained: number;
+};
+
+/**
+ * What closing the month would write, computed by the engine and written to nothing. It holds every member's figures, so it is
+ * dropped from memory when unused and never persisted; a refusal (declarations waiting, previous month open) will not fix itself, so no retry.
+ */
+export function useClosePreview(periodId: string | undefined) {
+  return useQuery({
+    queryKey: ['close-preview', periodId],
+    enabled: Boolean(periodId),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    queryFn: async (): Promise<ClosePreview> => {
+      const { data, error } = await supabase.rpc('close_month', { p_period: periodId!, p_commit: false });
+      if (error) throw error;
+      return data as unknown as ClosePreview;
     },
   });
 }

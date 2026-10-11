@@ -45,3 +45,12 @@ test('a loan check holds lending cash, which moves: it is never written to Index
   const keys = dehydrate(qc, { shouldDehydrateQuery: shouldPersistQuery }).queries.map((q) => q.queryKey);
   expect(keys).toEqual([['membership', 'u1']]);
 });
+
+test('a close preview holds every member’s figures: it is never written to IndexedDB', async () => {
+  const { dehydrate } = await import('@tanstack/react-query');
+  const qc = makeQueryClient();
+  qc.setQueryData(['membership', 'u1'], { group: 'Premium' });
+  qc.setQueryData(['close-preview', 'p9'], { members: [{ short_name: 'Eve' }] });
+  const keys = dehydrate(qc, { shouldDehydrateQuery: shouldPersistQuery }).queries.map((q) => q.queryKey);
+  expect(keys).toEqual([['membership', 'u1']]);
+});
