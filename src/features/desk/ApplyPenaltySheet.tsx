@@ -32,6 +32,10 @@ export function ApplyPenaltySheet({ periodId, members, suggestion, onClose }: Pr
   const confirm = useConfirmTap(() => {
     apply.mutate({ amount: parseKwacha(amount) ?? 0, reason: reason.trim() }, { onSuccess: onClose });
   });
+  // Closing mid-request would let the same penalty be applied again from the list behind it.
+  const close = () => {
+    if (!apply.isPending) onClose();
+  };
   // Any edit disarms the second tap, so what is applied is always what was last seen.
   const edit = <T,>(set: (v: T) => void) => (v: T) => {
     confirm.reset();
@@ -57,7 +61,7 @@ export function ApplyPenaltySheet({ periodId, members, suggestion, onClose }: Pr
   return (
     <Sheet
       open
-      onClose={onClose}
+      onClose={close}
       title="Apply a penalty"
       description="It is charged to the member this month and recorded with your reason."
       footer={

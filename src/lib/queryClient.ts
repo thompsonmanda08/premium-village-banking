@@ -13,8 +13,12 @@ export const makeQueryClient = () =>
     },
   });
 
-/** The invite preview holds the raw invite token and the member's details: it lives for one visit and never reaches IndexedDB. */
-export const shouldPersistQuery = (query: Query): boolean => query.queryKey[0] !== 'invite-preview' && defaultShouldDehydrateQuery(query);
+/**
+ * Two queries are never written to IndexedDB: the invite preview holds the raw invite token and the member's details (it lives
+ * for one visit), and a loan check holds lending cash, which moves and must never be read back days later as if it were current.
+ */
+const NEVER_PERSISTED = ['invite-preview', 'loan-check'];
+export const shouldPersistQuery = (query: Query): boolean => !NEVER_PERSISTED.includes(String(query.queryKey[0])) && defaultShouldDehydrateQuery(query);
 
 export const persister = createAsyncStoragePersister({
   key: CACHE_KEY,

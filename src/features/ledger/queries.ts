@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { PenaltySuggestion } from './deskMoney';
 import type { EntryRow, LoanRow, LoanWithInstalments, PayoutRow, StatementRow } from './memberViews';
@@ -168,7 +168,8 @@ export function useLoanCheck(memberId: string | undefined, principal: number | n
     queryKey: ['loan-check', memberId, principal],
     enabled: Boolean(memberId),
     staleTime: 0,
-    placeholderData: keepPreviousData,
+    // While a new amount loads, keep this member's last answer on screen; never another member's.
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === memberId ? previous : undefined),
     queryFn: async (): Promise<LoanCheck> => {
       const { data, error } = await supabase.rpc('loan_check', principal === null ? { p_member: memberId! } : { p_member: memberId!, p_principal: principal });
       if (error) throw error;
@@ -203,13 +204,16 @@ export function useSuggestedPenalties(groupId: string, periodId: string | undefi
   });
 }
 
-/** Penalty entries of the month: the applications and any corrections of them. */
+/**
+ * Penalty entries of the month plus every correction landed in it: a waiver is stored as kind 'waiver' and a reduction as
+ * 'adjustment', so filtering on kind = 'penalty' alone could never see them. Callers match corrections to penalties by id.
+ */
 export function useMonthPenalties(groupId: string, periodId: string | undefined) {
   return useQuery({
     queryKey: ['month-penalties', groupId, periodId],
     enabled: Boolean(periodId),
     queryFn: async (): Promise<EntryRow[]> => {
-      const { data, error } = await supabase.from('entries').select('*').eq('period_id', periodId!).eq('kind', 'penalty').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('entries').select('*').eq('period_id', periodId!).or('kind.eq.penalty,source.eq.correction').order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },

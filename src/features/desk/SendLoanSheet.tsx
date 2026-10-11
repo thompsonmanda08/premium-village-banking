@@ -33,8 +33,10 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
   const data = check.data;
   const name = members.find((m) => m.id === memberId)?.short_name ?? '';
 
-  // Send only on an answer to exactly what is typed: a preview for an earlier amount must never enable it.
-  const answered = Boolean(data) && !check.isFetching && asked === principal && (data!.principal ?? null) === principal;
+  // Send only on a fresh, successful answer to exactly what is typed: a kept answer (another amount, a failed re-check, an
+  // offline pause) must never enable it.
+  const answered =
+    check.isSuccess && !check.isPlaceholderData && check.fetchStatus === 'idle' && Boolean(data) && asked === principal && (data!.principal ?? null) === principal;
   const overCap = answered && data!.over_cap === true;
   const blocked = answered && (data!.insufficient_cash === true || !data!.loans_open);
   const canSend =
@@ -52,6 +54,10 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
     if (error) throw error;
   }, 'Loan sent.');
   const confirm = useConfirmTap(() => send.mutate(undefined, { onSuccess: onClose }));
+  // Closing mid-send would leave the request row offering Send again while the first send is still on its way.
+  const close = () => {
+    if (!send.isPending) onClose();
+  };
   // Any edit disarms the second tap, so what is sent is always what was last seen.
   const edit = <T,>(set: (v: T) => void) => (v: T) => {
     confirm.reset();
@@ -61,7 +67,7 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
   return (
     <Sheet
       open
-      onClose={onClose}
+      onClose={close}
       title="Send a loan"
       description="Paid from lending cash. Interest is charged now; the schedule is worked out for you."
       footer={
@@ -85,7 +91,7 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
           onChange={(e) => edit(setAmount)(e.target.value)}
         />
 
-        {memberId && check.isError && !data ? <Alert tone="danger">{friendlyError(check.error)}</Alert> : null}
+        {memberId && check.isError ? <Alert tone="danger">{friendlyError(check.error)}</Alert> : null}
         {memberId && data ? (
           <section aria-label="Before you send" className="grid gap-3 rounded-xl bg-surface-2 p-4 text-sm">
             <h3 className="font-semibold text-fg">Before you send</h3>

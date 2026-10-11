@@ -5,6 +5,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 const calls = vi.hoisted(() => ({
   eq: [] as Array<[string, unknown]>,
+  or: [] as string[],
   rpc: [] as unknown[][],
   result: vi.fn(),
   rpcResult: vi.fn(),
@@ -14,6 +15,10 @@ vi.mock('@/lib/supabase', () => {
   for (const m of ['select', 'order', 'limit', 'in']) chain[m] = () => chain;
   chain.eq = (col: string, val: unknown) => {
     calls.eq.push([col, val]);
+    return chain;
+  };
+  chain.or = (filter: string) => {
+    calls.or.push(filter);
     return chain;
   };
   chain.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve(calls.result()).then(res, rej);
@@ -35,6 +40,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 beforeEach(() => {
   calls.eq.length = 0;
+  calls.or.length = 0;
   calls.rpc.length = 0;
   calls.result.mockReset();
   calls.rpcResult.mockReset();
@@ -66,7 +72,29 @@ test('the month’s loans and penalty entries are asked for by the open month', 
   await waitFor(() => expect(loans.result.current.isSuccess).toBe(true));
   const pens = renderHook(() => useMonthPenalties('g1', 'p9'), { wrapper });
   await waitFor(() => expect(pens.result.current.isSuccess).toBe(true));
-  expect(calls.eq).toEqual([['period_id', 'p9'], ['period_id', 'p9'], ['kind', 'penalty']]);
+  expect(calls.eq).toEqual([['period_id', 'p9'], ['period_id', 'p9']]);
+});
+
+test('penalty entries include the corrections of them: a waiver or a reduction is not stored as kind penalty', async () => {
+  calls.result.mockReturnValue({ data: [], error: null });
+  const { result } = renderHook(() => useMonthPenalties('g1', 'p9'), { wrapper });
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(calls.or).toEqual(['kind.eq.penalty,source.eq.correction']);
+});
+
+test('another member’s answer is never shown while a member’s own is loading; the same member keeps the last answer while a new amount loads', async () => {
+  calls.rpcResult.mockReturnValueOnce({ data: { lending_cash: 111 }, error: null });
+  const { result, rerender } = renderHook(({ m, p }) => useLoanCheck(m, p), { wrapper, initialProps: { m: 'm1', p: null as number | null } });
+  await waitFor(() => expect(result.current.data?.lending_cash).toBe(111));
+  calls.rpcResult.mockReturnValueOnce(new Promise(() => {}));
+  rerender({ m: 'm1', p: 500 });
+  await waitFor(() => expect(result.current.isFetching).toBe(true));
+  expect(result.current.data?.lending_cash).toBe(111);
+  expect(result.current.isPlaceholderData).toBe(true);
+  calls.rpcResult.mockReturnValueOnce(new Promise(() => {}));
+  rerender({ m: 'm2', p: 500 });
+  await waitFor(() => expect(result.current.isFetching).toBe(true));
+  expect(result.current.data).toBeUndefined();
 });
 
 test('suggested penalties come from the engine for the open month, and are idle without one', async () => {

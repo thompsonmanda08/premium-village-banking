@@ -36,3 +36,12 @@ test('failed queries are still not persisted either (the library default)', () =
   query.setState({ ...query.state, status: 'error' });
   expect(shouldPersistQuery(query)).toBe(false);
 });
+
+test('a loan check holds lending cash, which moves: it is never written to IndexedDB', async () => {
+  const { dehydrate } = await import('@tanstack/react-query');
+  const qc = makeQueryClient();
+  qc.setQueryData(['membership', 'u1'], { group: 'Premium' });
+  qc.setQueryData(['loan-check', 'm1', 500], { lending_cash: 6000 });
+  const keys = dehydrate(qc, { shouldDehydrateQuery: shouldPersistQuery }).queries.map((q) => q.queryKey);
+  expect(keys).toEqual([['membership', 'u1']]);
+});

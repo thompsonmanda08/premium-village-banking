@@ -86,3 +86,12 @@ test('a refusal shows the friendly sentence and keeps the sheet open', async () 
   expect(await screen.findByText('That month isn’t open. Pick the current month, or open it first.')).toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
 });
+
+test('the sheet cannot be closed while the penalty is being applied', async () => {
+  rpc.mockReturnValue(new Promise(() => {}));
+  renderSheet(SUGGESTION);
+  await userEvent.click(screen.getByRole('button', { name: 'Apply penalty' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Tap again to apply K 100 to Eve' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(onClose).not.toHaveBeenCalled();
+});

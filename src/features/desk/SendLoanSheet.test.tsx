@@ -30,6 +30,7 @@ const answer = (principal: number | null, extra: Partial<LoanCheck> = {}): LoanC
 const respond = (extra: Partial<LoanCheck> = {}) =>
   hooks.check.mockImplementation((memberId: string | undefined, principal: number | null) => ({
     data: memberId ? answer(principal, extra) : undefined, isError: false, error: null, isFetching: false,
+    isSuccess: Boolean(memberId), isPlaceholderData: false, fetchStatus: 'idle',
   }));
 
 const renderSheet = (props: Partial<React.ComponentProps<typeof SendLoanSheet>> = {}) =>
@@ -165,4 +166,46 @@ test('a preview that is still loading for the typed amount keeps Send disabled',
   renderSheet({ initialMemberId: 'm1', initialAmount: 1000 });
   await userEvent.selectOptions(screen.getByLabelText('Wallet'), 'w1');
   expect(screen.getByRole('button', { name: 'Send loan' })).toBeDisabled();
+});
+
+test('an answer kept from another member, or from an earlier amount, never enables Send', async () => {
+  hooks.check.mockImplementation((memberId: string | undefined, principal: number | null) => ({
+    data: memberId ? answer(principal) : undefined, isError: false, error: null, isFetching: false,
+    isSuccess: true, isPlaceholderData: true, fetchStatus: 'idle',
+  }));
+  renderSheet({ initialMemberId: 'm1', initialAmount: 1000 });
+  await userEvent.selectOptions(screen.getByLabelText('Wallet'), 'w1');
+  expect(screen.getByRole('button', { name: 'Send loan' })).toBeDisabled();
+});
+
+test('a paused (offline) check never enables Send', async () => {
+  hooks.check.mockImplementation((memberId: string | undefined, principal: number | null) => ({
+    data: memberId ? answer(principal) : undefined, isError: false, error: null, isFetching: false,
+    isSuccess: true, isPlaceholderData: false, fetchStatus: 'paused',
+  }));
+  renderSheet({ initialMemberId: 'm1', initialAmount: 1000 });
+  await userEvent.selectOptions(screen.getByLabelText('Wallet'), 'w1');
+  expect(screen.getByRole('button', { name: 'Send loan' })).toBeDisabled();
+});
+
+test('a failed re-check that still holds an older answer shows the error and blocks Send', async () => {
+  hooks.check.mockImplementation((memberId: string | undefined, principal: number | null) => ({
+    data: memberId ? answer(principal) : undefined, isError: true, error: { message: 'x', code: 'PGRST301' }, isFetching: false,
+    isSuccess: false, isPlaceholderData: false, fetchStatus: 'idle',
+  }));
+  renderSheet({ initialMemberId: 'm1', initialAmount: 1000 });
+  await userEvent.selectOptions(screen.getByLabelText('Wallet'), 'w1');
+  expect(screen.getByText('Your session has expired. Please sign in again.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Send loan' })).toBeDisabled();
+});
+
+test('the sheet cannot be closed while the loan is being sent, so it cannot be sent twice from the list behind it', async () => {
+  rpc.mockReturnValue(new Promise(() => {}));
+  renderSheet({ initialMemberId: 'm1', initialAmount: 1000 });
+  await userEvent.selectOptions(screen.getByLabelText('Wallet'), 'w1');
+  await userEvent.click(screen.getByRole('button', { name: 'Send loan' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Tap again to send K 1,000 to Eve' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+  await userEvent.keyboard('{Escape}');
+  expect(onClose).not.toHaveBeenCalled();
 });
