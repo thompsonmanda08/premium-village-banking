@@ -7,6 +7,7 @@ import type { GroupRow, MemberRow } from '@/features/group/useMembership';
 import { ToastProvider } from '@/ui';
 import type { EntryRow, InstalmentRow, LoanRow, StatementRow } from './memberViews';
 import type { DeclarationRow, PeriodRow } from './model';
+import type { CloseMember, ClosePreview } from './queries';
 
 export const GROUP: GroupRow = { id: 'g1', name: 'Test Group', currency: 'ZMW', owner_user_id: 'u0', figures_visibility: 'open' };
 export const MEMBER: MemberRow = { id: 'm1', group_id: 'g1', full_name: 'Eve Example', short_name: 'Eve', role: 'member', status: 'active', email: 'eve@example.test' };
@@ -72,4 +73,20 @@ export const loan = (o: Partial<LoanRow> = {}): LoanRow => ({
 
 export const instalment = (o: Partial<InstalmentRow> = {}): InstalmentRow => ({
   id: 'i1', created_at: '2026-09-02T09:00:00Z', group_id: 'g1', loan_id: 'l1', period_id: 'p9', amount_due: 383.33, ...o,
+});
+
+export const closeMember = (o: Partial<CloseMember> = {}): CloseMember => ({
+  member_id: 'm1', short_name: 'Eve', opening_owed: 0, saving: 250, cum_savings: 2250, loan_principal_sent: 0, loan_interest_charged: 0,
+  excess_charged: 0, penalties_charged: 0, paid_total: 250, paid_to_excess: 0, paid_to_penalties: 0, paid_to_interest: 0, paid_to_principal: 0,
+  closing_owed: 0, next_minimum: 300, interest_earned: 0, interest_earned_to_date: 0, ...o,
+});
+
+export const closePreview = (o: Partial<ClosePreview> = {}): ClosePreview => ({
+  period_id: 'p9', label: 'Oct 2026', month_index: 9, committed: false,
+  group: {
+    opening_cash: 5000, received: 900, savings: 3000, loans_sent: 1000, idle_cash: 7000, excess_billed: 700, interest_collected: 120,
+    fee_pot_balance: 40, meeting_pot_balance: 900, total_savings: 40500, total_owed: 2300,
+  },
+  members: [closeMember(), closeMember({ member_id: 'm2', short_name: 'Ann' })],
+  diff: [], unexplained: 0, ...o,
 });
