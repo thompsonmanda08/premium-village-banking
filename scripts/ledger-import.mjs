@@ -106,8 +106,6 @@ export function failure(cmd, e) {
   return `${cmd} failed: ${clean(e?.message ?? e)}${clean(detail)}`
 }
 
-const ROLLBACK = Symbol('dry run')
-
 /** Runs the import (or the dry run) and returns the summary lines. */
 export async function main(argv) {
   const args = parseArgs(argv)
