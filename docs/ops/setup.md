@@ -243,7 +243,8 @@ bun run e2e
 
 1. Settings, Environments, `production`, Required reviewers: the owner and the treasurer. The workflow
    "Deploy database and functions" runs in this environment, so **no migration or function deploy reaches
-   production until a reviewer approves it**. **Save, then reopen the page and confirm both reviewers are listed.**
+   production until a reviewer approves it**. A push also waits for the CI run on the same commit (job `ci-gate`) and
+   stops when it is red; look at that job before approving. **Save, then reopen the page and confirm both reviewers are listed.**
    On a private repository, required reviewers need a paid GitHub plan (on GitHub Free the setting is missing or does
    not save). If you cannot save it, **stop**: with no reviewer the merge in step 4 deploys immediately. Fix the plan (or
    the repository's visibility, after checking the repo holds no secrets) first.
