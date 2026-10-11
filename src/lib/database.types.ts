@@ -622,6 +622,9 @@ isOneToOne: false
 "close_month":
 { Args: { "p_commit"?: boolean,"p_period": string,"p_reason"?: string }; Returns: Json
                            },
+"create_group":
+{ Args: { "p_currency": string,"p_full_name": string,"p_name": string,"p_short_name": string }; Returns: string
+                           },
 "invite_preview":
 { Args: { "p_token": string }; Returns: Json
                            },

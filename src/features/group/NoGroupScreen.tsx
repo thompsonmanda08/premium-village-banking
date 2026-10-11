@@ -14,7 +14,7 @@ export function NoGroupScreen({ email }: { email?: string }) {
         <div aria-hidden className="mb-4 grid size-14 place-items-center rounded-full bg-accent-soft text-accent">
           <Users className="size-7" />
         </div>
-        <h2 className="text-lg font-semibold text-fg">Your account isn't linked to a group</h2>
+        <h2 className="text-lg font-semibold text-fg">Your account isn’t linked to a group</h2>
 
         {/* Primary path: create a new group */}
         <div className="mt-6 w-full">

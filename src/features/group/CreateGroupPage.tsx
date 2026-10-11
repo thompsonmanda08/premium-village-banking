@@ -1,7 +1,8 @@
 import { useId, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AuthLayout } from '@/app/AuthLayout';
+import { FullScreenLoader } from '@/app/FullScreenLoader';
 import { useSession } from '@/features/auth/SessionProvider';
 import { defaultShortName } from '@/features/settings/memberForm';
 import { friendlyError } from '@/lib/errors';
@@ -56,29 +57,21 @@ export function CreateGroupPage() {
   const [form, setForm] = useState<FormValues>({ groupName: '', currency: 'ZMW', fullName: '', shortName: '' });
   const [showErrors, setShowErrors] = useState(false);
 
-  // If the user already has a group (e.g. navigated here directly), send them home.
-  // Data wins: only redirect once the query has settled with a group.
-  if (membership.data) {
-    void navigate('/', { replace: true });
-    return null;
-  }
-
   const errors = validate(form);
   const effectiveShort = form.shortName.trim() || defaultShortName(form.fullName);
 
   const create = useMutation({
     mutationFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.rpc as any)('create_group', {
+      const { data, error } = await supabase.rpc('create_group', {
         p_name: form.groupName.trim(),
         p_currency: form.currency,
         p_full_name: form.fullName.trim(),
         p_short_name: effectiveShort,
       });
       if (error) throw error;
-      return data as string; // group uuid
+      return data; // group uuid
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       haptic();
       // Drop the cached "no group" so RequireMembership fetches fresh.
       qc.removeQueries({ queryKey: ['membership'] });
@@ -86,6 +79,10 @@ export function CreateGroupPage() {
       navigate('/', { replace: true });
     },
   });
+
+  // Wait for membership, then send anyone who already has a group home: closes the double-submit race.
+  if (membership.isPending) return <FullScreenLoader />;
+  if (membership.data) return <Navigate to="/" replace />;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -126,7 +123,6 @@ export function CreateGroupPage() {
             placeholder="e.g. Premium Village Banking"
             maxLength={120}
             autoComplete="off"
-            autoFocus
             error={showErrors ? errors.groupName : undefined}
             {...field('groupName')}
           />
