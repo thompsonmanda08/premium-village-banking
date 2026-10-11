@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { GroupProvider } from '@/features/group/GroupContext';
 import type { GroupRow, MemberRow } from '@/features/group/useMembership';
@@ -37,13 +37,16 @@ export const year = (closed: number, next: PeriodRow['status'] = 'planned'): Per
 
 export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member?: MemberRow | null } = {}) {
   const member = opts.member === undefined ? MEMBER : opts.member;
-  return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  // A wrapper (not wrapped JSX) so `rerender(<Page />)` keeps the providers and the same client.
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>
       <ToastProvider>
         <MemoryRouter>
-          <GroupProvider value={{ group: GROUP, member, isAdmin: opts.isAdmin ?? false }}>{ui}</GroupProvider>
+          <GroupProvider value={{ group: GROUP, member, isAdmin: opts.isAdmin ?? false }}>{children}</GroupProvider>
         </MemoryRouter>
       </ToastProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  return render(ui, { wrapper });
 }

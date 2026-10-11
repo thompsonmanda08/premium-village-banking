@@ -37,13 +37,21 @@ function DeskBody() {
   }
 
   const ready = declarations.data && members.data && wallets.data;
+  const failed = [declarations, members, wallets].find((q) => q.isError && !q.data);
   return (
     <div className="grid gap-4 md:gap-5 lg:max-w-2xl">
       <MonthPanel cycleId={cycle.data.cycle.id} periods={cycle.data.periods} />
       {open ? (
-        ready ? (
+        failed ? (
+          <Alert
+            tone="danger"
+            action={<Button size="sm" variant="secondary" onClick={() => { void declarations.refetch(); void members.refetch(); void wallets.refetch(); }}>Try again</Button>}
+          >
+            {friendlyError(failed.error)}
+          </Alert>
+        ) : ready ? (
           <>
-            <DeclarationInbox declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} />
+            <DeclarationInbox periodId={open.id} deadline={open.deadline} declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} />
             <NotYetDeclared periodId={open.id} members={activeMembers(members.data!)} declarations={declarations.data!} wallets={wallets.data!} />
           </>
         ) : (

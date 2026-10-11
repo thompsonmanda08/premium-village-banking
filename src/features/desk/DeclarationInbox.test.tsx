@@ -10,7 +10,7 @@ const { DeclarationInbox } = await import('./DeclarationInbox');
 const MEMBERS = [{ id: 'm1', short_name: 'Eve' }, { id: 'm2', short_name: 'Ann' }];
 const WALLETS = [{ id: 'w1', name: 'Airtel' }];
 const render = (declarations: ReturnType<typeof declaration>[]) =>
-  renderLedger(<DeclarationInbox declarations={declarations} members={MEMBERS} wallets={WALLETS} />, { isAdmin: true });
+  renderLedger(<DeclarationInbox periodId="p9" deadline="2026-10-07" declarations={declarations} members={MEMBERS} wallets={WALLETS} />, { isAdmin: true });
 
 beforeEach(() => {
   rpc.mockReset();
@@ -65,4 +65,41 @@ test('an approval refused because the declaration was already handled shows the 
   await userEvent.click(screen.getByRole('button', { name: 'Approve' }));
   await userEvent.click(screen.getByRole('button', { name: 'Tap again to approve' }));
   expect(await screen.findByText('That declaration was already handled or replaced. Refresh and try again.')).toBeInTheDocument();
+});
+
+test('a waiting declaration shows when it arrived in local time, and flags a late one', () => {
+  render([declaration({ id: 'd1', submitted_at: new Date(2026, 9, 8, 0, 30).toISOString() })]);
+  expect(screen.getByText('Late · 8 Oct 2026 00:30')).toBeInTheDocument();
+});
+
+test('an on-time declaration is not flagged late', () => {
+  render([declaration({ id: 'd1', submitted_at: new Date(2026, 9, 7, 23, 59).toISOString() })]);
+  expect(screen.getByText('7 Oct 2026 23:59')).toBeInTheDocument();
+  expect(screen.queryByText(/Late/)).toBeNull();
+});
+
+test('a waiting declaration says when the member already has an approved one this month', () => {
+  render([
+    declaration({ id: 'd1', member_id: 'm1', saving: 100, status: 'submitted' }),
+    declaration({ id: 'd3', member_id: 'm1', saving: 300, status: 'approved' }),
+  ]);
+  const waiting = screen.getAllByRole('listitem')[0]!;
+  expect(within(waiting).getByText('Also approved: K 300')).toBeInTheDocument();
+});
+
+test('the treasurer can type in the correction for a returned declaration', async () => {
+  render([declaration({ id: 'd2', member_id: 'm2', status: 'returned', return_reason: 'Amount unclear', saving: 250, wallet_id: 'w1' })]);
+  await userEvent.click(screen.getByRole('button', { name: 'Declare for Ann' }));
+  expect(screen.getByLabelText('Savings')).toHaveValue('250');
+  await userEvent.clear(screen.getByLabelText('Savings'));
+  await userEvent.type(screen.getByLabelText('Savings'), '300');
+  await userEvent.click(screen.getByRole('button', { name: 'Submit declaration' }));
+  expect(rpc).toHaveBeenCalledWith('submit_declaration', expect.objectContaining({ p_period: 'p9', p_member: 'm2', p_saving: 300 }));
+});
+
+test('the treasurer can add another payment for a member who is already approved', async () => {
+  render([declaration({ id: 'd3', member_id: 'm1', status: 'approved' })]);
+  await userEvent.click(screen.getByText('Approved (1)'));
+  await userEvent.click(screen.getByRole('button', { name: 'Add a payment for Eve' }));
+  expect(screen.getByLabelText('Savings')).toHaveValue('');
 });

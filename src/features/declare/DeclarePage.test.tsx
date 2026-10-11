@@ -96,3 +96,46 @@ test('an approved declaration is read-only; another payment can still be declare
   await userEvent.click(screen.getByRole('button', { name: 'Declare another payment' }));
   expect(screen.getByLabelText('Savings')).toHaveValue('');
 });
+
+test('a failed load of declarations never shows an empty form that looks like nothing was declared', async () => {
+  const refetch = vi.fn();
+  hooks.declarations.mockReturnValue({ data: undefined, isPending: false, isError: true, error: { message: 'x', code: 'PGRST301' }, refetch });
+  renderLedger(<DeclarePage />);
+  expect(screen.getByText('Your session has expired. Please sign in again.')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Savings')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(refetch).toHaveBeenCalled();
+});
+
+test('a failed load of wallets blocks the form instead of leaving an empty wallet list', () => {
+  hooks.wallets.mockReturnValue({ data: undefined, isPending: false, isError: true, error: { message: 'x', code: 'PGRST301' }, refetch: vi.fn() });
+  renderLedger(<DeclarePage />);
+  expect(screen.queryByLabelText('Savings')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+});
+
+test('if the declaration is approved while the member is editing it, the edit is dropped with an explanation, not turned into a new declaration', async () => {
+  hooks.declarations.mockReturnValue(ok([declaration({ id: 'd1', status: 'submitted' })]));
+  const { rerender } = renderLedger(<DeclarePage />);
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+  expect(screen.getByLabelText('Savings')).toBeInTheDocument();
+  hooks.declarations.mockReturnValue(ok([declaration({ id: 'd1', status: 'approved' })]));
+  rerender(<DeclarePage />);
+  expect(screen.getByText(/approved while you were editing/)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Savings')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Declare another payment' }));
+  expect(screen.getByLabelText('Savings')).toHaveValue('');
+});
+
+test('after declaring another payment the form closes and does not come back when that one is approved', async () => {
+  hooks.declarations.mockReturnValue(ok([declaration({ id: 'd1', status: 'approved' })]));
+  const { rerender } = renderLedger(<DeclarePage />);
+  await userEvent.click(screen.getByRole('button', { name: 'Declare another payment' }));
+  hooks.declarations.mockReturnValue(ok([declaration({ id: 'd2', status: 'submitted' }), declaration({ id: 'd1', status: 'approved' })]));
+  rerender(<DeclarePage />);
+  expect(screen.queryByLabelText('Savings')).toBeNull();
+  hooks.declarations.mockReturnValue(ok([declaration({ id: 'd2', status: 'approved' }), declaration({ id: 'd1', status: 'approved' })]));
+  rerender(<DeclarePage />);
+  expect(screen.queryByLabelText('Savings')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Declare another payment' })).toBeInTheDocument();
+});

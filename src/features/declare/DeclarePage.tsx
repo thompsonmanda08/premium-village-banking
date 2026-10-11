@@ -18,7 +18,9 @@ export function DeclarePage() {
   const wallets = useWallets(group.id);
   const declarations = useDeclarations(group.id, period?.id, member?.id);
   const minimum = useMinimumPayable(member?.id, last?.id);
-  const [editing, setEditing] = useState(false);
+  // What the member opened the form for: a waiting declaration's id, or `new-<count>` for another payment. Tied to the declaration so
+  // a refetch that approves it mid-edit cannot quietly turn the edit into a second declaration.
+  const [editingSlot, setEditingSlot] = useState<string | null>(null);
 
   if (!member) {
     return (
@@ -64,7 +66,10 @@ export function DeclarePage() {
   const live = liveDeclarations(declarations.data ?? []);
   const approved = live.filter((d) => d.status === 'approved');
   const waiting = live.find((d) => d.status !== 'approved') ?? null;
-  const showForm = waiting ? waiting.status === 'returned' || editing : approved.length === 0 || editing;
+  const slot = waiting?.id ?? `new-${live.length}`;
+  const showForm = waiting ? waiting.status === 'returned' || editingSlot === waiting.id : live.length === 0 || editingSlot === slot;
+  const lostEdit = editingSlot !== null && approved.some((d) => d.id === editingSlot);
+  const failed = [declarations, wallets].find((q) => q.isError && !q.data);
   const walletName = (id: string | null) => wallets.data?.find((w) => w.id === id)?.name;
   const note = deadlineNote(localISODate(new Date()), period.deadline);
 
@@ -84,7 +89,14 @@ export function DeclarePage() {
           ) : null}
         </Card>
 
-        {declarations.isPending ? (
+        {failed ? (
+          <Alert
+            tone="danger"
+            action={<Button size="sm" variant="secondary" onClick={() => { void declarations.refetch(); void wallets.refetch(); }}>Try again</Button>}
+          >
+            {friendlyError(failed.error)}
+          </Alert>
+        ) : declarations.isPending || wallets.isPending ? (
           <div role="status"><span className="sr-only">Loading your declaration</span><Skeleton className="h-40" /></div>
         ) : (
           <>
@@ -99,10 +111,14 @@ export function DeclarePage() {
               <Card>
                 <CardHeader title="Your declaration" action={<Badge tone="warning">Waiting for the treasurer</Badge>} />
                 <DeclarationSummary d={waiting} walletName={walletName(waiting.wallet_id)} />
-                {!editing ? (
-                  <Button className="mt-4" size="sm" variant="secondary" onClick={() => setEditing(true)}>Edit</Button>
+                {editingSlot !== waiting.id ? (
+                  <Button className="mt-4" size="sm" variant="secondary" onClick={() => setEditingSlot(waiting.id)}>Edit</Button>
                 ) : null}
               </Card>
+            ) : null}
+
+            {lostEdit ? (
+              <Alert tone="info">Your declaration was approved while you were editing, so your changes were not sent. You can declare another payment below.</Alert>
             ) : null}
 
             {waiting?.status === 'returned' ? (
@@ -118,11 +134,11 @@ export function DeclarePage() {
                   memberId={member.id}
                   wallets={wallets.data ?? []}
                   initial={waiting}
-                  onDone={() => setEditing(false)}
+                  onDone={() => setEditingSlot(null)}
                 />
               </Card>
             ) : !waiting ? (
-              <Button variant="secondary" onClick={() => setEditing(true)}>Declare another payment</Button>
+              <Button variant="secondary" onClick={() => setEditingSlot(slot)}>Declare another payment</Button>
             ) : null}
           </>
         )}

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { EMPTY_FORM, fromDeclaration, validateDeclaration } from './declarationForm';
+import { EMPTY_FORM, fromDeclaration, sentTotal, validateDeclaration } from './declarationForm';
 import { declaration } from './testFixtures';
 
 const form = (o: Partial<typeof EMPTY_FORM>) => ({ ...EMPTY_FORM, ...o });
@@ -35,4 +35,8 @@ test('fromDeclaration shows zero amounts as blanks so the form is not cluttered'
   expect(fromDeclaration(declaration({ saving: 250, loan_repayment: 100.5, note: 'hi' }))).toEqual({
     ...EMPTY_FORM, saving: '250', loan_repayment: '100.5', wallet: 'w1', note: 'hi',
   });
+});
+
+test('sentTotal adds the money sent and leaves out the borrowing request', () => {
+  expect(sentTotal(declaration({ saving: 0.1, loan_repayment: 0.2, membership: 50, borrowing_request: 5000 }))).toBe(50.3);
 });

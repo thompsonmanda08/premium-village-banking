@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { declaration, renderLedger, year } from '@/features/ledger/testFixtures';
 
@@ -73,4 +74,14 @@ test('loading and failure states', () => {
 test('keeps the way to the ledger check', () => {
   renderLedger(<DeskPage />, { isAdmin: true });
   expect(screen.getByRole('link', { name: 'Open the ledger check' })).toHaveAttribute('href', '/desk/ledger-check');
+});
+
+test('a failed load of the declarations offers a retry instead of loading forever', async () => {
+  const refetch = vi.fn();
+  hooks.declarations.mockReturnValue({ data: undefined, isPending: false, isError: true, error: { message: 'x', code: 'PGRST301' }, refetch });
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByText('Your session has expired. Please sign in again.')).toBeInTheDocument();
+  expect(screen.queryByText('Loading declarations')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(refetch).toHaveBeenCalled();
 });

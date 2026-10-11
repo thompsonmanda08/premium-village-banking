@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { DeclarationForm } from '@/features/ledger/DeclarationForm';
 import { liveDeclarations, undeclared, type ActiveMember, type DeclarationRow, type Wallet } from '@/features/ledger/model';
-import { Button, Card, Sheet } from '@/ui';
+import { Button, Card } from '@/ui';
+import { DeclareForMemberSheet } from './DeclareForMemberSheet';
 
 type Props = { periodId: string; members: ActiveMember[]; declarations: DeclarationRow[]; wallets: Wallet[] };
 
@@ -21,11 +21,7 @@ export function NotYetDeclared({ periodId, members, declarations, wallets }: Pro
           </li>
         ))}
       </ul>
-      {picked ? (
-        <Sheet open onClose={() => setPicked(null)} title={`Declare for ${picked.short_name}`} description="Use this for a declaration the member sent you outside the app.">
-          <DeclarationForm periodId={periodId} memberId={picked.id} wallets={wallets} onDone={() => setPicked(null)} />
-        </Sheet>
-      ) : null}
+      {picked ? <DeclareForMemberSheet periodId={periodId} member={picked} wallets={wallets} onClose={() => setPicked(null)} /> : null}
     </Card>
   );
 }

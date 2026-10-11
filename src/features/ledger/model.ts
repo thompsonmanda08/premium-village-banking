@@ -1,5 +1,6 @@
 import { daysBetween } from '@/lib/calendar';
 import type { Tables } from '@/lib/database.types';
+import { formatDate, localISODate } from '@/lib/format';
 
 export type PeriodRow = Pick<Tables<'periods'>, 'id' | 'cycle_id' | 'month_index' | 'label' | 'starts_on' | 'deadline' | 'status'>;
 export type DeclarationRow = Tables<'declarations'>;
@@ -41,4 +42,12 @@ export function deadlineNote(today: string, deadline: string): { text: string; t
   if (n < 0) return { text: 'Past the deadline', tone: 'danger' };
   if (n === 0) return { text: 'Due today', tone: 'warning' };
   return { text: `${n} day${n === 1 ? '' : 's'} left`, tone: n <= 2 ? 'warning' : 'neutral' };
+}
+
+/** When a declaration arrived, in the treasurer's local time, and whether that is after the deadline day (a late-penalty question). */
+export function submittedLabel(iso: string, deadline: string): { text: string; late: boolean } {
+  const d = new Date(iso);
+  const date = localISODate(d);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return { text: `${formatDate(date)} ${pad(d.getHours())}:${pad(d.getMinutes())}`, late: date > deadline };
 }

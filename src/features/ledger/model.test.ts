@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { activeMembers, currentPeriod, deadlineNote, lastClosed, liveDeclarations, nextToOpen, undeclared } from './model';
+import { activeMembers, currentPeriod, deadlineNote, lastClosed, liveDeclarations, nextToOpen, submittedLabel, undeclared } from './model';
 import { declaration, year } from './testFixtures';
 
 test('currentPeriod is the open month, or null', () => {
@@ -48,4 +48,11 @@ test('deadlineNote counts days and flags a missed deadline', () => {
   expect(deadlineNote('2026-10-07', '2026-10-07')).toEqual({ text: 'Due today', tone: 'warning' });
   expect(deadlineNote('2026-10-08', '2026-10-07')).toEqual({ text: 'Past the deadline', tone: 'danger' });
   expect(deadlineNote('2026-10-01', '2026-10-07')).toEqual({ text: '6 days left', tone: 'neutral' });
+});
+
+test('submittedLabel shows the local date and time, and is late only after the deadline day in local time', () => {
+  const justAfter = new Date(2026, 9, 8, 0, 30).toISOString();
+  const lastMinute = new Date(2026, 9, 7, 23, 59).toISOString();
+  expect(submittedLabel(justAfter, '2026-10-07')).toEqual({ text: '8 Oct 2026 00:30', late: true });
+  expect(submittedLabel(lastMinute, '2026-10-07')).toEqual({ text: '7 Oct 2026 23:59', late: false });
 });

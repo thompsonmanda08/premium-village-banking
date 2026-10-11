@@ -20,6 +20,9 @@ export const EMPTY_FORM: FormValues = {
   saving: '', loan_repayment: '', excess: '', membership: '', penalty: '', txn_fee: '', borrowing_request: '', wallet: '', note: '',
 };
 
+/** The money a declaration says is being sent; the borrowing request is a request, not money. */
+export const sentTotal = (d: DeclarationRow): number => sumKwacha(d.saving, d.loan_repayment, d.excess, d.membership, d.penalty, d.txn_fee);
+
 const text = (n: number) => (n === 0 ? '' : String(n));
 
 export const fromDeclaration = (d: DeclarationRow): FormValues => ({
