@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import type { EntryRow, LoanWithInstalments, PayoutRow, StatementRow } from './memberViews';
 import type { DeclarationRow, PeriodRow, Wallet } from './model';
 
 export type LedgerCycle = { cycle: { id: string; label: string } | null; periods: PeriodRow[] };
@@ -81,4 +82,58 @@ export function useRefreshLedger(groupId: string) {
       qc.invalidateQueries({ queryKey: ['declarations', groupId] }),
       qc.invalidateQueries({ queryKey: ['ledger-cycle', groupId] }),
     ]);
+}
+
+/** The member's own statements, one per closed month. Always filtered by member: open-visibility groups let RLS return everyone's. */
+export function useMyStatements(memberId: string | undefined) {
+  return useQuery({
+    queryKey: ['statements', memberId],
+    enabled: Boolean(memberId),
+    queryFn: async (): Promise<StatementRow[]> => {
+      const { data, error } = await supabase.from('statements').select('*').eq('member_id', memberId!);
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useMyEntries(memberId: string | undefined) {
+  return useQuery({
+    queryKey: ['entries', memberId],
+    enabled: Boolean(memberId),
+    queryFn: async (): Promise<EntryRow[]> => {
+      const { data, error } = await supabase.from('entries').select('*').eq('member_id', memberId!).order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** The member's open loans, each with its instalments. */
+export function useMyLoans(memberId: string | undefined) {
+  return useQuery({
+    queryKey: ['loans', memberId],
+    enabled: Boolean(memberId),
+    queryFn: async (): Promise<LoanWithInstalments[]> => {
+      const loans = await supabase.from('loans').select('*').eq('member_id', memberId!).eq('status', 'open').order('sent_at');
+      if (loans.error) throw loans.error;
+      if (loans.data.length === 0) return [];
+      const instalments = await supabase.from('loan_instalments').select('*').in('loan_id', loans.data.map((l) => l.id));
+      if (instalments.error) throw instalments.error;
+      return loans.data.map((l) => ({ ...l, instalments: instalments.data.filter((i) => i.loan_id === l.id) }));
+    },
+  });
+}
+
+/** What the member would receive if the cycle paid out now: their own row of payout_preview, or null. */
+export function usePayoutPreview(cycleId: string | undefined, memberId: string | undefined) {
+  return useQuery({
+    queryKey: ['payout-preview', cycleId, memberId],
+    enabled: Boolean(cycleId && memberId),
+    queryFn: async (): Promise<PayoutRow | null> => {
+      const { data, error } = await supabase.rpc('payout_preview', { p_cycle: cycleId! });
+      if (error) throw error;
+      return data.find((r) => r.member_id === memberId) ?? null;
+    },
+  });
 }
