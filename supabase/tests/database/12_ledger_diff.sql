@@ -141,6 +141,54 @@ select is((select d -> 'app' from jsonb_array_elements(tests.kept('mar2') -> 'di
 select is(tests.reason('mar2', 'Fay', 'closing_owed'), 'waiver', 'the waiver still explains Fay');
 select is((tests.kept('mar2') ->> 'unexplained')::int, 7, 'seven unexplained in March now');
 
+-- Structural workbook practices (synthetic). The treasurer's workbook (a) adds the month's penalty to the minimum,
+-- (b) carries the fee-pot excess noise into it, and (c) sometimes sets the minimum to its own owed plus its own excess.
+-- March again: penalties first (Kim, Lee, Ned: K30 each), then a preview 'pre' whose app figures the workbook rows are
+-- built from. Workbook minus app is written out in each comment.
+select tests.login_as(tests.id('admin'));
+select apply_penalty(tests.lm(n), tests.lp(2), 30, 'other', 'synthetic') from unnest(array['Kim', 'Lee', 'Ned']) n;
+select tests.keep('pre', close_month(tests.lp(2)));
+reset role;
+insert into workbook_figures (group_id, period_id, member_id, field, value)
+select tests.id('lg'), tests.lp(2), tests.lm(r.who), r.field, tests.fig('pre', r.who, r.src) + r.delta
+from (values
+  -- the group's excess differs by 1.50 = 10% of the 15 of fees paid since February → fee_pot_vs_cash; members' shares
+  -- of it (workbook lower by 1.20) follow
+  ('Ned', 'excess_charged', 'excess_charged', -1.20),
+  ('Oli', 'excess_charged', 'excess_charged', -1.20),
+  ('Pam', 'excess_charged', 'excess_charged', -5.00),     -- far more than the group's 1.50 → unexplained
+  -- penalty_in_minimum: workbook − app is the K30 penalty
+  ('Kim', 'next_minimum', 'next_minimum', 30.00),         -- → penalty_in_minimum
+  ('Lee', 'next_minimum', 'next_minimum', 32.00),         -- K2 off the penalty → unexplained
+  ('Max', 'next_minimum', 'next_minimum', 30.00),         -- same K30 but Max has no penalty → unexplained
+  ('Ned', 'next_minimum', 'next_minimum', 28.80),         -- penalty 30 less the −1.20 fee-pot excess → penalty_in_minimum
+  -- fee-pot excess flowing into the minimum
+  ('Oli', 'next_minimum', 'next_minimum', -1.20),         -- → fee_pot_vs_cash
+  ('Pam', 'next_minimum', 'next_minimum', -5.00),         -- its excess difference is unexplained → unexplained
+  -- workbook_counts_excess_twice: workbook minimum = workbook owed + workbook excess (both equal the app's)
+  ('Quin', 'closing_owed', 'closing_owed', 0),
+  ('Quin', 'excess_charged', 'excess_charged', 0),
+  ('Roy', 'closing_owed', 'closing_owed', 0),
+  ('Roy', 'excess_charged', 'excess_charged', 0)
+) as r(who, field, src, delta);
+insert into workbook_figures (group_id, period_id, member_id, field, value) values
+  (tests.id('lg'), tests.lp(2), null, 'excess_billed', tests.gfig('pre', 'excess_billed') - 1.50),
+  (tests.id('lg'), tests.lp(2), tests.lm('Quin'), 'next_minimum', tests.fig('pre', 'Quin', 'closing_owed') + tests.fig('pre', 'Quin', 'excess_charged')),
+  (tests.id('lg'), tests.lp(2), tests.lm('Roy'), 'next_minimum', tests.fig('pre', 'Roy', 'closing_owed') + tests.fig('pre', 'Roy', 'excess_charged') + 0.50);
+select tests.login_as(tests.id('admin'));
+select tests.keep('mar3', close_month(tests.lp(2)));
+reset role;
+select is(tests.reason('mar3', 'Ned', 'excess_charged'), 'fee_pot_vs_cash', 'Ned''s excess differs by his share of the fee difference');
+select is(tests.reason('mar3', 'Pam', 'excess_charged'), 'unexplained', 'Pam''s excess difference is more than the group''s');
+select is(tests.reason('mar3', 'Kim', 'next_minimum'), 'penalty_in_minimum', 'the workbook put Kim''s K30 penalty in her minimum');
+select is(tests.reason('mar3', 'Lee', 'next_minimum'), 'unexplained', 'K2 away from the penalty is not that penalty');
+select is(tests.reason('mar3', 'Max', 'next_minimum'), 'unexplained', 'the same K30 without a penalty that month is unexplained');
+select is(tests.reason('mar3', 'Ned', 'next_minimum'), 'penalty_in_minimum', 'penalty plus a small fee-pot excess difference');
+select is(tests.reason('mar3', 'Oli', 'next_minimum'), 'fee_pot_vs_cash', 'the fee-pot excess difference flows into the minimum');
+select is(tests.reason('mar3', 'Pam', 'next_minimum'), 'unexplained', 'but not when the excess difference is itself unexplained');
+select is(tests.reason('mar3', 'Quin', 'next_minimum'), 'workbook_counts_excess_twice', 'the workbook''s minimum is its own owed plus its own excess');
+select is(tests.reason('mar3', 'Roy', 'next_minimum'), 'unexplained', 'K0.50 off the double count is not a double count');
+
 -- The workbook's figures obey the same money guard as the ledger.
 select throws_ok($$insert into workbook_figures (group_id, period_id, member_id, field, value)
                   values (tests.id('lg'), tests.lp(3), tests.lm('Ann'), 'cum_savings', 'NaN')$$,

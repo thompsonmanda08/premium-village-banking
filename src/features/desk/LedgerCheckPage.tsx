@@ -18,6 +18,8 @@ const REASONS: { code: string; label: string; tone: Tone }[] = [
   { code: 'workbook_missed_loan', label: 'Workbook left a loan out of the minimum', tone: 'warning' },
   { code: 'workbook_term_differs', label: 'Workbook used a different repayment term', tone: 'warning' },
   { code: 'penalty_not_charged', label: 'Workbook asked for a charge the app does not raise', tone: 'warning' },
+  { code: 'workbook_counts_excess_twice', label: 'Workbook counted the month\'s excess twice in the minimum', tone: 'warning' },
+  { code: 'penalty_in_minimum', label: 'Workbook included the month\'s penalty in the minimum', tone: 'warning' },
   { code: 'waiver', label: 'Waived by the treasurer', tone: 'info' },
   { code: 'fee_pot_vs_cash', label: 'Loan fees paid from the fee pot, not lending cash', tone: 'info' },
   { code: 'workbook_rounded', label: 'Workbook rounding', tone: 'neutral' },
