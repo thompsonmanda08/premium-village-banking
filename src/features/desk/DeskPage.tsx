@@ -6,7 +6,7 @@ import { activeMembers, currentPeriod } from '@/features/ledger/model';
 import { useDeclarations, useLedgerCycle, useWallets } from '@/features/ledger/queries';
 import { NotFound } from '@/features/shells/NotFound';
 import { friendlyError } from '@/lib/errors';
-import { Alert, Button, EmptyState, PageHeader, Skeleton } from '@/ui';
+import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton } from '@/ui';
 import { DeclarationInbox } from './DeclarationInbox';
 import { LoansSection } from './LoansSection';
 import { MonthPanel } from './MonthPanel';
@@ -57,6 +57,20 @@ function DeskBody() {
             <LoansSection periodId={open.id} declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} />
             <PenaltiesSection periodId={open.id} members={activeMembers(members.data!)} />
             <NotYetDeclared periodId={open.id} members={activeMembers(members.data!)} declarations={declarations.data!} wallets={wallets.data!} />
+            <Card>
+              <CardHeader
+                title="Close the month"
+                subtitle="Closing writes everyone’s statement and locks the month. Check the list first."
+                action={
+                  <Link
+                    to="/desk/close"
+                    className="inline-flex h-12 items-center rounded-xl px-5 font-semibold text-accent underline transition duration-150 hover:bg-surface-2 active:scale-[.97]"
+                  >
+                    Review the close
+                  </Link>
+                }
+              />
+            </Card>
           </>
         ) : (
           <div role="status"><span className="sr-only">Loading declarations</span><Skeleton className="h-40" /></div>

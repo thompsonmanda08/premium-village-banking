@@ -111,3 +111,15 @@ test('a borrowing request on a declaration shows up in the loans section', () =>
   renderLedger(<DeskPage />, { isAdmin: true });
   expect(screen.getByRole('button', { name: 'Send loan to Eve' })).toBeInTheDocument();
 });
+
+test('with a month open the Desk offers the month close', () => {
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByRole('heading', { name: 'Close the month' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Review the close' })).toHaveAttribute('href', '/desk/close');
+});
+
+test('without an open month there is nothing to close', () => {
+  hooks.cycle.mockReturnValue(ok({ cycle: { id: 'c1', label: 'Cycle 2026' }, periods: year(8) }));
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.queryByRole('link', { name: 'Review the close' })).toBeNull();
+});
