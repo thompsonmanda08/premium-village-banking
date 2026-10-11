@@ -625,6 +625,9 @@ isOneToOne: false
 "create_group":
 { Args: { "p_currency": string,"p_full_name": string,"p_name": string,"p_short_name": string }; Returns: string
                            },
+"loan_check":
+{ Args: { "p_member": string,"p_principal"?: number }; Returns: Json
+                           },
 "invite_preview":
 { Args: { "p_token": string }; Returns: Json
                            },
