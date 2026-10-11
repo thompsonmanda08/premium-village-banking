@@ -55,3 +55,27 @@ test('the deadline note says how long is left or that it has passed', () => {
   expect(closeChecklist({ ...base, declarations: [] }).deadline).toEqual({ text: '2 days left', tone: 'warning' });
   expect(closeChecklist({ ...base, declarations: [], today: '2026-10-09' }).deadline).toEqual({ text: 'Past the deadline', tone: 'danger' });
 });
+
+test('a member whose only live declaration was returned is listed: nothing in it is counted, but it does not block', () => {
+  const r = closeChecklist({
+    ...base,
+    declarations: [
+      declaration({ id: 'd1', member_id: 'm1', status: 'returned' }),
+      declaration({ id: 'd2', member_id: 'm2', status: 'approved' }),
+      declaration({ id: 'd3', member_id: 'm3', status: 'approved' }),
+    ],
+  });
+  expect(r.returned.map((m) => m.short_name)).toEqual(['Eve']);
+  expect(r.blocked).toBe(false);
+});
+
+test('a member with a returned declaration and an approved one has money counted, so is not listed', () => {
+  const r = closeChecklist({
+    ...base,
+    declarations: [
+      declaration({ id: 'd1', member_id: 'm1', status: 'returned' }),
+      declaration({ id: 'd1b', member_id: 'm1', status: 'approved' }),
+    ],
+  });
+  expect(r.returned).toEqual([]);
+});

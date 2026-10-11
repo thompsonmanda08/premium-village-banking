@@ -34,6 +34,7 @@ const memberLines = (m: CloseMember): Array<[string, number]> =>
       ['Paid to interest', m.paid_to_interest],
       ['Paid to loan principal', m.paid_to_principal],
       ['Interest earned this month', m.interest_earned],
+      ['Interest earned so far', m.interest_earned_to_date],
     ] as Array<[string, number]>
   ).filter(([, value]) => value !== 0);
 

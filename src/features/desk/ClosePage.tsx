@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useGroup } from '@/features/group/GroupContext';
 import { useGroupMembers } from '@/features/group/GroupPage';
 import { useLedgerAction } from '@/features/ledger/actions';
@@ -37,37 +37,22 @@ function CloseBody() {
   const loans = useMonthLoans(group.id, open?.id);
   const preview = useClosePreview(open?.id);
   const [reason, setReason] = useState('');
+  // The month stops being open the moment the close lands; keep its name so the page can say what it is doing.
+  const [closingLabel, setClosingLabel] = useState('');
 
   const label = open?.label ?? 'the month';
   const closing = useLedgerAction<void>(async () => {
     const { error } = await supabase.rpc('close_month', { p_period: open!.id, p_commit: true, p_reason: reason.trim() || undefined });
     if (error) throw error;
   }, `${label} is closed.`);
-  const confirm = useConfirmTap(() => closing.mutate(undefined, { onSuccess: () => navigate('/desk') }));
-
-  if (cycle.data === undefined) {
-    return cycle.isError ? (
-      <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void cycle.refetch()}>Try again</Button>}>
-        {friendlyError(cycle.error)}
-      </Alert>
-    ) : (
-      <div role="status" className="grid gap-3">
-        <span className="sr-only">Loading the close</span>
-        <Skeleton className="h-32" />
-        <Skeleton className="h-64" />
-      </div>
-    );
-  }
-  if (!open) {
-    return (
-      <EmptyState title="No month is open to close.">
-        Open the next month from the Desk first. <Link to="/desk" className={inline}>Go to the Desk</Link>
-      </EmptyState>
-    );
-  }
+  const confirm = useConfirmTap(() => {
+    setClosingLabel(label);
+    closing.mutate(undefined, { onSuccess: () => navigate('/desk') });
+  });
+  const { reset: disarm } = confirm;
 
   const ready = declarations.data && membersQuery.data && suggestions.data && applied.data && loans.data;
-  const checklist = ready
+  const checklist = open && ready
     ? closeChecklist({
         declarations: declarations.data!,
         members: activeMembers(membersQuery.data!),
@@ -91,6 +76,41 @@ function CloseBody() {
         : needsReason && reason.trim().length === 0
           ? 'Add a reason to enable this.'
           : null;
+
+  // Anything that makes the close unavailable (a background refetch of the preview, a block, another month) disarms the second tap,
+  // so one tap can never commit figures the treasurer did not just confirm.
+  useEffect(() => {
+    if (!canClose) disarm();
+  }, [canClose, disarm]);
+
+  if (cycle.data === undefined) {
+    return cycle.isError ? (
+      <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void cycle.refetch()}>Try again</Button>}>
+        {friendlyError(cycle.error)}
+      </Alert>
+    ) : (
+      <div role="status" className="grid gap-3">
+        <span className="sr-only">Loading the close</span>
+        <Skeleton className="h-32" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
+  if (!open && closing.isPending) {
+    return (
+      <div role="status" className="grid gap-3">
+        <span>{`Closing ${closingLabel}…`}</span>
+        <Skeleton className="h-32" />
+      </div>
+    );
+  }
+  if (!open) {
+    return (
+      <EmptyState title="No month is open to close.">
+        Open the next month from the Desk first. <Link to="/desk" className={inline}>Go to the Desk</Link>
+      </EmptyState>
+    );
+  }
 
   return (
     <div className="grid gap-4 md:gap-5 lg:max-w-3xl">
@@ -122,9 +142,14 @@ function CloseBody() {
                 <Item tone="warning" badge="Check">
                   {`${plural(checklist.notDeclared.length, 'member has', 'members have')} not declared: ${checklist.notDeclared.map((m) => m.short_name).join(', ')}. They will close with nothing paid in.`}
                 </Item>
-              ) : (
+              ) : checklist.returned.length === 0 ? (
                 <Item tone="success" badge="Ready">Everyone has declared.</Item>
-              )}
+              ) : null}
+              {checklist.returned.length > 0 ? (
+                <Item tone="warning" badge="Check">
+                  {`${plural(checklist.returned.length, 'member has', 'members have')} a returned declaration that was not sent again: ${checklist.returned.map((m) => m.short_name).join(', ')}. Nothing in ${checklist.returned.length === 1 ? 'it is' : 'them is'} counted.`}
+                </Item>
+              ) : null}
               {checklist.penaltiesPending > 0 ? (
                 <Item tone="warning" badge="Check">{`${plural(checklist.penaltiesPending, 'suggested penalty has', 'suggested penalties have')} not been applied.`}</Item>
               ) : (

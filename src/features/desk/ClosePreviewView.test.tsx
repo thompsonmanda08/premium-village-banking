@@ -68,3 +68,10 @@ test('differences are listed by reason, and unexplained ones are counted', () =>
   expect(screen.getByText('Eve · Savings to date')).toBeInTheDocument();
   expect(screen.getByText('1 difference from the workbook is unexplained.')).toBeInTheDocument();
 });
+
+test('a member card shows interest earned this month and so far, since both are written into the locked statement', () => {
+  render(<ClosePreviewView preview={closePreview({ members: [closeMember({ interest_earned: 12, interest_earned_to_date: 80 })] })} />);
+  const card = screen.getByRole('group');
+  expect(within(card).getByText('Interest earned this month').nextElementSibling).toHaveTextContent('K 12');
+  expect(within(card).getByText('Interest earned so far').nextElementSibling).toHaveTextContent('K 80');
+});

@@ -5,6 +5,8 @@ import { deadlineNote, liveDeclarations, undeclared, type ActiveMember, type Dec
 export type CloseChecklist = {
   waiting: number;
   notDeclared: ActiveMember[];
+  /** Members whose only live declaration was returned and not sent again: only approval writes entries, so nothing of theirs is counted. */
+  returned: ActiveMember[];
   penaltiesPending: number;
   requestsUnsent: number;
   deadline: { text: string; tone: 'neutral' | 'warning' | 'danger' };
@@ -25,9 +27,11 @@ type Input = {
 export function closeChecklist(i: Input): CloseChecklist {
   const live = liveDeclarations(i.declarations);
   const waiting = live.filter((d) => d.status === 'submitted').length;
+  const counted = new Set(live.filter((d) => d.status === 'approved').map((d) => d.member_id));
   return {
     waiting,
     notDeclared: undeclared(i.members, live),
+    returned: i.members.filter((m) => !counted.has(m.id) && live.some((d) => d.member_id === m.id && d.status === 'returned')),
     penaltiesPending: openSuggestions(i.suggestions, appliedGrounds(i.appliedEntries), new Set()).length,
     requestsUnsent: loanRequests(i.declarations, i.loans).filter((r) => r.sent === 0).length,
     deadline: deadlineNote(i.today, i.deadline),

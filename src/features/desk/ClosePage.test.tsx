@@ -195,3 +195,36 @@ test('loans already sent to a requester are not counted as unsent requests', () 
   renderPage();
   expect(screen.getByText('No borrowing requests are waiting.')).toBeInTheDocument();
 });
+
+test('a returned declaration that was not sent again is called out, and the page does not claim everyone has declared', () => {
+  hooks.declarations.mockReturnValue(
+    ok([declaration({ id: 'd1', member_id: 'm1', status: 'returned' }), declaration({ id: 'd2', member_id: 'm2', status: 'approved' }), declaration({ id: 'd3', member_id: 'm3', status: 'approved' })]),
+  );
+  renderPage();
+  expect(screen.getByText('1 member has a returned declaration that was not sent again: Eve. Nothing in it is counted.')).toBeInTheDocument();
+  expect(screen.queryByText('Everyone has declared.')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Close Oct 2026' })).toBeEnabled();
+});
+
+test('a background refetch of the preview disarms the second tap, so one tap cannot commit figures that were never confirmed', async () => {
+  const { rerender } = renderPage();
+  await userEvent.click(screen.getByRole('button', { name: 'Close Oct 2026' }));
+  expect(screen.getByRole('button', { name: 'Tap again to close Oct 2026' })).toBeInTheDocument();
+  hooks.preview.mockReturnValue(previewOk(closePreview(), { isFetching: true }));
+  rerender(<ClosePage />);
+  hooks.preview.mockReturnValue(previewOk());
+  rerender(<ClosePage />);
+  expect(screen.getByRole('button', { name: 'Close Oct 2026' })).toBeInTheDocument();
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+test('while the close is being sent the page does not flash "No month is open" when the month stops being open', async () => {
+  rpc.mockReturnValue(new Promise(() => {}));
+  const { rerender } = renderPage();
+  await userEvent.click(screen.getByRole('button', { name: 'Close Oct 2026' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Tap again to close Oct 2026' }));
+  hooks.cycle.mockReturnValue(ok({ cycle: { id: 'c1', label: 'Cycle 2026' }, periods: year(9) }));
+  rerender(<ClosePage />);
+  expect(screen.getByText('Closing Oct 2026…')).toBeInTheDocument();
+  expect(screen.queryByText('No month is open to close.')).toBeNull();
+});
