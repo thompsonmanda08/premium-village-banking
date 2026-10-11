@@ -14,7 +14,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A push deploys only after CI is green on the same commit, so the approval below is never the only check.
+  # Running the workflow by hand (workflow_dispatch) skips this gate on purpose, for emergencies.
+  ci-gate:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      actions: read
+    steps:
+      - name: Wait for CI on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          for i in $(seq 1 70); do
+            read -r status conclusion < <(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&event=push" \
+              --jq '.workflow_runs[0] | "\(.status // "none") \(.conclusion // "none")"')
+            echo "CI: $status $conclusion"
+            if [ "$status" = "completed" ]; then
+              [ "$conclusion" = "success" ] && exit 0
+              echo "::error::CI did not pass on this commit ($conclusion); not deploying to production."
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::CI did not finish within 35 minutes; not deploying."
+          exit 1
+
   deploy:
+    needs: ci-gate
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.ci-gate.result == 'success') }}
     runs-on: ubuntu-latest
     environment: production   # requires approval from a reviewer configured in repo settings
     env:

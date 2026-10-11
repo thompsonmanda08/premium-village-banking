@@ -16,6 +16,22 @@ jobs:
         with:
           version: 2.120.0   # matches the supabase devDependency in bun.lock
       - run: sudo apt-get update && sudo apt-get install -y age
+      - name: Check the secrets this job needs
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: |
+          missing=""
+          [ -n "$DB_URL" ] || missing="$missing SUPABASE_DB_URL"
+          [ -n "$AGE_RECIPIENT" ] || missing="$missing AGE_RECIPIENT"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (docs/ops/setup.md, backup section)"
+            exit 1
+          fi
+          case "$DB_URL" in
+            *pooler.supabase.com:5432/*) ;;
+            *) echo "::error::SUPABASE_DB_URL must be the Session pooler string (port 5432). The direct db.<ref>.supabase.co host is IPv6-only and GitHub runners cannot reach it."; exit 1 ;;
+          esac
       - name: Dump roles, schema and data
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
