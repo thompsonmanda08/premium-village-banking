@@ -41,3 +41,7 @@ supabase/functions/.env
 *.xlsx
 *.xls
 *.csv
+
+# Session transcripts and generated review dumps can embed private group data: never commit.
+/docs/context.md
+/semantic-review/
