@@ -6,6 +6,7 @@ import { SignInPage } from '@/features/auth/SignInPage';
 import { AccountPage } from '@/features/account/AccountPage';
 import { DeskPage } from '@/features/desk/DeskPage';
 import { LedgerCheckPage } from '@/features/desk/LedgerCheckPage';
+import { DeclarePage } from '@/features/declare/DeclarePage';
 import { CreateGroupPage } from '@/features/group/CreateGroupPage';
 import { GroupPage } from '@/features/group/GroupPage';
 import { RequireMembership } from '@/features/group/RequireMembership';
@@ -42,7 +43,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <HomePage />, handle: { title: 'Home' } },
                   page('passbook', 'Passbook', <ComingSoon title="Passbook" />),
-                  page('declare', 'Declare', <ComingSoon title="Declaration" />),
+                  page('declare', 'Declare', <DeclarePage />),
                   page('plan', 'Plan', <ComingSoon title="Plan" />),
                   page('record', 'My record', <ComingSoon title="Record" />),
                   page('group', 'Group', <GroupPage />),

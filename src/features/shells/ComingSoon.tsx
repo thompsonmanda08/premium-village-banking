@@ -5,8 +5,8 @@ export function ComingSoon({ title }: { title: string }) {
   return (
     <>
       <PageHeader title={title} />
-      <EmptyState icon={<CalendarClock className="size-7" />} title="Available when the February 2027 cycle opens">
-        Your {title.toLowerCase()} fills in once the new cycle starts and declarations are logged.
+      <EmptyState icon={<CalendarClock className="size-7" />} title="Coming soon">
+        Your {title.toLowerCase()} will show your figures from the treasurer’s statements. We’re building it now.
       </EmptyState>
     </>
   );
