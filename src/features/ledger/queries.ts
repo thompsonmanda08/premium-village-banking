@@ -1,6 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { EntryRow, LoanWithInstalments, PayoutRow, StatementRow } from './memberViews';
+import type { PenaltySuggestion } from './deskMoney';
+import type { EntryRow, LoanRow, LoanWithInstalments, PayoutRow, StatementRow } from './memberViews';
 import type { DeclarationRow, PeriodRow, Wallet } from './model';
 
 export type LedgerCycle = { cycle: { id: string; label: string } | null; periods: PeriodRow[] };
@@ -81,6 +82,10 @@ export function useRefreshLedger(groupId: string) {
     Promise.all([
       qc.invalidateQueries({ queryKey: ['declarations', groupId] }),
       qc.invalidateQueries({ queryKey: ['ledger-cycle', groupId] }),
+      qc.invalidateQueries({ queryKey: ['month-loans', groupId] }),
+      qc.invalidateQueries({ queryKey: ['month-penalties', groupId] }),
+      qc.invalidateQueries({ queryKey: ['suggested-penalties', groupId] }),
+      qc.invalidateQueries({ queryKey: ['loan-check'] }),
     ]);
 }
 
@@ -134,6 +139,79 @@ export function usePayoutPreview(cycleId: string | undefined, memberId: string |
       const { data, error } = await supabase.rpc('payout_preview', { p_cycle: cycleId! });
       if (error) throw error;
       return data.find((r) => r.member_id === memberId) ?? null;
+    },
+  });
+}
+
+export type LoanCheck = {
+  period_id: string;
+  label: string;
+  month_index: number;
+  loans_open: boolean;
+  lending_cash: number;
+  multiple: number;
+  cum_savings: number;
+  loans_owed: number;
+  cap: number;
+  headroom: number;
+  arrears: string | null;
+  principal?: number;
+  interest?: number;
+  term_months?: number | null;
+  over_cap?: boolean;
+  insufficient_cash?: boolean;
+};
+
+/** Cash, cap and arrears for a member, and, with an amount, whether send_loan would take it. Never cached: cash moves. */
+export function useLoanCheck(memberId: string | undefined, principal: number | null) {
+  return useQuery({
+    queryKey: ['loan-check', memberId, principal],
+    enabled: Boolean(memberId),
+    staleTime: 0,
+    placeholderData: keepPreviousData,
+    queryFn: async (): Promise<LoanCheck> => {
+      const { data, error } = await supabase.rpc('loan_check', principal === null ? { p_member: memberId! } : { p_member: memberId!, p_principal: principal });
+      if (error) throw error;
+      return data as unknown as LoanCheck;
+    },
+  });
+}
+
+/** Loans sent in the month (admin RLS shows them all). */
+export function useMonthLoans(groupId: string, periodId: string | undefined) {
+  return useQuery({
+    queryKey: ['month-loans', groupId, periodId],
+    enabled: Boolean(periodId),
+    queryFn: async (): Promise<LoanRow[]> => {
+      const { data, error } = await supabase.from('loans').select('*').eq('period_id', periodId!).order('sent_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** What the engine would charge for the month so far. It keeps suggesting after a penalty is applied; see openSuggestions. */
+export function useSuggestedPenalties(groupId: string, periodId: string | undefined) {
+  return useQuery({
+    queryKey: ['suggested-penalties', groupId, periodId],
+    enabled: Boolean(periodId),
+    queryFn: async (): Promise<PenaltySuggestion[]> => {
+      const { data, error } = await supabase.rpc('suggest_penalties', { p_period: periodId! });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** Penalty entries of the month: the applications and any corrections of them. */
+export function useMonthPenalties(groupId: string, periodId: string | undefined) {
+  return useQuery({
+    queryKey: ['month-penalties', groupId, periodId],
+    enabled: Boolean(periodId),
+    queryFn: async (): Promise<EntryRow[]> => {
+      const { data, error } = await supabase.from('entries').select('*').eq('period_id', periodId!).eq('kind', 'penalty').order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
     },
   });
 }
