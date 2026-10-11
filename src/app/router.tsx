@@ -10,6 +10,7 @@ import { DeclarePage } from '@/features/declare/DeclarePage';
 import { CreateGroupPage } from '@/features/group/CreateGroupPage';
 import { GroupPage } from '@/features/group/GroupPage';
 import { PassbookPage } from '@/features/passbook/PassbookPage';
+import { PlanPage } from '@/features/plan/PlanPage';
 import { RecordPage } from '@/features/record/RecordPage';
 import { RequireMembership } from '@/features/group/RequireMembership';
 import { HomePage } from '@/features/home/HomePage';
@@ -17,7 +18,6 @@ import { InvitePage } from '@/features/invite/InvitePage';
 import { TermsPage } from '@/features/legal/TermsPage';
 import { RulesPage } from '@/features/rules/RulesPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
-import { ComingSoon } from '@/features/shells/ComingSoon';
 import { NotFound } from '@/features/shells/NotFound';
 import { AppShell } from './AppShell';
 import { RouteError } from './RouteError';
@@ -46,7 +46,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <HomePage />, handle: { title: 'Home' } },
                   page('passbook', 'Passbook', <PassbookPage />),
                   page('declare', 'Declare', <DeclarePage />),
-                  page('plan', 'Plan', <ComingSoon title="Plan" />),
+                  page('plan', 'Plan', <PlanPage />),
                   page('record', 'My record', <RecordPage />),
                   page('group', 'Group', <GroupPage />),
                   page('desk', 'Desk', <DeskPage />),
