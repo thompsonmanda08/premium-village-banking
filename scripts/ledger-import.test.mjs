@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import ExcelJS from 'exceljs'
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
-import { main as check, reportLines, summarise } from './ledger-check.mjs'
+import { main as check, reconcileLines, reportLines, summarise } from './ledger-check.mjs'
 import { failure, main as runImport, parseArgs, summaryLines, throughMonth } from './ledger-import.mjs'
 
 const db = vi.hoisted(() => {
@@ -225,7 +225,7 @@ test('ledger:check prints counts only, writes member detail to its file, and fai
     cycle_id: 'c1',
     periods: [{ label: 'Feb 2026', checked: true, diff: [{ short_name: 'Ann', field: 'savings', difference: 5, reason_code: 'unexplained' }] }],
   }
-  db.state.respond = (text) => (text.includes('from groups') ? groups : [{ report }])
+  db.state.respond = (text) => (text.includes('from groups') ? groups : text.includes('group_statements') ? [] : [{ report }])
   const out = join(dir, 'private', 'ledger-check.json')
   const { lines, code } = await check(['--target', 'devref'], out)
   expect(code).toBe(1)
@@ -233,10 +233,12 @@ test('ledger:check prints counts only, writes member detail to its file, and fai
     'Feb 2026: 1 differences (unexplained 1)',
     `Member-level detail: ${out} (git-ignored; keep it on this machine)`,
     '1 unexplained difference(s).',
+    'RECONCILIATION',
+    '  No closed month yet: nothing to reconcile.',
   ])
   expect(lines.join('\n')).not.toMatch(/Ann/)
   expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual(report)
-  expect(db.state.calls.at(-1).values).toContain(GROUP)
+  expect(db.state.calls.find((c) => c.text.includes('check_cycle')).values).toContain(GROUP)
 })
 
 test('ledger:check takes --target only, and needs Cycle 2026 to exist', async () => {
@@ -247,4 +249,39 @@ test('ledger:check takes --target only, and needs Cycle 2026 to exist', async ()
   const out = join(dir, 'none', 'ledger-check.json')
   await expect(check([], out)).rejects.toThrow(/No Cycle 2026/)
   expect(existsSync(out)).toBe(false)
+})
+
+const GS = { label: 'Sep 2026', idle_cash: '1000.25', fee_pot_balance: '250.00', meeting_pot_balance: '40.50', month_index: 8 }
+
+test('reconcileLines: totals the wallets, and says whether the pots reconcile', () => {
+  const ok = reconcileLines(GS, '290.50')
+  expect(ok.mismatch).toBe(false)
+  expect(ok.lines).toEqual([
+    'RECONCILIATION (Sep 2026)',
+    '  Money the group should be holding in its wallets (idle cash + fee pot + meeting pot): K 1,290.75',
+    '  Compare with the real Airtel + MTN balances.',
+    '  Pots reconcile with the group statement.',
+  ])
+  const bad = reconcileLines(GS, '300.00')
+  expect(bad.mismatch).toBe(true)
+  expect(bad.lines.at(-1)).toBe('  WARNING: pots differ by K 9.50 (entries minus group statement).')
+  expect(reconcileLines(GS, 280).lines.at(-1)).toMatch(/pots differ by K -10\.50/)
+  expect(reconcileLines(undefined, undefined).mismatch).toBe(false)
+})
+
+test('ledger:check reconciles read-only from the latest closed month, and exits 1 only when the pots differ', async () => {
+  const report = { cycle_id: 'c1', periods: [{ label: 'Sep 2026', checked: true, diff: [] }] }
+  const run = async (pots) => {
+    db.state.calls.length = 0
+    db.state.respond = (text) =>
+      text.includes('from groups') ? groups : text.includes('from group_statements') ? [GS] : text.includes('private.ledger_lines') ? [{ pots }] : [{ report }]
+    return check([], join(dir, 'private', 'rec.json'))
+  }
+  const ok = await run('290.50')
+  expect(ok.code).toBe(0)
+  expect(ok.lines).toContain('  Pots reconcile with the group statement.')
+  expect(db.state.calls.map((c) => c.text).join('\n')).not.toMatch(/\b(insert|update|delete)\b/i)
+  const bad = await run('0')
+  expect(bad.code).toBe(1)
+  expect(bad.lines.at(-1)).toMatch(/^ {2}WARNING: pots differ by K -290\.50/)
 })

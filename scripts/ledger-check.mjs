@@ -30,6 +30,46 @@ export function reportLines(rows) {
   })
 }
 
+// Same format as ledger-import's summaryLines (not imported: that file is edited elsewhere).
+const kwacha = (n) => `K ${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const ngwee = (n) => Math.round(Number(n) * 100)
+
+/**
+ * Totals only. `gs` is the latest closed month's group statement (or undefined); `pots` is the cycle's
+ * txn_fee + membership - payout_fee up to that month, from the entries. Mirrors payout_preview's pot basis.
+ */
+export function reconcileLines(gs, pots) {
+  if (!gs) return { lines: ['RECONCILIATION', '  No closed month yet: nothing to reconcile.'], mismatch: false }
+  const held = ngwee(gs.idle_cash) + ngwee(gs.fee_pot_balance) + ngwee(gs.meeting_pot_balance)
+  const statementPots = ngwee(gs.fee_pot_balance) + ngwee(gs.meeting_pot_balance)
+  const diff = ngwee(pots) - statementPots
+  return {
+    lines: [
+      `RECONCILIATION (${gs.label ?? 'latest closed month'})`,
+      `  Money the group should be holding in its wallets (idle cash + fee pot + meeting pot): ${kwacha(held / 100)}`,
+      '  Compare with the real Airtel + MTN balances.',
+      diff === 0 ? '  Pots reconcile with the group statement.' : `  WARNING: pots differ by ${kwacha(diff / 100)} (entries minus group statement).`,
+    ],
+    mismatch: diff !== 0,
+  }
+}
+
+/** Latest closed month's group statement and the pot total from the entries up to that month; read-only. */
+async function readPots(sql, cycleId) {
+  const [gs] = await sql`
+    select gs.idle_cash, gs.fee_pot_balance, gs.meeting_pot_balance, p.label, p.month_index
+    from group_statements gs join periods p on p.id = gs.period_id
+    where p.cycle_id = ${cycleId}::uuid and p.status = 'closed'
+    order by p.month_index desc limit 1`
+  if (!gs) return {}
+  // Same expression as public.payout_preview's v_pots, limited to the months the statement covers.
+  const [{ pots }] = await sql`
+    select coalesce(sum(case when l.kind = 'payout_fee' then -l.amount else l.amount end), 0) as pots
+    from private.ledger_lines l
+    where l.cycle_id = ${cycleId}::uuid and l.month_index <= ${gs.month_index} and l.kind in ('txn_fee', 'payout_fee', 'membership')`
+  return { gs, pots }
+}
+
 /** Runs the check; returns the terminal lines and the exit code. */
 export async function main(argv, detailPath = DETAIL) {
   const args = parseArgs(argv, { target: undefined })
@@ -46,7 +86,10 @@ export async function main(argv, detailPath = DETAIL) {
     const unexplained = rows.reduce((n, r) => n + r.unexplained, 0)
     const lines = [...reportLines(rows), `Member-level detail: ${detailPath} (git-ignored; keep it on this machine)`]
     if (unexplained > 0) lines.push(`${unexplained} unexplained difference(s).`)
-    return { lines, code: unexplained > 0 ? 1 : 0 }
+    const { gs, pots } = await readPots(sql, row.report.cycle_id)
+    const rec = reconcileLines(gs, pots)
+    lines.push(...rec.lines)
+    return { lines, code: unexplained > 0 || rec.mismatch ? 1 : 0 }
   } finally {
     await sql.end({ timeout: 5 }).catch(() => {})
   }

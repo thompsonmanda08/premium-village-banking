@@ -263,12 +263,29 @@ test.each([
   expect(() => parseWorkbook(wb, 2)).toThrow(new RegExp(`${sheet}: no "${key}" column \\(headers found: `))
 })
 
-test('membership fee column is optional — defaults to 0 when absent', async () => {
-  // Real workbooks only include membership in months it is charged (Feb, May, Aug, Nov).
-  const wb = await build((w) => { w.getWorksheet('Feb 2').getCell('F2').value = 'Other' })
-  const bundle = parseWorkbook(wb, 2)
-  // All membership values should be 0 when the column is missing
-  expect(bundle.months[0].rows.every((r) => r.membership === 0)).toBe(true)
+// Membership is charged in Feb, May, Aug and Nov (month indexes 1, 4, 7, 10): required there, optional elsewhere.
+const memberSheet = (name, withMembership) => {
+  const ws = new ExcelJS.Workbook().addWorksheet(name)
+  const headers = {
+    B: 'Name', D: 'Savings', F: 'Transaction fee', I: 'Loan', J: 'Interest on loan', K: 'Excess', L: 'fee spent',
+    M: 'Loan Repayment', N: 'Penalties', O: 'Total amount payable', P: 'Minimum amount payable', Q: 'Amount received',
+  }
+  if (withMembership) headers.G = 'Membership fee'
+  for (const [col, label] of Object.entries(headers)) ws.getCell(`${col}2`).value = label
+  ws.getCell('B3').value = 'Dee'
+  if (withMembership) ws.getCell('G3').value = 50
+  return ws
+}
+
+test.each(['Feb', 'May', 'Aug', 'Nov'])('%s statements and reconciliations require the membership fee column', (mon) => {
+  for (const part of [1, 2])
+    expect(() => readSheet(memberSheet(`${mon} ${part}`, false))).toThrow(new RegExp(`${mon} ${part}: no "membership" column \\(headers found: `))
+  expect(readSheet(memberSheet(`${mon} 1`, true)).rows[0].membership).toBe(50)
+})
+
+test.each(['Mar', 'Apr', 'Jun', 'Jul', 'Sep', 'Oct'])('%s membership fee column is optional: 0 when absent, parsed when present', (mon) => {
+  for (const part of [1, 2]) expect(readSheet(memberSheet(`${mon} ${part}`, false)).rows[0].membership).toBe(0)
+  expect(readSheet(memberSheet(`${mon} 1`, true)).rows[0].membership).toBe(50)
 })
 
 test('from April the total payable column is required (no fallback to the repayment subtotal), and penalties April to July', () => {

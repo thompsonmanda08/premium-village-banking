@@ -26,7 +26,9 @@ const COLUMNS = {
   minimum: /^minimum/i,
   received: /^amount received/i,
 }
-// membership is only charged quarterly (Feb, May, Aug, Nov) and absent from other months' sheets — optional here.
+// membership is charged quarterly (Feb, May, Aug, Nov = month indexes 1, 4, 7, 10): required on those sheets, optional
+// (0 when absent) on the others. See readSheet.
+const MEMBERSHIP_MONTHS = [1, 4, 7, 10]
 const REQUIRED = ['name', 'saving', 'txn_fee', 'loan', 'interest', 'excess', 'fee_spent', 'minimum']
 // The ledger refuses a negative here (private.import_history); only the workbook's own totals may be negative.
 const UNSIGNED = ['saving', 'txn_fee', 'membership', 'interest', 'excess', 'penalty', 'fee_spent', 'received']
@@ -208,6 +210,7 @@ export function readSheet(ws) {
     else need.push('repayment')
     if (kind.month >= 3 && kind.month <= 6) need.push('penalty')
     if (kind.part === 2) need.push('received')
+    if (MEMBERSHIP_MONTHS.includes(kind.month)) need.push('membership')
   }
   for (const key of need) if (!col[key]) throw new Error(`${ws.name}: no "${key}" column (headers found: ${found})`)
   if (!kind && !col.total && !col.repayment) throw new Error(`${ws.name}: no total payable column (headers found: ${found})`)
