@@ -12,7 +12,7 @@ export function SignInPage() {
   if (loading) return <FullScreenLoader />;
   if (session) return <Navigate to={next} replace />;
   return (
-    <AuthLayout title="Sign in" subtitle="Members join by invitation from the treasurer.">
+    <AuthLayout title="Sign in" subtitle="Sign in to your group, or start a new one.">
       <SignInMethods next={next} />
     </AuthLayout>
   );

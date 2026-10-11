@@ -1,4 +1,5 @@
 import { CalendarClock } from 'lucide-react';
+import { Link } from 'react-router';
 import { useGroup } from '@/features/group/GroupContext';
 import { useGroupMembers } from '@/features/group/GroupPage';
 import { useCycles } from '@/features/cycles/useCycles';
@@ -22,7 +23,7 @@ function payoutNote(today: string, payout: string) {
 }
 
 export function HomePage() {
-  const { group, member } = useGroup();
+  const { group, member, isAdmin } = useGroup();
   const cycles = useCycles(group.id);
   const members = useGroupMembers(group.id);
   const today = localISODate(new Date());
@@ -35,6 +36,18 @@ export function HomePage() {
   return (
     <>
       <PageHeader title={member ? `Hello, ${member.short_name}` : group.name} subtitle={member ? group.name : undefined} />
+      {/* Onboarding nudge: shown when the group has only one active member (the owner, just after creation). */}
+      {active && active.length === 1 && isAdmin ? (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm md:mb-5">
+          <span className="text-fg">Your group is empty. Add members and send invites to get started.</span>
+          <Link
+            to="/settings/members"
+            className="shrink-0 font-semibold text-accent underline-offset-4 hover:underline"
+          >
+            Add members
+          </Link>
+        </div>
+      ) : null}
       {data === undefined ? (
         // Data wins over a failed background refetch: the error state is only for when there is nothing to show.
         cycles.isError ? (

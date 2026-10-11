@@ -21,6 +21,7 @@ const KNOWN: Record<string, string> = {
   last_admin: 'The group needs at least one admin. Make someone else an admin first.',
   not_admin: 'Only admins can do this.',
   not_signed_in: 'Please sign in again.',
+  already_in_group: 'You\u2019re already a member of a group. Each person can only belong to one group.',
   already_bootstrapped: 'This group has already been set up.',
   owner_member_not_found: 'The group owner could not be found. Contact support.',
   rules_locked: 'Rules can only change before the cycle starts.',

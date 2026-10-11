@@ -6,6 +6,7 @@ import { SignInPage } from '@/features/auth/SignInPage';
 import { AccountPage } from '@/features/account/AccountPage';
 import { DeskPage } from '@/features/desk/DeskPage';
 import { LedgerCheckPage } from '@/features/desk/LedgerCheckPage';
+import { CreateGroupPage } from '@/features/group/CreateGroupPage';
 import { GroupPage } from '@/features/group/GroupPage';
 import { RequireMembership } from '@/features/group/RequireMembership';
 import { HomePage } from '@/features/home/HomePage';
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
+          { path: '/create-group', element: <CreateGroupPage /> },
           {
             element: <RequireMembership />,
             children: [
