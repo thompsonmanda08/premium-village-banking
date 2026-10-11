@@ -4,6 +4,7 @@ export { IconButton } from './IconButton';
 export { Card, CardHeader } from './Card';
 export { Badge, type Tone } from './Badge';
 export { TextField } from './TextField';
+export { SelectField } from './SelectField';
 export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
 export { Alert } from './Alert';
