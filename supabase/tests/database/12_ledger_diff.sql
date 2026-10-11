@@ -189,6 +189,40 @@ select is(tests.reason('mar3', 'Pam', 'next_minimum'), 'unexplained', 'but not w
 select is(tests.reason('mar3', 'Quin', 'next_minimum'), 'workbook_counts_excess_twice', 'the workbook''s minimum is its own owed plus its own excess');
 select is(tests.reason('mar3', 'Roy', 'next_minimum'), 'unexplained', 'K0.50 off the double count is not a double count');
 
+-- Edges of the three rules, still March. Penalty K50 = penalty_per_day set explicitly; Eve (K50) and Gus (K30) are charged
+-- penalties now, Hal K30 and Dee (K100, earlier) complete the boundary pair.
+update cycle_rules set penalty_per_day = 50 where cycle_id = tests.id('lcycle');
+select tests.login_as(tests.id('admin'));
+select apply_penalty(tests.lm('Eve'), tests.lp(2), 50, 'other', 'synthetic');
+select apply_penalty(tests.lm('Gus'), tests.lp(2), 30, 'other', 'synthetic');
+select apply_penalty(tests.lm('Hal'), tests.lp(2), 30, 'other', 'synthetic');
+select tests.keep('pre2', close_month(tests.lp(2)));
+reset role;
+insert into workbook_figures (group_id, period_id, member_id, field, value)
+select tests.id('lg'), tests.lp(2), tests.lm(r.who), r.field, tests.fig('pre2', r.who, r.src) + r.delta
+from (values
+  ('Eve', 'next_minimum', 'next_minimum', 50.00),   -- the penalty charged is one penalty_per_day → penalty_in_minimum
+  ('Cid', 'next_minimum', 'next_minimum', 50.00),   -- no penalty charged, workbook one day higher → penalty_not_charged
+  ('Gus', 'next_minimum', 'next_minimum', 28.00),   -- K30 penalty − K2 excess difference; Gus's excess difference is unexplained
+                                                    --   (K2 against the group's 1.50), so not subtracted: residual K2
+  ('Dee', 'next_minimum', 'next_minimum', 101.00),  -- K100 penalty + exactly K1.00 → penalty_in_minimum
+  ('Hal', 'next_minimum', 'next_minimum', 31.01),   -- K30 penalty + K1.01 → unexplained
+  ('Ann', 'closing_owed', 'closing_owed', 7.00),
+  ('Ann', 'excess_charged', 'excess_charged', 0)
+) as r(who, field, src, delta);
+insert into workbook_figures (group_id, period_id, member_id, field, value)
+  values (tests.id('lg'), tests.lp(2), tests.lm('Ann'), 'next_minimum', tests.fig('pre2', 'Ann', 'closing_owed') + 7.00);
+select tests.login_as(tests.id('admin'));
+select tests.keep('mar4', close_month(tests.lp(2)));
+reset role;
+select is(tests.reason('mar4', 'Eve', 'next_minimum'), 'penalty_in_minimum', 'a one-day penalty the app charged is in the minimum, not an uncharged one');
+select is(tests.reason('mar4', 'Cid', 'next_minimum'), 'penalty_not_charged', 'with no penalty charged, one day higher is still an uncharged penalty');
+select is(tests.reason('mar4', 'Gus', 'excess_charged'), 'unexplained', 'Gus''s excess difference is not fee-pot noise');
+select is(tests.reason('mar4', 'Gus', 'next_minimum'), 'unexplained', 'so it is not taken off the penalty: K2 residual');
+select is(tests.reason('mar4', 'Dee', 'next_minimum'), 'penalty_in_minimum', 'a residual of exactly K1.00 is explained');
+select is(tests.reason('mar4', 'Hal', 'next_minimum'), 'unexplained', 'a residual of K1.01 is not');
+select is(tests.reason('mar4', 'Ann', 'next_minimum'), 'unexplained', 'a minimum equal to the workbook''s owed (excess 0) is not a double count');
+
 -- The workbook's figures obey the same money guard as the ledger.
 select throws_ok($$insert into workbook_figures (group_id, period_id, member_id, field, value)
                   values (tests.id('lg'), tests.lp(3), tests.lm('Ann'), 'cum_savings', 'NaN')$$,

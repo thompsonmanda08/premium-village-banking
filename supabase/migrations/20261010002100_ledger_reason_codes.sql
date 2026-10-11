@@ -112,7 +112,9 @@ begin
           then 'workbook_missed_loan'
         -- penalty_not_charged: the workbook included one penalty that the app did not charge.
         -- Use penalty_per_day (not membership_fee) — these differ in the real group.
-        when abs(d.difference + v_r.penalty_per_day) < 1 then 'penalty_not_charged'
+        -- Only when the app charged no penalty that month: otherwise the workbook's minimum holds the penalty the app
+        -- did charge, which is penalty_in_minimum below.
+        when abs(d.difference + v_r.penalty_per_day) < 1 and coalesce(e.penalties, 0) = 0 then 'penalty_not_charged'
         when e.principal_left > 0 and abs(d.difference) <= e.principal_left then 'workbook_term_differs'
         -- The workbook's own minimum is its own owed plus its own excess (a double count); null when either is missing.
         when d.field = 'next_minimum'
