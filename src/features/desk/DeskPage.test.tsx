@@ -4,13 +4,17 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { declaration, renderLedger, year } from '@/features/ledger/testFixtures';
 
 const rpc = vi.hoisted(() => vi.fn());
-const hooks = vi.hoisted(() => ({ cycle: vi.fn(), wallets: vi.fn(), declarations: vi.fn(), members: vi.fn() }));
+const hooks = vi.hoisted(() => ({ cycle: vi.fn(), wallets: vi.fn(), declarations: vi.fn(), members: vi.fn(), loans: vi.fn(), suggestions: vi.fn(), penalties: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }));
 vi.mock('@/features/ledger/queries', async (orig) => ({
   ...(await orig<typeof import('@/features/ledger/queries')>()),
   useLedgerCycle: () => hooks.cycle(),
   useWallets: () => hooks.wallets(),
   useDeclarations: () => hooks.declarations(),
+  useMonthLoans: () => hooks.loans(),
+  useSuggestedPenalties: () => hooks.suggestions(),
+  useMonthPenalties: () => hooks.penalties(),
+  useLoanCheck: () => ({ data: undefined, isError: false, error: null, isFetching: false }),
 }));
 vi.mock('@/features/group/GroupPage', () => ({ useGroupMembers: () => hooks.members() }));
 const { DeskPage } = await import('./DeskPage');
@@ -29,6 +33,9 @@ beforeEach(() => {
   hooks.wallets.mockReturnValue(ok([{ id: 'w1', name: 'Airtel' }]));
   hooks.declarations.mockReturnValue(ok([declaration({ member_id: 'm1' })]));
   hooks.members.mockReturnValue(ok(MEMBER_ROWS));
+  hooks.loans.mockReturnValue(ok([]));
+  hooks.suggestions.mockReturnValue(ok([]));
+  hooks.penalties.mockReturnValue(ok([]));
 });
 
 test('members get the admins-only screen and no ledger request is made', () => {
@@ -84,4 +91,23 @@ test('a failed load of the declarations offers a retry instead of loading foreve
   expect(screen.queryByText('Loading declarations')).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(refetch).toHaveBeenCalled();
+});
+
+test('with a month open the Desk also offers loans and penalties', () => {
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByRole('heading', { name: 'Loans' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Penalties' })).toBeInTheDocument();
+});
+
+test('without an open month there are no loans or penalties to manage', () => {
+  hooks.cycle.mockReturnValue(ok({ cycle: { id: 'c1', label: 'Cycle 2026' }, periods: year(8) }));
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.queryByRole('heading', { name: 'Loans' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Penalties' })).toBeNull();
+});
+
+test('a borrowing request on a declaration shows up in the loans section', () => {
+  hooks.declarations.mockReturnValue(ok([declaration({ member_id: 'm1', borrowing_request: 1500 })]));
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByRole('button', { name: 'Send loan to Eve' })).toBeInTheDocument();
 });

@@ -8,8 +8,10 @@ import { NotFound } from '@/features/shells/NotFound';
 import { friendlyError } from '@/lib/errors';
 import { Alert, Button, EmptyState, PageHeader, Skeleton } from '@/ui';
 import { DeclarationInbox } from './DeclarationInbox';
+import { LoansSection } from './LoansSection';
 import { MonthPanel } from './MonthPanel';
 import { NotYetDeclared } from './NotYetDeclared';
+import { PenaltiesSection } from './PenaltiesSection';
 
 function DeskBody() {
   const { group } = useGroup();
@@ -52,6 +54,8 @@ function DeskBody() {
         ) : ready ? (
           <>
             <DeclarationInbox periodId={open.id} deadline={open.deadline} declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} />
+            <LoansSection periodId={open.id} declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} />
+            <PenaltiesSection periodId={open.id} members={activeMembers(members.data!)} />
             <NotYetDeclared periodId={open.id} members={activeMembers(members.data!)} declarations={declarations.data!} wallets={wallets.data!} />
           </>
         ) : (
