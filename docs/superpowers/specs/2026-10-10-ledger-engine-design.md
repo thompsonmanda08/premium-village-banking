@@ -232,3 +232,18 @@ Declaration screens and the approval desk (2b), passbook/record/declare/plan scr
 | Rules not ratified by the group | Governance note in §3; the app records overrides with reasons either way. |
 | Real member data leaking into the public repo | Sources and derived notes live only in git-ignored folders; tests use synthetic data; import/check output stays in `data/private/`. |
 | Month-close bugs on live money | Preview before commit; closed months immutable; corrections forward-only; the workbook runs in parallel through January. |
+
+## 14. As built (differences from the text above)
+
+Recorded after the build so the spec matches the code. Where this section and an earlier one disagree, this one wins.
+
+- **Periods have a `planned` status** besides `open`, `closing` and `closed`; `ensure_periods` creates the cycle's twelve months up front and `open_period` opens them in order.
+- **Declarations may be entered by an admin for a member** (not only by the member), so the treasurer can enter a declaration when a member cannot. Approval still refuses a member who has left.
+- **Group-level entries** (`member_id` null) are limited to the `payout_fee` kind by a table check; members with figures hidden cannot see them except through `can_see_figures`.
+- **`close_month`** takes the admin check before it locks the month, previews with `commit = false`, refuses a reason over 500 characters, and records the fee pot balance with a `fee_pot_short` warning in the audit row when the pot is overdrawn.
+- **Reason codes** (§5 step 7) now also include `penalty_in_minimum` (the workbook's minimum includes the penalty charged that month, the app's does not, §3), `workbook_counts_excess_twice` (the workbook's minimum is its own closing owed plus its own excess) and `fee_pot_vs_cash` for a minimum that differs only by the excess difference already explained by the fee pot. A figure the workbook lists for a member the app has no value for is always `unexplained`.
+- **Imported months** store the workbook's member columns as the official record; only the payment split and interest earned are computed. The group statement's cash figures are the ledger's own (idle cash plus fee pot plus meeting pot is the money the group should hold; compare it with the Airtel and MTN balances after every import).
+- **Receipts from the last imported month** are not imported; the import counts them in `receipts_not_imported` so they can be entered in the first app month.
+- **Commands.** `ledger:import` is a dry run unless `--write --target <ref>` is given; `ledger:check` also reconciles the pot total with the latest group statement and exits 1 on an unexplained difference or a pot mismatch. Both refuse production unless `--target` names it.
+- **Access to payout figures.** `payout_preview` is callable by any member of the group and filters rows with `can_see_figures`.
+- **Known limits** are listed in `docs/ops/known-limits.md`.
