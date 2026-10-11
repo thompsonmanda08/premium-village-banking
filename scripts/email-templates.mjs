@@ -2,7 +2,9 @@
 // Subjects live in supabase/config.toml; the hosted project gets both via the Management API.
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const C = { canvas: '#F1F5F9', surface: '#FFFFFF', inset: '#F8FAFC', line: '#E2E8F0', fg: '#0F172A', muted: '#475569', accent: '#4F46E5', soft: '#EEF2FF' };
+// The light palette of DESIGN.md (emails stay light: clients don't agree on dark mode). Lime never fills on white, so the
+// button is ink with lime lettering, as accent-solid is in the app.
+const C = { canvas: '#EEF0F2', surface: '#FFFFFF', line: '#DFE2E6', fg: '#121417', muted: '#555B65', accent: '#3F6212', solid: '#16181B', lime: '#C6F432', soft: '#EAF7C4' };
 const FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const MONO = "'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace";
 const type = (size, weight, line, color) =>
@@ -14,8 +16,8 @@ const small = (text) => `<p style="margin:0 0 16px;${type(14, 400, 1.6, C.muted)
 const button = (label) => `
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px;">
                 <tr>
-                  <td align="center" bgcolor="${C.accent}" style="border-radius:12px;">
-                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:14px 28px;${type(16, 600, 1.2, '#FFFFFF')}text-decoration:none;border-radius:12px;">${label}</a>
+                  <td align="center" bgcolor="${C.solid}" style="border-radius:999px;">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:14px 28px;${type(16, 600, 1.2, C.lime)}text-decoration:none;border-radius:999px;">${label}</a>
                   </td>
                 </tr>
               </table>`;
@@ -55,7 +57,7 @@ function layout({ title, preheader, heading, body, footer }) {
             <td style="padding:0 4px 20px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="vertical-align:middle;"><img src="{{ .SiteURL }}/apple-touch-icon-180x180.png" width="40" height="40" alt="" style="display:block;border:0;border-radius:10px;"></td>
+                  <td style="vertical-align:middle;"><img src="{{ .SiteURL }}/brand-mark.png" width="48" height="48" alt="" style="display:block;border:0;border-radius:24px;"></td>
                   <td style="vertical-align:middle;padding-left:12px;${type(16, 600, 1.3, C.fg)}">Premium Village Banking</td>
                 </tr>
               </table>
@@ -63,7 +65,7 @@ function layout({ title, preheader, heading, body, footer }) {
           </tr>
           <tr>
             <td bgcolor="${C.surface}" style="background-color:${C.surface};border:1px solid ${C.line};border-radius:16px;padding:32px 28px 12px;">
-              <h1 style="margin:0 0 16px;${type(24, 700, 1.25, C.fg)}">${heading}</h1>
+              <h1 style="margin:0 0 16px;${type(24, 600, 1.25, C.fg)}letter-spacing:-0.01em;">${heading}</h1>
               ${body}
             </td>
           </tr>
