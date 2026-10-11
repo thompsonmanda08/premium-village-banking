@@ -1,7 +1,7 @@
 import { ScrollText } from 'lucide-react';
 import { useGroup } from '@/features/group/GroupContext';
 import { MemberScreen } from '@/features/ledger/MemberScreen';
-import { entryTone, groupEntriesByPeriod, kindLabel, periodLabel, toneLabel, type KindTone } from '@/features/ledger/memberViews';
+import { entryTone, groupEntriesByPeriod, kindLabel, toneLabel, type KindTone } from '@/features/ledger/memberViews';
 import { useLedgerCycle, useMyEntries } from '@/features/ledger/queries';
 import { formatDate, money } from '@/lib/format';
 import { Badge, EmptyState, type Tone } from '@/ui';
@@ -26,7 +26,7 @@ export function RecordPage() {
             <div key={g.periodId} className="rounded-2xl border border-line bg-surface shadow-sm dark:shadow-none">
               <section aria-labelledby={`month-${g.periodId}`}>
                 <header className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4 md:px-5">
-                  <h2 id={`month-${g.periodId}`} className="text-lg font-semibold text-fg">{periodLabel(g.period)}</h2>
+                  <h2 id={`month-${g.periodId}`} className="text-lg font-semibold text-fg">{g.period.label}</h2>
                   {g.paidIn > 0 ? <p className="tabular text-sm text-muted">Paid in {money(g.paidIn)}</p> : null}
                 </header>
                 <ul role="list" className="divide-y divide-line px-4 md:px-5">

@@ -30,7 +30,7 @@ test('shows what you owe and the next minimum from the latest statement', () => 
   expect(screen.getByText('Next minimum').parentElement).toHaveTextContent('K 300');
 });
 
-test('open loans list their remaining instalments and total; closed months are left out', () => {
+test('open loans list their scheduled instalments by month, leave out closed months, and never total them', () => {
   hooks.loans.mockReturnValue(
     ok([
       {
@@ -50,14 +50,15 @@ test('open loans list their remaining instalments and total; closed months are l
   expect(within(card).getByText('Oct 2026')).toBeInTheDocument();
   expect(within(card).getByText('Nov 2026')).toBeInTheDocument();
   expect(within(card).queryByText('Sep 2026')).toBeNull();
-  expect(within(card).getByText('Still to pay in instalments K 766.67')).toBeInTheDocument();
+  expect(within(card).queryByText(/Still to pay/)).toBeNull();
+  expect(within(card).getByText(/Scheduled amounts, not what is left to pay/)).toBeInTheDocument();
 });
 
 test('a loan whose instalments are all in closed months says none are left', () => {
   hooks.loans.mockReturnValue(ok([{ ...loan(), instalments: [instalment({ period_id: 'p8' })] }]));
   renderLedger(<PlanPage />);
-  expect(screen.getByText('No instalments left in the schedule.')).toBeInTheDocument();
-  expect(screen.getByText('Still to pay in instalments K 0')).toBeInTheDocument();
+  expect(screen.getByText(/No scheduled instalments left/)).toBeInTheDocument();
+  expect(screen.queryByText(/K 0/)).toBeNull();
 });
 
 test('no open loans: says so', () => {
@@ -70,7 +71,7 @@ test('the payout projection shows the member’s own figures and is labelled a p
   const block = screen.getByRole('heading', { name: 'If the cycle paid out today' }).closest('section')!;
   expect(within(block).getByText('Savings').nextElementSibling).toHaveTextContent('K 2,500');
   expect(within(block).getByText('Interest earned').nextElementSibling).toHaveTextContent('K 40');
-  expect(within(block).getByText('Less what you owe').nextElementSibling).toHaveTextContent('K 700');
+  expect(within(block).getByText('Less what you owe today').nextElementSibling).toHaveTextContent('K 700');
   expect(within(block).getByText('Share of the pots').nextElementSibling).toHaveTextContent('K 12.50');
   expect(within(block).getByText('You would receive').nextElementSibling).toHaveTextContent('K 1,852.50');
   expect(within(block).getByText(/projection from today’s figures, not a promise/)).toBeInTheDocument();
@@ -93,4 +94,26 @@ test('no statement yet: the figures say so instead of showing zeros', () => {
   hooks.statements.mockReturnValue(ok([]));
   renderLedger(<PlanPage />);
   expect(screen.getByText('Your first statement appears when the treasurer closes a month.')).toBeInTheDocument();
+});
+
+test('the owed headline says which statement it is from', () => {
+  renderLedger(<PlanPage />);
+  expect(screen.getByText('You owe').parentElement).toHaveTextContent('At close of Sep 2026');
+});
+
+test('a heavy borrower sees what they would still owe, not a negative payout; a credit adds', () => {
+  hooks.payout.mockReturnValue(ok({ ...PAYOUT, owed: 2900, payout: -300 }));
+  const { unmount } = renderLedger(<PlanPage />);
+  expect(screen.getByText('You would still owe').nextElementSibling).toHaveTextContent('K 300');
+  expect(screen.queryByText('You would receive')).toBeNull();
+  unmount();
+  hooks.payout.mockReturnValue(ok({ ...PAYOUT, owed: -50, payout: 2602.5 }));
+  renderLedger(<PlanPage />);
+  expect(screen.getByText('Plus your credit').nextElementSibling).toHaveTextContent('K 50');
+});
+
+test('a credit headline reads In credit', () => {
+  hooks.statements.mockReturnValue(ok([statement({ closing_owed: -50 })]));
+  renderLedger(<PlanPage />);
+  expect(screen.getByText('In credit').parentElement).toHaveTextContent('K 50');
 });

@@ -1,7 +1,7 @@
 import { useGroup } from '@/features/group/GroupContext';
 import { Figure } from '@/features/ledger/Figure';
 import { MemberScreen } from '@/features/ledger/MemberScreen';
-import { latestStatement, periodLabel, remainingInstalments } from '@/features/ledger/memberViews';
+import { latestStatement, owedFigure, remainingInstalments } from '@/features/ledger/memberViews';
 import { useLedgerCycle, useMyLoans, useMyStatements, usePayoutPreview } from '@/features/ledger/queries';
 import { formatDate, money } from '@/lib/format';
 import { Card } from '@/ui';
@@ -18,14 +18,18 @@ export function PlanPage() {
   return (
     <MemberScreen
       title="Plan"
-      subtitle={latest ? `As at ${periodLabel(latest.period)}` : undefined}
+      subtitle={latest ? `As at ${latest.period.label}` : undefined}
       loadingLabel="Loading your plan"
       queries={[cycle, loans, statements]}
     >
       <div className="grid gap-4 md:gap-5 lg:max-w-3xl">
         {latest ? (
           <div className="grid grid-cols-2 gap-3 md:gap-4">
-            <Figure label="You owe" value={money(latest.statement.closing_owed)} />
+            <Figure
+              label={owedFigure(latest.statement.closing_owed).label}
+              value={money(owedFigure(latest.statement.closing_owed).amount)}
+              note={`At close of ${latest.period.label}`}
+            />
             <Figure label="Next minimum" value={money(latest.statement.next_minimum)} />
           </div>
         ) : (
@@ -46,11 +50,11 @@ export function PlanPage() {
                     <p className="mt-0.5 text-sm text-muted">
                       Interest {money(l.interest)} · {l.term_months} month{l.term_months === 1 ? '' : 's'} · sent {formatDate(l.sent_at)}
                     </p>
-                    {rest.items.length === 0 ? (
-                      <p className="mt-3 text-sm text-muted">No instalments left in the schedule.</p>
+                    {rest.length === 0 ? (
+                      <p className="mt-3 text-sm text-muted">No scheduled instalments left. What is still owed on this loan is part of what you owe, above.</p>
                     ) : (
                       <ul role="list" className="mt-3 divide-y divide-line">
-                        {rest.items.map((i) => (
+                        {rest.map((i) => (
                           <li key={i.id} className="flex items-center justify-between gap-3 py-2">
                             <span className="text-fg">{i.label}</span>
                             <span className="tabular text-fg">{money(i.amount)}</span>
@@ -58,7 +62,9 @@ export function PlanPage() {
                         ))}
                       </ul>
                     )}
-                    <p className="mt-3 font-semibold text-fg">Still to pay in instalments {money(rest.total)}</p>
+                    {rest.length > 0 ? (
+                      <p className="mt-3 text-sm text-muted">Scheduled amounts, not what is left to pay. What you owe now is shown above.</p>
+                    ) : null}
                   </section>
                 </Card>
               );
@@ -75,12 +81,12 @@ export function PlanPage() {
                 <dd className="tabular text-right text-fg">{money(payout.data.savings)}</dd>
                 <dt className="text-muted">Interest earned</dt>
                 <dd className="tabular text-right text-fg">{money(payout.data.interest_earned)}</dd>
-                <dt className="text-muted">Less what you owe</dt>
-                <dd className="tabular text-right text-fg">{money(payout.data.owed)}</dd>
+                <dt className="text-muted">{payout.data.owed < 0 ? 'Plus your credit' : 'Less what you owe today'}</dt>
+                <dd className="tabular text-right text-fg">{money(Math.abs(payout.data.owed))}</dd>
                 <dt className="text-muted">Share of the pots</dt>
                 <dd className="tabular text-right text-fg">{money(payout.data.pot_share)}</dd>
-                <dt className="font-semibold text-fg">You would receive</dt>
-                <dd className="tabular text-right font-semibold text-fg">{money(payout.data.payout)}</dd>
+                <dt className="font-semibold text-fg">{payout.data.payout < 0 ? 'You would still owe' : 'You would receive'}</dt>
+                <dd className="tabular text-right font-semibold text-fg">{money(Math.abs(payout.data.payout))}</dd>
               </dl>
               <p className="mt-3 text-sm text-muted">
                 A projection from today’s figures, not a promise. It changes as the group saves and repays.

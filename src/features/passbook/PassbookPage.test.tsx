@@ -50,10 +50,35 @@ test('months are listed newest first, each with its breakdown, hiding lines that
   expect(within(cards[0]!).getByText('Closing owed').parentElement).toHaveTextContent('K 0');
 });
 
-test('a statement whose month is not in the list still shows, under a fallback label', () => {
-  hooks.statements.mockReturnValue(ok([statement({ id: 'sx', period_id: 'gone' })]));
+test('a statement from outside the active cycle is neither listed nor used for the headline', () => {
+  hooks.statements.mockReturnValue(
+    ok([statement({ id: 'old', period_id: 'gone', cum_savings: 99999 }), statement({ id: 's8', period_id: 'p8', cum_savings: 2500 })]),
+  );
   renderLedger(<PassbookPage />);
-  expect(screen.getByText('Earlier month')).toBeInTheDocument();
+  expect(screen.getByText('Total saved').parentElement).toHaveTextContent('K 2,500');
+  expect(screen.queryByText(/99,999/)).toBeNull();
+  expect(screen.getAllByRole('group')).toHaveLength(1);
+});
+
+test('negative lines from corrections are shown, so the card explains its own closing balance', () => {
+  hooks.statements.mockReturnValue(ok([statement({ id: 's8', period_id: 'p8', penalties_charged: -50, paid_to_principal: -100, closing_owed: 300 })]));
+  renderLedger(<PassbookPage />);
+  const card = screen.getByRole('group');
+  expect(within(card).getByText('Penalties charged').parentElement).toHaveTextContent('−50');
+  expect(within(card).getByText('Paid to loan principal').parentElement).toHaveTextContent('−100');
+});
+
+test('a credit is shown as a credit, not as owing a negative amount', () => {
+  hooks.statements.mockReturnValue(ok([statement({ id: 's8', period_id: 'p8', closing_owed: -50 })]));
+  renderLedger(<PassbookPage />);
+  expect(screen.getByText('In credit').parentElement).toHaveTextContent('K 50');
+  expect(screen.queryByText('You owe')).toBeNull();
+});
+
+test('the owed figure says which statement it is from, since later activity is in the Record', () => {
+  hooks.statements.mockReturnValue(ok([statement({ id: 's8', period_id: 'p8', closing_owed: 700 })]));
+  renderLedger(<PassbookPage />);
+  expect(screen.getByText('You owe').parentElement).toHaveTextContent('At close of Sep 2026');
 });
 
 test('the open month is explained: its statement comes when the treasurer closes it', () => {

@@ -67,10 +67,11 @@ test('an unknown kind still shows, as its own name', () => {
   expect(screen.getByText('K 7')).toBeInTheDocument();
 });
 
-test('an entry whose month is not in the list shows under a fallback heading', () => {
+test('entries from outside the active cycle are not shown', () => {
   hooks.entries.mockReturnValue(ok([entry({ id: 'e8', period_id: 'gone' })]));
   renderLedger(<RecordPage />);
-  expect(screen.getByRole('heading', { name: 'Earlier month' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /20\d\d/ })).toBeNull();
+  expect(screen.getByText('Nothing recorded yet')).toBeInTheDocument();
 });
 
 test('nothing recorded yet: an empty state', () => {
