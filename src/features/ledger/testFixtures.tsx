@@ -7,7 +7,7 @@ import type { GroupRow, MemberRow } from '@/features/group/useMembership';
 import { ToastProvider } from '@/ui';
 import type { EntryRow, InstalmentRow, LoanRow, StatementRow } from './memberViews';
 import type { DeclarationRow, PeriodRow } from './model';
-import type { CloseMember, ClosePreview } from './queries';
+import type { CloseMember, ClosePreview, MemberStatusRow } from './queries';
 
 export const GROUP: GroupRow = { id: 'g1', name: 'Test Group', currency: 'ZMW', owner_user_id: 'u0', figures_visibility: 'open' };
 export const MEMBER: MemberRow = { id: 'm1', group_id: 'g1', full_name: 'Eve Example', short_name: 'Eve', role: 'member', status: 'active', email: 'eve@example.test' };
@@ -89,4 +89,9 @@ export const closePreview = (o: Partial<ClosePreview> = {}): ClosePreview => ({
   },
   members: [closeMember(), closeMember({ member_id: 'm2', short_name: 'Ann' })],
   diff: [], unexplained: 0, ...o,
+});
+
+export const memberStatus = (o: Partial<MemberStatusRow> = {}): MemberStatusRow => ({
+  id: 'ms1', created_at: '2026-10-08T08:00:00Z', group_id: 'g1', member_id: 'm1', cycle_id: 'c1', defaulted: true,
+  changed_at: '2026-10-08T08:00:00Z', changed_by: null, reason: 'Missed three months', ...o,
 });

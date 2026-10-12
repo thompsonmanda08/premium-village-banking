@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Tables } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
 import type { PenaltySuggestion } from './deskMoney';
 import type { EntryRow, LoanRow, LoanWithInstalments, PayoutRow, StatementRow } from './memberViews';
@@ -92,6 +93,7 @@ export function useRefreshLedger(groupId: string) {
       qc.invalidateQueries({ queryKey: ['loans'] }),
       qc.invalidateQueries({ queryKey: ['payout-preview'] }),
       qc.invalidateQueries({ queryKey: ['minimum-payable'] }),
+      qc.invalidateQueries({ queryKey: ['member-statuses', groupId] }),
     ]);
 }
 
@@ -294,6 +296,21 @@ export function useClosePreview(periodId: string | undefined) {
       const { data, error } = await supabase.rpc('close_month', { p_period: periodId!, p_commit: false });
       if (error) throw error;
       return data as unknown as ClosePreview;
+    },
+  });
+}
+
+export type MemberStatusRow = Tables<'member_status'>;
+
+/** Who is marked as defaulted in the cycle (one row per member and cycle; no row means in good standing). */
+export function useMemberStatuses(groupId: string, cycleId: string | undefined) {
+  return useQuery({
+    queryKey: ['member-statuses', groupId, cycleId],
+    enabled: Boolean(cycleId),
+    queryFn: async (): Promise<MemberStatusRow[]> => {
+      const { data, error } = await supabase.from('member_status').select('*').eq('cycle_id', cycleId!);
+      if (error) throw error;
+      return data;
     },
   });
 }
