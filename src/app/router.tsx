@@ -5,6 +5,7 @@ import { RequireAuth } from '@/features/auth/RequireAuth';
 import { SignInPage } from '@/features/auth/SignInPage';
 import { AccountPage } from '@/features/account/AccountPage';
 import { ClosePage } from '@/features/desk/ClosePage';
+import { MemberLedgerPage } from '@/features/desk/MemberLedgerPage';
 import { DeskPage } from '@/features/desk/DeskPage';
 import { LedgerCheckPage } from '@/features/desk/LedgerCheckPage';
 import { DeclarePage } from '@/features/declare/DeclarePage';
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
                   page('desk', 'Desk', <DeskPage />),
                   page('desk/ledger-check', 'Ledger check', <LedgerCheckPage />),
                   page('desk/close', 'Close the month', <ClosePage />),
+                  page('desk/members/:memberId', 'Member ledger', <MemberLedgerPage />),
                   page('rules', 'Rules', <RulesPage />),
                   page('account', 'Account', <AccountPage />),
                   page('settings/:tab?', 'Group settings', <SettingsPage />),
