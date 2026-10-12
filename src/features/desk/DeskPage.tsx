@@ -76,6 +76,20 @@ function DeskBody() {
           <div role="status"><span className="sr-only">Loading declarations</span><Skeleton className="h-40" /></div>
         )
       ) : null}
+      <Card>
+        <CardHeader
+          title="Members"
+          subtitle="See a member’s ledger, correct an entry, waive a charge or mark a default."
+          action={
+            <Link
+              to="/desk/members"
+              className="inline-flex h-12 items-center rounded-xl px-5 font-semibold text-accent underline transition duration-150 hover:bg-surface-2 active:scale-[.97]"
+            >
+              Open members
+            </Link>
+          }
+        />
+      </Card>
     </div>
   );
 }

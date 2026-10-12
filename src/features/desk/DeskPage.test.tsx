@@ -123,3 +123,12 @@ test('without an open month there is nothing to close', () => {
   renderLedger(<DeskPage />, { isAdmin: true });
   expect(screen.queryByRole('link', { name: 'Review the close' })).toBeNull();
 });
+
+test('the Desk links to the members’ ledgers, with a month open or not', () => {
+  const { unmount } = renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByRole('link', { name: 'Open members' })).toHaveAttribute('href', '/desk/members');
+  unmount();
+  hooks.cycle.mockReturnValue(ok({ cycle: { id: 'c1', label: 'Cycle 2026' }, periods: year(8) }));
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByRole('link', { name: 'Open members' })).toHaveAttribute('href', '/desk/members');
+});
