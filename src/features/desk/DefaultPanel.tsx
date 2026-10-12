@@ -3,12 +3,13 @@ import { useLedgerAction } from '@/features/ledger/actions';
 import type { MemberStatusRow } from '@/features/ledger/queries';
 import { formatDate } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
-import { Badge, Button, Card, Sheet, TextField, useConfirmTap } from '@/ui';
+import { Alert, Badge, Button, Card, Sheet, TextField, useConfirmTap } from '@/ui';
 
-type Props = { memberId: string; memberName: string; cycleId: string; status: MemberStatusRow | undefined };
+type Props = { memberId: string; memberName: string; cycleId: string; status: MemberStatusRow | undefined; changedBy?: string };
 
-function DefaultSheet({ memberId, memberName, cycleId, defaulted, onClose }: { memberId: string; memberName: string; cycleId: string; defaulted: boolean; onClose: () => void }) {
-  // `defaulted` here is the state being set: true marks the member, false reverses it.
+function DefaultSheet({ memberId, memberName, cycleId, defaulted, alreadyDone, onClose }: { memberId: string; memberName: string; cycleId: string; defaulted: boolean; alreadyDone: boolean; onClose: () => void }) {
+  // `defaulted` here is the state being set: true marks the member, false reverses it. It is fixed when the sheet opens; if the
+  // live status has meanwhile become that state (another admin got there first), the sheet says so and cannot post.
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string>();
   const record = useLedgerAction(async (text: string) => {
@@ -44,12 +45,13 @@ function DefaultSheet({ memberId, memberName, cycleId, defaulted, onClose }: { m
       title={defaulted ? `Mark ${memberName} as defaulted` : `Reverse ${memberName}’s default`}
       description="The change and your reason are recorded."
       footer={
-        <Button fullWidth isLoading={record.isPending} onClick={tap}>
+        <Button fullWidth disabled={alreadyDone} isLoading={record.isPending} onClick={tap}>
           {confirm.armed ? (defaulted ? `Tap again to mark ${memberName} as defaulted` : `Tap again to reverse ${memberName}’s default`) : defaulted ? 'Record default' : 'Record reversal'}
         </Button>
       }
     >
-      <form noValidate onSubmit={(e) => e.preventDefault()}>
+      <form className="grid gap-4" noValidate onSubmit={(e) => e.preventDefault()}>
+        {alreadyDone ? <Alert tone="warning">This was already recorded by someone else. Close this and check the status.</Alert> : null}
         <TextField
           label="Reason"
           maxLength={500}
@@ -67,8 +69,9 @@ function DefaultSheet({ memberId, memberName, cycleId, defaulted, onClose }: { m
 }
 
 /** Whether the member is defaulted for the cycle, who changed it and why, and the way to change it. No record means in good standing. */
-export function DefaultPanel({ memberId, memberName, cycleId, status }: Props) {
-  const [open, setOpen] = useState(false);
+export function DefaultPanel({ memberId, memberName, cycleId, status, changedBy }: Props) {
+  // The change the sheet was opened for (true marks, false reverses); null while closed.
+  const [target, setTarget] = useState<boolean | null>(null);
   const defaulted = status?.defaulted === true;
   return (
     <Card>
@@ -77,15 +80,17 @@ export function DefaultPanel({ memberId, memberName, cycleId, status }: Props) {
           <h2 id="default-title" className="text-lg font-semibold text-fg">Default status</h2>
           <Badge tone={defaulted ? 'danger' : 'success'}>{defaulted ? 'Defaulted' : 'In good standing'}</Badge>
         </div>
-        {status ? <p className="text-sm text-muted">{`Changed ${formatDate(status.changed_at)}: ${status.reason}`}</p> : null}
+        {status ? <p className="text-sm text-muted">{`Changed ${formatDate(status.changed_at)}${changedBy ? ` by ${changedBy}` : ''}: ${status.reason}`}</p> : null}
         <p className="text-sm text-muted">
           A defaulted member earns no further interest share, and what they owe is taken from their payout.
         </p>
         <div>
-          <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>{defaulted ? 'Reverse the default' : 'Mark as defaulted'}</Button>
+          <Button size="sm" variant="secondary" onClick={() => setTarget(!defaulted)}>{defaulted ? 'Reverse the default' : 'Mark as defaulted'}</Button>
         </div>
       </section>
-      {open ? <DefaultSheet memberId={memberId} memberName={memberName} cycleId={cycleId} defaulted={!defaulted} onClose={() => setOpen(false)} /> : null}
+      {target !== null ? (
+        <DefaultSheet memberId={memberId} memberName={memberName} cycleId={cycleId} defaulted={target} alreadyDone={defaulted === target} onClose={() => setTarget(null)} />
+      ) : null}
     </Card>
   );
 }

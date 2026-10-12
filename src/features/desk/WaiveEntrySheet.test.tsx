@@ -9,7 +9,7 @@ const { WaiveEntrySheet } = await import('./WaiveEntrySheet');
 
 const PENALTY = entry({ id: 'e1', kind: 'penalty', amount: 120, source: 'app' });
 const onClose = vi.fn();
-const renderSheet = (current = 120) => renderLedger(<WaiveEntrySheet entry={PENALTY} current={current} onClose={onClose} />, { isAdmin: true });
+const renderSheet = (current = 120) => renderLedger(<WaiveEntrySheet entry={PENALTY} current={current} memberName="Eve" monthLabel="Sep 2026" onClose={onClose} />, { isAdmin: true });
 
 beforeEach(() => {
   rpc.mockReset();
@@ -89,4 +89,10 @@ test('a refusal from the engine shows its friendly sentence and keeps the sheet 
   await userEvent.click(screen.getByRole('button', { name: 'Tap again to waive K 50 of K 120' }));
   expect(await screen.findByText('Check the amount: kwacha and ngwee only, and not below zero.')).toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
+});
+
+test('says which member and which month this is about', () => {
+  renderSheet();
+  expect(screen.getByText('Member').nextElementSibling).toHaveTextContent('Eve');
+  expect(screen.getByText('Month').nextElementSibling).toHaveTextContent('Sep 2026');
 });

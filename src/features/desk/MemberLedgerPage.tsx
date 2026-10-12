@@ -5,10 +5,10 @@ import { useGroupMembers } from '@/features/group/GroupPage';
 import { correctionLine, correctionsOf, effectiveAmount, isCorrectable, isWaivable } from '@/features/ledger/corrections';
 import { entryTone, groupEntriesByPeriod, kindLabel, toneLabel, type EntryRow, type KindTone } from '@/features/ledger/memberViews';
 import { currentPeriod } from '@/features/ledger/model';
-import { useLedgerCycle, useMemberStatuses, useMyEntries } from '@/features/ledger/queries';
+import { useActorNames, useLedgerCycle, useMemberStatuses, useMyEntries } from '@/features/ledger/queries';
 import { NotFound } from '@/features/shells/NotFound';
 import { friendlyError } from '@/lib/errors';
-import { money } from '@/lib/format';
+import { formatDate, money } from '@/lib/format';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Skeleton, type Tone } from '@/ui';
 import { CorrectEntrySheet } from './CorrectEntrySheet';
 import { DefaultPanel } from './DefaultPanel';
@@ -25,7 +25,8 @@ function MemberLedgerBody() {
   const entries = useMyEntries(memberId);
   const cycleId = cycle.data?.cycle?.id;
   const statuses = useMemberStatuses(group.id, cycleId);
-  const [sheet, setSheet] = useState<{ kind: 'correct' | 'waive'; entry: EntryRow } | null>(null);
+  const actors = useActorNames(group.id);
+  const [sheet, setSheet] = useState<{ kind: 'correct' | 'waive'; entry: EntryRow; month: string } | null>(null);
 
   const queries = [members, cycle, entries, ...(cycleId ? [statuses] : [])];
   const failed = queries.find((q) => q.isError && q.data === undefined);
@@ -61,10 +62,11 @@ function MemberLedgerBody() {
   const groups = groupEntriesByPeriod(all.filter((e) => e.source !== 'correction'), periods);
   const status = statuses.data?.find((s) => s.member_id === memberId);
   const name = member.short_name ?? member.full_name ?? 'this member';
+  const changedBy = status ? actors.data?.find((a) => a.user_id === status.changed_by)?.short_name : undefined;
 
   return (
     <div className="grid gap-4 md:gap-5 lg:max-w-3xl">
-      {cycleId ? <DefaultPanel memberId={memberId} memberName={name} cycleId={cycleId} status={status} /> : null}
+      {cycleId ? <DefaultPanel memberId={memberId} memberName={name} cycleId={cycleId} status={status} changedBy={changedBy} /> : null}
 
       <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">
         {open ? `Corrections land in ${open.label}; the original stays in its own month.` : 'Open the next month to post corrections or waivers.'}
@@ -84,7 +86,8 @@ function MemberLedgerBody() {
                     const tone = entryTone(e);
                     const fixes = correctionsOf(e.id, all);
                     const current = effectiveAmount(e, all);
-                    const label = `${kindLabel(e.kind)} ${money(e.amount)} from ${g.period.label}`;
+                    const when = e.source === 'import' ? 'From the workbook' : formatDate(e.created_at);
+                    const label = `${kindLabel(e.kind)} ${money(e.amount)} from ${g.period.label}, ${when}`;
                     return (
                       <li key={e.id} className="grid gap-2 py-3">
                         <div className="flex items-baseline justify-between gap-3">
@@ -93,8 +96,10 @@ function MemberLedgerBody() {
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
                           {toneLabel(tone) ? <Badge tone={BADGE[tone]}>{toneLabel(tone)}</Badge> : null}
+                          <span>{when}</span>
                           {fixes.length > 0 ? <span className="tabular font-semibold text-fg">{`Now ${money(current)}`}</span> : null}
                         </div>
+                        {e.reason ? <p className="text-sm text-muted">{`Reason: ${e.reason}`}</p> : null}
                         {fixes.length > 0 ? (
                           <ul role="list" className="grid gap-1 text-sm text-muted">
                             {fixes.map((c) => <li key={c.id}>{`${correctionLine(c)}: ${c.reason ?? ''}`}</li>)}
@@ -103,10 +108,10 @@ function MemberLedgerBody() {
                         {isCorrectable(e) || (isWaivable(e) && current > 0) ? (
                           <div className="flex gap-2">
                             {isCorrectable(e) ? (
-                              <Button size="sm" variant="secondary" disabled={!open} aria-label={`Correct ${label}`} onClick={() => setSheet({ kind: 'correct', entry: e })}>Correct</Button>
+                              <Button size="sm" variant="secondary" disabled={!open} aria-label={`Correct ${label}`} onClick={() => setSheet({ kind: 'correct', entry: e, month: g.period.label })}>Correct</Button>
                             ) : null}
                             {isWaivable(e) && current > 0 ? (
-                              <Button size="sm" variant="secondary" disabled={!open} aria-label={`Waive ${label}`} onClick={() => setSheet({ kind: 'waive', entry: e })}>Waive</Button>
+                              <Button size="sm" variant="secondary" disabled={!open} aria-label={`Waive ${label}`} onClick={() => setSheet({ kind: 'waive', entry: e, month: g.period.label })}>Waive</Button>
                             ) : null}
                           </div>
                         ) : null}
@@ -120,8 +125,8 @@ function MemberLedgerBody() {
         )}
       </section>
 
-      {sheet?.kind === 'correct' ? <CorrectEntrySheet entry={sheet.entry} current={effectiveAmount(sheet.entry, all)} onClose={() => setSheet(null)} /> : null}
-      {sheet?.kind === 'waive' ? <WaiveEntrySheet entry={sheet.entry} current={effectiveAmount(sheet.entry, all)} onClose={() => setSheet(null)} /> : null}
+      {sheet?.kind === 'correct' ? <CorrectEntrySheet entry={sheet.entry} current={effectiveAmount(sheet.entry, all)} memberName={name} monthLabel={sheet.month} onClose={() => setSheet(null)} /> : null}
+      {sheet?.kind === 'waive' ? <WaiveEntrySheet entry={sheet.entry} current={effectiveAmount(sheet.entry, all)} memberName={name} monthLabel={sheet.month} onClose={() => setSheet(null)} /> : null}
     </div>
   );
 }

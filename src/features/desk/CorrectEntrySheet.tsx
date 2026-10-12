@@ -6,7 +6,7 @@ import { money } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { Button, Sheet, TextField, useConfirmTap } from '@/ui';
 
-type Props = { entry: EntryRow; current: number; onClose: () => void };
+type Props = { entry: EntryRow; current: number; memberName: string; monthLabel: string; onClose: () => void };
 type Errors = { total?: string; reason?: string };
 
 const Row = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -17,7 +17,7 @@ const Row = ({ label, children }: { label: string; children: ReactNode }) => (
 );
 
 /** Set an entry's total to a new amount. The correction lands in the open month; the original stays where it was. */
-export function CorrectEntrySheet({ entry, current, onClose }: Props) {
+export function CorrectEntrySheet({ entry, current, memberName, monthLabel, onClose }: Props) {
   const [total, setTotal] = useState('');
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -67,6 +67,8 @@ export function CorrectEntrySheet({ entry, current, onClose }: Props) {
     >
       <form className="grid gap-4" noValidate onSubmit={(e) => e.preventDefault()}>
         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
+          <Row label="Member">{memberName}</Row>
+          <Row label="Month">{monthLabel}</Row>
           <dt className="text-muted">Entry</dt>
           <dd className="text-right font-semibold text-fg">{kindLabel(entry.kind)}</dd>
           <Row label="Recorded">{money(entry.amount)}</Row>

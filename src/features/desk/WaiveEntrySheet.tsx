@@ -6,7 +6,7 @@ import { money } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { Button, Sheet, TextField, useConfirmTap } from '@/ui';
 
-type Props = { entry: EntryRow; current: number; onClose: () => void };
+type Props = { entry: EntryRow; current: number; memberName: string; monthLabel: string; onClose: () => void };
 type Errors = { amount?: string; reason?: string };
 
 const Row = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -17,7 +17,7 @@ const Row = ({ label, children }: { label: string; children: ReactNode }) => (
 );
 
 /** Waive part or all of a charge. The waiver lands in the open month; the original stays where it was. */
-export function WaiveEntrySheet({ entry, current, onClose }: Props) {
+export function WaiveEntrySheet({ entry, current, memberName, monthLabel, onClose }: Props) {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -66,6 +66,8 @@ export function WaiveEntrySheet({ entry, current, onClose }: Props) {
     >
       <form className="grid gap-4" noValidate onSubmit={(e) => e.preventDefault()}>
         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
+          <Row label="Member">{memberName}</Row>
+          <Row label="Month">{monthLabel}</Row>
           <dt className="text-muted">Charge</dt>
           <dd className="text-right font-semibold text-fg">{kindLabel(entry.kind)}</dd>
           <Row label="Still charged">{money(current)}</Row>

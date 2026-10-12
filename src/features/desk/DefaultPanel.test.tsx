@@ -93,3 +93,17 @@ test('a refusal shows its friendly sentence and keeps the sheet open', async () 
   expect(await screen.findByText('Only admins can do this.')).toBeInTheDocument();
   expect(screen.getByLabelText('Reason')).toBeInTheDocument();
 });
+
+test('the sheet keeps the change it was opened for even if the status changes underneath it, and says so', async () => {
+  const { rerender } = renderPanel();
+  await userEvent.click(screen.getByRole('button', { name: 'Mark as defaulted' }));
+  rerender(<DefaultPanel memberId="m1" memberName="Eve" cycleId="c1" status={memberStatus({ defaulted: true, reason: 'Other admin' })} />);
+  expect(screen.getByRole('dialog', { name: 'Mark Eve as defaulted' })).toBeInTheDocument();
+  expect(screen.getByText('This was already recorded by someone else. Close this and check the status.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Record default' })).toBeDisabled();
+});
+
+test('it says who made the change when it knows', () => {
+  renderLedger(<DefaultPanel memberId="m1" memberName="Eve" cycleId="c1" changedBy="Ann" status={memberStatus({ defaulted: true, reason: 'Missed three months', changed_at: '2026-10-08T08:00:00Z' })} />, { isAdmin: true });
+  expect(screen.getByText('Changed 8 Oct 2026 by Ann: Missed three months')).toBeInTheDocument();
+});

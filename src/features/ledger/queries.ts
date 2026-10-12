@@ -314,3 +314,15 @@ export function useMemberStatuses(groupId: string, cycleId: string | undefined) 
     },
   });
 }
+
+/** Names for account ids (admin RLS lets an admin read members.user_id; the roster view hides it), to say who made a change. */
+export function useActorNames(groupId: string) {
+  return useQuery({
+    queryKey: ['actor-names', groupId],
+    queryFn: async (): Promise<Array<{ user_id: string; short_name: string }>> => {
+      const { data, error } = await supabase.from('members').select('user_id, short_name').eq('group_id', groupId).not('user_id', 'is', null);
+      if (error) throw error;
+      return data.flatMap((m) => (m.user_id ? [{ user_id: m.user_id, short_name: m.short_name }] : []));
+    },
+  });
+}

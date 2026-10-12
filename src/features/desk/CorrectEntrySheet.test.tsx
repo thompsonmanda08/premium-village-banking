@@ -9,7 +9,7 @@ const { CorrectEntrySheet } = await import('./CorrectEntrySheet');
 
 const PAYMENT = entry({ id: 'e1', kind: 'payment', amount: 250, source: 'app' });
 const onClose = vi.fn();
-const renderSheet = (current = 250) => renderLedger(<CorrectEntrySheet entry={PAYMENT} current={current} onClose={onClose} />, { isAdmin: true });
+const renderSheet = (current = 250) => renderLedger(<CorrectEntrySheet entry={PAYMENT} current={current} memberName="Eve" monthLabel="Sep 2026" onClose={onClose} />, { isAdmin: true });
 
 beforeEach(() => {
   rpc.mockReset();
@@ -109,4 +109,10 @@ test('a refusal from the engine shows its friendly sentence and keeps the sheet 
   await userEvent.click(screen.getByRole('button', { name: 'Tap again to change K 250 to K 200' }));
   expect(await screen.findByText('That month isn’t open. Pick the current month, or open it first.')).toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
+});
+
+test('says which member and which month this is about', () => {
+  renderSheet();
+  expect(screen.getByText('Member').nextElementSibling).toHaveTextContent('Eve');
+  expect(screen.getByText('Month').nextElementSibling).toHaveTextContent('Sep 2026');
 });
