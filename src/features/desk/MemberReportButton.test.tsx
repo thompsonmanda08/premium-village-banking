@@ -32,17 +32,20 @@ test('pressing it exports that member’s report once and downloads the file', a
   expect(download).toHaveBeenCalledWith(expect.any(Uint8Array), 'Test Group Eve Cycle 2026 through Sep 2026.xlsx');
 });
 
-test('a double press while it is preparing makes one file', async () => {
+test('its accessible name is its visible text, and the preparing state is announced as the name', async () => {
   let release: (v: unknown) => void = () => {};
   actions.exportMember.mockReturnValue(new Promise((resolve) => { release = resolve; }));
   renderLedger(<MemberReportButton memberId="m1" memberName="Eve" />, { isAdmin: true });
   const button = screen.getByRole('button', { name: 'Download Eve’s report' });
+  expect(button).toHaveTextContent('Download Eve’s report');
+  expect(button).not.toHaveAttribute('aria-label'); // WCAG 2.5.3: a spoken command must be able to use the visible words
   await userEvent.click(button);
-  await userEvent.click(button);
+  const busy = screen.getByRole('button', { name: 'Preparing…' });
+  expect(busy).toBeDisabled();
   expect(actions.exportMember).toHaveBeenCalledTimes(1);
-  expect(button).toBeDisabled();
   release({ bytes: new Uint8Array([1]), fileName: 'x.xlsx' });
   await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button', { name: 'Download Eve’s report' })).toBeEnabled();
 });
 
 test('it shows nothing until the cycle is known, and nothing without an active cycle', () => {

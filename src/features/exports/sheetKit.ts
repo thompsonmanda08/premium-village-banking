@@ -88,10 +88,33 @@ export function totalsRow(rows: Cell[][], width: number, label: string, sumAt: n
 }
 
 /** An entry's amount as the engine counts it: waivers and adjustments reduce. */
-export const signedAmount = (e: EntryRow): number => (e.kind === 'waiver' || e.kind === 'adjustment' ? -e.amount : e.amount);
+export const signedAmount = (e: Pick<EntryRow, 'kind' | 'amount'>): number => (e.kind === 'waiver' || e.kind === 'adjustment' ? -e.amount : e.amount);
 
 const SOURCE: Record<string, string> = { import: 'Workbook', app: 'App', correction: 'Correction', close: 'Month close' };
 export const sourceLabel = (source: string): string => SOURCE[source] ?? source;
+
+const LOAN_STATUS: Record<string, string> = { open: 'Open', repaid: 'Repaid', written_against_payout: 'Taken from the payout' };
+/** A loan's status as words; one added later still shows as itself. */
+export const loanStatusLabel = (status: string): string => LOAN_STATUS[status] ?? status;
+
+// How a member's month reads naturally: what they put in first, then what was charged.
+const KIND_ORDER = ['saving', 'payment', 'membership', 'txn_fee', 'loan_sent', 'loan_interest', 'excess_charge', 'penalty', 'interest_share', 'payout_fee', 'waiver', 'adjustment'];
+const kindRank = (kind: string): number => {
+  const i = KIND_ORDER.indexOf(kind);
+  return i < 0 ? KIND_ORDER.length : i;
+};
+
+type Sortable = Pick<EntryRow, 'id' | 'created_at' | 'member_id' | 'kind'>;
+
+/**
+ * Oldest first. Rows written in one instant (an import writes a month at once) fall back to member name, then kind in a natural order,
+ * and only then to the id, so they never come out in the arbitrary order of random ids.
+ */
+export const entryOrder = (names: Map<string, string>) => (a: Sortable, b: Sortable): number =>
+  a.created_at.localeCompare(b.created_at) ||
+  (a.member_id ? (names.get(a.member_id) ?? '') : '').localeCompare(b.member_id ? (names.get(b.member_id) ?? '') : '') ||
+  kindRank(a.kind) - kindRank(b.kind) ||
+  a.id.localeCompare(b.id);
 
 export { kindLabel };
 

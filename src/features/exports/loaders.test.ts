@@ -181,3 +181,16 @@ test('a month imported from the workbook is marked as imported and carries no cl
   const one = await loadMonthExport(ctx, periods[0]!);
   expect(one.figures).toMatchObject({ imported: true, closedOn: null });
 });
+
+test('no read asks for every column: account ids, a default’s reason and a loan’s warnings are never loaded', async () => {
+  db.tables.entries = [entry({ id: 'e1', member_id: 'm1', period_id: 'p2', created_by: 'user-secret', reason: 'a note' })];
+  db.tables.loans = [loan({ id: 'l1', member_id: 'm1', period_id: 'p1', arrears_warning: 'warn-secret', approved_reason: 'why-secret' })];
+  const month = await loadMonthExport(ctx, periods[1]!);
+  const whole = await loadPeriodExport(ctx);
+  const mine = await loadMemberExport(ctx, 'm1');
+  expect(db.calls.filter((c) => c.select === '*' || c.select === '')).toEqual([]);
+  const loaded = JSON.stringify([month, whole, mine]);
+  for (const secret of ['user-secret', 'warn-secret', 'why-secret', 'secret reason', 'changed_by', 'created_by', 'wallet_id']) expect(loaded).not.toContain(secret);
+  expect(whole.statuses.every((s) => Object.keys(s).sort().join() === 'defaulted,member_id')).toBe(true);
+  expect(month.entries[0]).toMatchObject({ id: 'e1', reason: 'a note' }); // what the files do need is still there
+});

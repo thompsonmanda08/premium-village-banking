@@ -25,6 +25,13 @@ export type MemberMonth = {
  */
 export type MonthFigures = { period: PeriodRow; closedOn: string | null; imported: boolean; preview: boolean; group: GroupFigures; members: MemberMonth[] };
 
+// The columns the exports read, and no others: never an account id (created_by, changed_by), a default's reason or a loan's warnings.
+export type ExportEntry = Pick<EntryRow, 'id' | 'member_id' | 'kind' | 'amount' | 'period_id' | 'source' | 'reason' | 'created_at' | 'corrects_entry_id'>;
+export type ExportLoan = Pick<LoanRow, 'id' | 'member_id' | 'period_id' | 'principal' | 'interest' | 'term_months' | 'status' | 'sent_at'>;
+export type ExportStatus = Pick<MemberStatusRow, 'member_id' | 'defaulted'>;
+export type ExportStatement = MemberMonth & { period_id: string };
+export type ExportGroupStatement = GroupFigures & { period_id: string; source: string };
+
 /** The only member fields ever read: no e-mail, phone or account id. */
 export type Person = { id: string; short_name: string; full_name: string; status: string };
 
@@ -35,7 +42,7 @@ export type MonthExport = {
   minimumDue: Record<string, number>;
   people: Person[]; periods: PeriodRow[];
   /** Every entry recorded in the month, and the earlier entries its corrections point at. */
-  entries: EntryRow[]; originals: EntryRow[];
+  entries: ExportEntry[]; originals: ExportEntry[];
 };
 
 export type PeriodExport = {
@@ -46,7 +53,7 @@ export type PeriodExport = {
   openLeftOut: PeriodRow | null;
   /** Label of the month `payout` is worked from: the open month, else the last closed one. */
   payoutAsAt: string | null;
-  people: Person[]; periods: PeriodRow[]; loans: LoanRow[]; statuses: MemberStatusRow[]; payout: PayoutRow[];
+  people: Person[]; periods: PeriodRow[]; loans: ExportLoan[]; statuses: ExportStatus[]; payout: PayoutRow[];
 };
 
 export type MemberMonthEntry = { period: PeriodRow; closedOn: string | null; preview: boolean; row: MemberMonth };
@@ -58,5 +65,5 @@ export type MemberExport = {
   months: MemberMonthEntry[];
   openLeftOut: PeriodRow | null;
   payoutAsAt: string | null;
-  periods: PeriodRow[]; loans: LoanRow[]; status: MemberStatusRow | null; payout: PayoutRow | null; entries: EntryRow[];
+  periods: PeriodRow[]; loans: ExportLoan[]; status: ExportStatus | null; payout: PayoutRow | null; entries: ExportEntry[];
 };

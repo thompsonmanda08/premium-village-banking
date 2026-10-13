@@ -1,15 +1,24 @@
-import type { EntryRow, LoanRow, PayoutRow, StatementRow } from '@/features/ledger/memberViews';
+import type { PayoutRow } from '@/features/ledger/memberViews';
 import { currentPeriod, type PeriodRow } from '@/features/ledger/model';
-import type { ClosePreview, MemberStatusRow } from '@/features/ledger/queries';
-import type { Tables } from '@/lib/database.types';
+import type { ClosePreview } from '@/features/ledger/queries';
 import { supabase } from '@/lib/supabase';
 import { groupFigures, memberMonth } from './normalise';
 import { chunk, fetchAllRows } from './paging';
-import type { MemberExport, MemberMonthEntry, MonthExport, MonthFigures, PeriodExport, Person } from './types';
+import type {
+  ExportEntry, ExportGroupStatement, ExportLoan, ExportStatement, ExportStatus, MemberExport, MemberMonthEntry, MonthExport, MonthFigures, PeriodExport, Person,
+} from './types';
 
 export type ExportContext = { groupId: string; groupName: string; cycle: { id: string; label: string }; periods: PeriodRow[] };
 
+// Every read names its columns: nothing else on a row (account ids, a default's reasoning, a loan's warnings) is ever loaded.
 const PEOPLE_COLUMNS = 'id, short_name, full_name, status';
+const ENTRY_COLUMNS = 'id, member_id, kind, amount, period_id, source, reason, created_at, corrects_entry_id';
+const STATEMENT_COLUMNS =
+  'member_id, period_id, saving, cum_savings, opening_owed, loan_principal_sent, loan_interest_charged, excess_charged, penalties_charged, paid_total, paid_to_penalties, paid_to_excess, paid_to_interest, paid_to_principal, closing_owed, next_minimum, unpaid_minimum, interest_earned, interest_earned_to_date';
+const GROUP_STATEMENT_COLUMNS =
+  'period_id, source, opening_cash, received, savings, loans_sent, idle_cash, excess_rate, excess_billed, interest_collected, fee_pot_in, fee_pot_out, fee_pot_balance, meeting_pot_in, meeting_pot_balance, total_savings, total_owed';
+const LOAN_COLUMNS = 'id, member_id, period_id, principal, interest, term_months, status, sent_at';
+const STATUS_COLUMNS = 'member_id, defaulted';
 const byMonth = (a: PeriodRow, b: PeriodRow) => a.month_index - b.month_index;
 
 // ----- reads ------------------------------------------------------------------------------------------------------------
@@ -17,18 +26,18 @@ const byMonth = (a: PeriodRow, b: PeriodRow) => a.month_index - b.month_index;
 const readPeople = (groupId: string): Promise<Person[]> =>
   fetchAllRows<Person>((a, b) => supabase.from('members').select(PEOPLE_COLUMNS).eq('group_id', groupId).order('short_name').order('id').range(a, b));
 
-function readStatements(periodIds: string[], memberId?: string): Promise<StatementRow[]> {
+function readStatements(periodIds: string[], memberId?: string): Promise<ExportStatement[]> {
   if (periodIds.length === 0) return Promise.resolve([]);
-  return fetchAllRows<StatementRow>((a, b) => {
-    let q = supabase.from('statements').select('*').in('period_id', periodIds);
+  return fetchAllRows<ExportStatement>((a, b) => {
+    let q = supabase.from('statements').select(STATEMENT_COLUMNS).in('period_id', periodIds);
     if (memberId) q = q.eq('member_id', memberId);
     return q.order('created_at').order('id').range(a, b);
   });
 }
 
-function readGroupStatements(periodIds: string[]): Promise<Tables<'group_statements'>[]> {
+function readGroupStatements(periodIds: string[]): Promise<ExportGroupStatement[]> {
   if (periodIds.length === 0) return Promise.resolve([]);
-  return fetchAllRows((a, b) => supabase.from('group_statements').select('*').in('period_id', periodIds).order('created_at').order('id').range(a, b));
+  return fetchAllRows<ExportGroupStatement>((a, b) => supabase.from('group_statements').select(GROUP_STATEMENT_COLUMNS).in('period_id', periodIds).order('created_at').order('id').range(a, b));
 }
 
 async function readClosedAt(periodIds: string[]): Promise<Map<string, string | null>> {
@@ -37,34 +46,34 @@ async function readClosedAt(periodIds: string[]): Promise<Map<string, string | n
   return new Map(rows.map((r) => [r.id, r.closed_at]));
 }
 
-const readPeriodEntries = (periodId: string): Promise<EntryRow[]> =>
-  fetchAllRows<EntryRow>((a, b) => supabase.from('entries').select('*').eq('period_id', periodId).order('created_at').order('id').range(a, b));
+const readPeriodEntries = (periodId: string): Promise<ExportEntry[]> =>
+  fetchAllRows<ExportEntry>((a, b) => supabase.from('entries').select(ENTRY_COLUMNS).eq('period_id', periodId).order('created_at').order('id').range(a, b));
 
-const readMemberEntries = (memberId: string): Promise<EntryRow[]> =>
-  fetchAllRows<EntryRow>((a, b) => supabase.from('entries').select('*').eq('member_id', memberId).order('created_at').order('id').range(a, b));
+const readMemberEntries = (memberId: string): Promise<ExportEntry[]> =>
+  fetchAllRows<ExportEntry>((a, b) => supabase.from('entries').select(ENTRY_COLUMNS).eq('member_id', memberId).order('created_at').order('id').range(a, b));
 
 /** The entries a month's corrections point at that are not in the month itself, a hundred ids a request so the URL stays short. */
-async function readOriginals(entries: EntryRow[]): Promise<EntryRow[]> {
+async function readOriginals(entries: ExportEntry[]): Promise<ExportEntry[]> {
   const have = new Set(entries.map((e) => e.id));
   const missing = [...new Set(entries.flatMap((e) => (e.corrects_entry_id && !have.has(e.corrects_entry_id) ? [e.corrects_entry_id] : [])))];
-  const found: EntryRow[] = [];
+  const found: ExportEntry[] = [];
   for (const ids of chunk(missing, 100)) {
-    const { data, error } = await supabase.from('entries').select('*').in('id', ids);
+    const { data, error } = await supabase.from('entries').select(ENTRY_COLUMNS).in('id', ids);
     if (error) throw error;
     found.push(...data);
   }
   return found;
 }
 
-const readLoans = (periodIds: string[], memberId?: string): Promise<LoanRow[]> =>
-  fetchAllRows<LoanRow>((a, b) => {
-    let q = supabase.from('loans').select('*').in('period_id', periodIds);
+const readLoans = (periodIds: string[], memberId?: string): Promise<ExportLoan[]> =>
+  fetchAllRows<ExportLoan>((a, b) => {
+    let q = supabase.from('loans').select(LOAN_COLUMNS).in('period_id', periodIds);
     if (memberId) q = q.eq('member_id', memberId);
     return q.order('sent_at').order('id').range(a, b);
   });
 
-const readStatuses = (cycleId: string): Promise<MemberStatusRow[]> =>
-  fetchAllRows<MemberStatusRow>((a, b) => supabase.from('member_status').select('*').eq('cycle_id', cycleId).order('id').range(a, b));
+const readStatuses = (cycleId: string): Promise<ExportStatus[]> =>
+  fetchAllRows<ExportStatus>((a, b) => supabase.from('member_status').select(STATUS_COLUMNS).eq('cycle_id', cycleId).order('id').range(a, b));
 
 async function readPayout(cycleId: string): Promise<PayoutRow[]> {
   const { data, error } = await supabase.rpc('payout_preview', { p_cycle: cycleId });
@@ -117,7 +126,7 @@ export async function loadMonthExport(ctx: ExportContext, period: PeriodRow): Pr
   const previous = ctx.periods.find((p) => p.month_index === period.month_index - 1 && p.status === 'closed');
   const [figures, prior, entries, people] = await Promise.all([
     period.status === 'open' ? readPreview(period).then((p) => previewFigures(period, p)) : closedMonth(period),
-    previous ? readStatements([previous.id]) : Promise.resolve([] as StatementRow[]),
+    previous ? readStatements([previous.id]) : Promise.resolve([] as ExportStatement[]),
     readPeriodEntries(period.id),
     readPeople(ctx.groupId),
   ]);
@@ -164,7 +173,7 @@ export async function loadMemberExport(ctx: ExportContext, memberId: string): Pr
     readClosedAt(closed.map((p) => p.id)),
     readMemberEntries(memberId),
     readLoans(ctx.periods.map((p) => p.id), memberId),
-    supabase.from('member_status').select('*').eq('cycle_id', ctx.cycle.id).eq('member_id', memberId).maybeSingle(),
+    supabase.from('member_status').select(STATUS_COLUMNS).eq('cycle_id', ctx.cycle.id).eq('member_id', memberId).maybeSingle(),
     readPayout(ctx.cycle.id),
     previewOrLeftOut(open),
   ]);

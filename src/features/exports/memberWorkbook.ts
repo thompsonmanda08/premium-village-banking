@@ -2,7 +2,7 @@ import { correctionLine, correctionsOf, effectiveAmount } from '@/features/ledge
 import { owedFigure } from '@/features/ledger/memberViews';
 import { loadExcel, type Workbook } from './loadExcel';
 import { standpointOf } from './standpoint';
-import { dayCell, dayText, kindLabel, newSheet, signedAmount, sourceLabel, toBytes, totalsRow, writeLines, writeTable, type Cell, type Col } from './sheetKit';
+import { dayCell, dayText, entryOrder, kindLabel, loanStatusLabel, newSheet, signedAmount, sourceLabel, toBytes, totalsRow, writeLines, writeTable, type Cell, type Col } from './sheetKit';
 import type { MemberExport } from './types';
 
 const PREVIEW_NOTE = ' (preview: this month is still open, so its figures can change)';
@@ -62,7 +62,7 @@ function loansSheet(wb: Workbook, d: MemberExport): void {
   const labels = new Map(d.periods.map((p) => [p.id, p.label]));
   const rows: Cell[][] = [...d.loans]
     .sort((a, b) => a.sent_at.localeCompare(b.sent_at) || a.id.localeCompare(b.id))
-    .map((l) => [labels.get(l.period_id) ?? '', l.principal, l.interest, l.term_months, l.status, dayCell(l.sent_at)]);
+    .map((l) => [labels.get(l.period_id) ?? '', l.principal, l.interest, l.term_months, loanStatusLabel(l.status), dayCell(l.sent_at)]);
   writeTable(ws, start, [
     { header: 'Month', kind: 'text', width: 14 }, { header: 'Principal', kind: 'money' }, { header: 'Interest', kind: 'money' },
     { header: 'Term (months)', kind: 'int' }, { header: 'Status', kind: 'text' }, { header: 'Sent on', kind: 'date' },
@@ -75,7 +75,7 @@ function ledgerSheet(wb: Workbook, d: MemberExport): void {
   const periods = new Map(d.periods.map((p) => [p.id, p]));
   const originals = d.entries
     .filter((e) => e.source !== 'correction')
-    .sort((a, b) => (periods.get(a.period_id)?.month_index ?? 0) - (periods.get(b.period_id)?.month_index ?? 0) || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+    .sort((a, b) => (periods.get(a.period_id)?.month_index ?? 0) - (periods.get(b.period_id)?.month_index ?? 0) || entryOrder(new Map())(a, b));
   const rows: Cell[][] = originals.flatMap((e) => {
     const fixes = correctionsOf(e.id, d.entries);
     return [

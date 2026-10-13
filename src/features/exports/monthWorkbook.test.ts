@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { expect, test } from 'vitest';
+import { entry } from '@/features/ledger/testFixtures';
 import { FEB_FEE, FEB_MEMBERSHIP, MAR_ENTRIES, MONTHS, PEOPLE, gf, mm, monthExport, readBack, rowsOf, tableOf } from './exportFixtures';
 import { loadExcel } from './loadExcel';
 import { buildMonthWorkbook } from './monthWorkbook';
@@ -118,4 +119,16 @@ test('a month imported from the treasurer’s workbook says so instead of giving
   const lines = rowsOf((await build(d)).getWorksheet('Members')!);
   expect(lines[1]![0]).toBe('Imported from the treasurer’s workbook');
   expect(lines.flat().map(String).join('\n')).not.toContain('Closed on');
+});
+
+test('entries recorded in the same instant (an import) come out grouped by member, not in id order', async () => {
+  const at = '2026-04-01T00:00:00Z';
+  const entries = [
+    entry({ id: 'z1', member_id: 'm1', kind: 'saving', amount: 250, period_id: 'p2', source: 'import', created_at: at }),
+    entry({ id: 'a1', member_id: 'm3', kind: 'saving', amount: 100, period_id: 'p2', source: 'import', created_at: at }),
+    entry({ id: 'm1', member_id: 'm2', kind: 'membership', amount: 30, period_id: 'p2', source: 'import', created_at: at }),
+    entry({ id: 'k1', member_id: 'm2', kind: 'saving', amount: 500, period_id: 'p2', source: 'import', created_at: at }),
+  ];
+  const t = tableOf((await build(monthExport(1, { entries }))).getWorksheet('Entries')!, 'Date');
+  expect(t.body.map((r) => `${t.get(r, 'Member')}:${t.get(r, 'What')}`)).toEqual(['Ann:Savings', 'Ann:Membership', 'Bob:Savings', 'Eve:Savings']);
 });

@@ -1,7 +1,7 @@
 import { sumKwacha } from '@/features/ledger/money';
 import { loadExcel, type Workbook } from './loadExcel';
 import { standpointOf, type MonthRow } from './standpoint';
-import { dayCell, dayText, newSheet, range, sumColumn, toBytes, totalsRow, writeLines, writeTable, type Cell, type Col } from './sheetKit';
+import { dayCell, dayText, loanStatusLabel, newSheet, range, sumColumn, toBytes, totalsRow, writeLines, writeTable, type Cell, type Col } from './sheetKit';
 import type { MemberMonth, MonthFigures, PeriodExport, Person } from './types';
 
 const monthTitle = (m: MonthFigures): string => (m.preview ? `${m.period.label} (preview)` : m.period.label);
@@ -138,7 +138,7 @@ function loansSheet(wb: Workbook, d: PeriodExport): void {
   const labels = new Map(d.periods.map((p) => [p.id, p.label]));
   const rows: Cell[][] = [...d.loans]
     .sort((a, b) => a.sent_at.localeCompare(b.sent_at) || a.id.localeCompare(b.id))
-    .map((l) => [names.get(l.member_id) ?? 'Unknown member', labels.get(l.period_id) ?? '', l.principal, l.interest, l.term_months, l.status, dayCell(l.sent_at)]);
+    .map((l) => [names.get(l.member_id) ?? 'Unknown member', labels.get(l.period_id) ?? '', l.principal, l.interest, l.term_months, loanStatusLabel(l.status), dayCell(l.sent_at)]);
   writeTable(ws, start, [
     { header: 'Name', kind: 'text', width: 16 }, { header: 'Month', kind: 'text', width: 14 }, { header: 'Principal', kind: 'money' },
     { header: 'Interest', kind: 'money' }, { header: 'Term (months)', kind: 'int' }, { header: 'Status', kind: 'text' }, { header: 'Sent on', kind: 'date' },

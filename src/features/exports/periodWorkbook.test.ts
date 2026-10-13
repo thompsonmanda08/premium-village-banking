@@ -107,6 +107,7 @@ test('loans list who borrowed in which month', async () => {
   expect(t.get(t.body[0]!, 'Month')).toBe('Feb 2026');
   expect(t.get(t.body[0]!, 'Principal')).toBe(1000);
   expect(t.get(t.body[0]!, 'Term (months)')).toBe(3);
+  expect(t.get(t.body[0]!, 'Status')).toBe('Open');
 });
 
 test('statements is the long form: a row per member per month, the preview flagged', async () => {

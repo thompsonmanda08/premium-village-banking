@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { expect, test } from 'vitest';
+import { entry } from '@/features/ledger/testFixtures';
 import { BOB_STATUS, MONTHS, PAYOUT, SENTINEL, memberExport, readBack, rowsOf, tableOf } from './exportFixtures';
 import { buildMemberWorkbook } from './memberWorkbook';
 
@@ -75,7 +76,7 @@ test('the loans sheet lists the member’s loans', async () => {
   const t = tableOf((await build()).getWorksheet('Loans')!, 'Month');
   expect(t.body).toHaveLength(1);
   expect(t.get(t.body[0]!, 'Principal')).toBe(1000);
-  expect(t.get(t.body[0]!, 'Status')).toBe('open');
+  expect(t.get(t.body[0]!, 'Status')).toBe('Open');
 });
 
 test('the ledger shows an entry’s current amount and each correction under it: 100 now 80', async () => {
@@ -108,10 +109,24 @@ test('a report made without the open month says so', async () => {
   expect(String(lines[1])).toContain('As at Apr 2026.');
 });
 
+// The builder is handed only this member's data, so this checks what it writes from it (names, the default's reason). The guards that stop other
+// members' data arriving are the loader test and exportMember.privacy.test.ts, which put another member in every table.
 test('nothing of anyone else is in the file: not a name, not a sentinel amount, not the default’s reason', async () => {
   const wb = await build();
   const everything = wb.worksheets.flatMap((w) => rowsOf(w).flat()).map(String).join('\n');
   for (const name of ['Eve', 'Ann', SENTINEL.short_name]) expect(everything).not.toMatch(new RegExp(`\\b${name}\\b`)); // whole words: "Everything" is fine
   for (const other of [SENTINEL.full_name, BOB_STATUS.reason ?? 'unreachable']) expect(everything).not.toContain(other);
   expect(everything).toContain('Bob Example');
+});
+
+test('the ledger lists entries recorded in the same instant (an import) in a readable order, not by id', async () => {
+  const at = '2026-04-01T00:00:00Z';
+  const entries = [
+    entry({ id: 'z1', member_id: 'm3', kind: 'penalty', amount: 5, period_id: 'p2', source: 'import', created_at: at }),
+    entry({ id: 'a1', member_id: 'm3', kind: 'txn_fee', amount: 6, period_id: 'p2', source: 'import', created_at: at }),
+    entry({ id: 'm1', member_id: 'm3', kind: 'saving', amount: 100, period_id: 'p2', source: 'import', created_at: at }),
+    entry({ id: 'k1', member_id: 'm3', kind: 'membership', amount: 30, period_id: 'p2', source: 'import', created_at: at }),
+  ];
+  const t = tableOf((await build(memberExport({ entries }))).getWorksheet('Ledger')!, 'Month');
+  expect(t.body.map((r) => t.get(r, 'What'))).toEqual(['Savings', 'Membership', 'Mobile-money fee', 'Penalty']);
 });

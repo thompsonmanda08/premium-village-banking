@@ -1,7 +1,7 @@
 import { formatDate } from '@/lib/format';
 import { feeFold } from './fees';
 import { loadExcel, type Workbook } from './loadExcel';
-import { dayCell, dayText, kindLabel, newSheet, range, signedAmount, sourceLabel, toBytes, totalsRow, writeLines, writeTable, type Cell, type Col } from './sheetKit';
+import { dayCell, dayText, entryOrder, kindLabel, newSheet, range, signedAmount, sourceLabel, toBytes, totalsRow, writeLines, writeTable, type Cell, type Col } from './sheetKit';
 import type { MonthExport } from './types';
 
 const MEMBER_COLS: Col[] = [
@@ -93,7 +93,7 @@ function entriesSheet(wb: Workbook, d: MonthExport): void {
   const labels = new Map(d.periods.map((p) => [p.id, p.label]));
   const known = new Map([...d.originals, ...d.entries].map((e) => [e.id, e]));
   const rows: Cell[][] = [...d.entries]
-    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+    .sort(entryOrder(names))
     .map((e) => {
       const original = e.corrects_entry_id ? known.get(e.corrects_entry_id) : undefined;
       return [

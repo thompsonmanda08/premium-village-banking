@@ -148,3 +148,9 @@ test('a check-constraint refusal says which details to fix, since a retry cannot
   expect(text).toBe('Some details aren’t valid. Check the name, short name and email.');
   expect(text).not.toBe(GENERIC);
 });
+
+test('export refusals say what is wrong, not “something went wrong”', () => {
+  expect(friendlyError(new Error('nothing_to_export'))).toBe('There is nothing to export yet.');
+  expect(friendlyError(new Error('no_group_statement'))).toBe('This month’s statement is missing, so it can’t be exported.');
+  expect(friendlyError(new Error('not_exportable'))).toBe('Only closed months and the open month can be exported.');
+});

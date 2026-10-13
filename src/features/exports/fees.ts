@@ -1,4 +1,4 @@
-import type { EntryRow } from '@/features/ledger/memberViews';
+import type { ExportEntry } from './types';
 import { sumKwacha } from '@/features/ledger/money';
 
 export type FeeTotals = { txn_fee: number; membership: number };
@@ -10,7 +10,7 @@ const SUBTRACTS = ['waiver', 'adjustment'];
  * kind of the entry it points at, so a fee corrected in April shows in April and March keeps its closing figure.
  * `originals` are the earlier entries the period's corrections point at.
  */
-export function feeFold(periodEntries: EntryRow[], originals: EntryRow[]): Map<string, FeeTotals> {
+export function feeFold(periodEntries: ExportEntry[], originals: ExportEntry[]): Map<string, FeeTotals> {
   const byId = new Map([...originals, ...periodEntries].map((e) => [e.id, e]));
   const parts = new Map<string, { txn_fee: number[]; membership: number[] }>();
   for (const e of periodEntries) {

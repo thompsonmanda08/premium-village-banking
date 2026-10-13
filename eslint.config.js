@@ -32,8 +32,10 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { paths: [{ name: 'exceljs', message: 'Load exceljs only through src/features/exports/loadExcel.ts so it stays a lazy chunk.' }] }],
+      // no-restricted-imports sees static imports only; this catches import('exceljs') too.
+      'no-restricted-syntax': ['error', { selector: "ImportExpression[source.value='exceljs']", message: 'Load exceljs only through src/features/exports/loadExcel.ts so it stays a lazy chunk.' }],
     },
   },
   // The one place allowed to import it: a dynamic import, so the library stays out of the main bundle.
-  { files: ['src/features/exports/loadExcel.ts'], rules: { 'no-restricted-imports': 'off' } },
+  { files: ['src/features/exports/loadExcel.ts'], rules: { 'no-restricted-imports': 'off', 'no-restricted-syntax': 'off' } },
 );

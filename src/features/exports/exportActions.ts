@@ -21,7 +21,10 @@ export async function exportMonth(ctx: ExportContext, period: PeriodRow): Promis
 /** The whole period. A month left out because its preview was refused is reported as a note for the toast. */
 export async function exportPeriod(ctx: ExportContext): Promise<ExportResult> {
   const data = await loadPeriodExport(ctx);
-  if (data.months.length === 0) throw new Error('nothing_to_export');
+  if (data.months.length === 0) {
+    // In a cycle's first month nothing is closed; if the only month is the one whose preview was refused, say why.
+    throw new Error(data.openLeftOut ? 'declarations_pending' : 'nothing_to_export');
+  }
   const bytes = await buildPeriodWorkbook(data);
   return {
     bytes,

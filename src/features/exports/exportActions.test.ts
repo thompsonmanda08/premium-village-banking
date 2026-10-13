@@ -43,7 +43,7 @@ test('a member’s report is named after the member', async () => {
   expect(loaders.loadMemberExport).toHaveBeenCalledWith(ctx, 'm3');
 });
 
-test('a failed load downloads nothing', async () => {
-  loaders.loadMonthExport.mockRejectedValue({ message: 'declarations_pending' });
-  await expect(exportMonth(ctx, PERIODS[3]!)).rejects.toMatchObject({ message: 'declarations_pending' });
+test('with no closed month and the open month’s declarations still waiting, the reason is declarations, not “nothing”', async () => {
+  loaders.loadPeriodExport.mockResolvedValue(periodExport({ months: [], openLeftOut: PERIODS[3]! }));
+  await expect(exportPeriod(ctx)).rejects.toThrow('declarations_pending');
 });

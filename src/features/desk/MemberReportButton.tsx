@@ -16,12 +16,11 @@ export function MemberReportButton({ memberId, memberName }: { memberId: string;
     <Button
       size="sm"
       variant="secondary"
-      aria-label={`Download ${memberName}’s report`}
       isLoading={busy !== null}
       disabled={busy !== null}
       onClick={() => void run('member', () => exportMember(ctx, memberId))}
     >
-      {busy !== null ? 'Preparing…' : 'Download report'}
+      {busy !== null ? 'Preparing…' : `Download ${memberName}’s report`}
     </Button>
   );
 }
