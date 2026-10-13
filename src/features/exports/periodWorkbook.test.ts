@@ -123,3 +123,10 @@ test('with no months at all the file is still valid and says there is nothing ye
   const lines = rowsOf(wb.getWorksheet('Summary')!);
   expect(String(lines[1]![0])).toContain('Nothing to show yet');
 });
+
+test('imported months show where they came from, not the day they were imported', async () => {
+  const months = MONTHS.map((m, i) => (i === 0 ? { ...m, closedOn: null, imported: true } : m));
+  const t = tableOf((await build(periodExport({ months }))).getWorksheet('Summary')!, 'Month');
+  expect(t.get(t.body[0]!, 'Closed on')).toBe('From the workbook');
+  expect((t.get(t.body[1]!, 'Closed on') as Date).toISOString().slice(0, 10)).toBe('2026-04-07');
+});

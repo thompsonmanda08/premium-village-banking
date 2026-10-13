@@ -172,3 +172,12 @@ test('entries of another cycle are not in a member’s export', async () => {
 test('a member who is not in the group is an error, not an empty report', async () => {
   await expect(loadMemberExport(ctx, 'nobody')).rejects.toMatchObject({ code: 'PGRST116' });
 });
+
+test('a month imported from the workbook is marked as imported and carries no close date; a closed one keeps its date', async () => {
+  db.tables.group_statements = [groupStatement('p1', { source: 'import' }), groupStatement('p2'), groupStatement('p3')];
+  const d = await loadPeriodExport(ctx);
+  expect(d.months.slice(0, 3).map((m) => [m.imported, m.closedOn])).toEqual([[true, null], [false, '2026-04-07T10:00:00Z'], [false, '2026-05-07T10:00:00Z']]);
+  expect(d.months[3]!.imported).toBe(false);
+  const one = await loadMonthExport(ctx, periods[0]!);
+  expect(one.figures).toMatchObject({ imported: true, closedOn: null });
+});

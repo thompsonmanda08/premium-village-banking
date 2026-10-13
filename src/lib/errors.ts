@@ -29,6 +29,7 @@ const KNOWN: Record<string, string> = {
   period_not_open: 'That month isn’t open. Pick the current month, or open it first.',
   previous_period_open: 'Close the previous month first.',
   declarations_pending: 'Some declarations are still waiting. Approve or return them first.',
+  app_update_needed: 'A newer version of the app is ready. Reload this page and try again.',
   loans_closed: 'No new loans in the last month of the cycle.',
   insufficient_cash: 'There isn’t enough lending cash for this loan right now.',
   over_cap_needs_reason: 'This loan is over the member’s limit. Add a reason to send it anyway.',

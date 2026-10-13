@@ -96,7 +96,7 @@ async function previewOrLeftOut(open: PeriodRow | null): Promise<{ preview: Clos
 }
 
 const previewFigures = (open: PeriodRow, p: ClosePreview): MonthFigures => ({
-  period: open, closedOn: null, preview: true, group: groupFigures(p.group), members: p.members.map((m) => memberMonth(m)),
+  period: open, closedOn: null, imported: false, preview: true, group: groupFigures(p.group), members: p.members.map((m) => memberMonth(m)),
 });
 
 /** The label of the month the payout preview is worked from: the open month, else the last closed one. */
@@ -108,7 +108,8 @@ async function closedMonth(period: PeriodRow): Promise<MonthFigures> {
   const [statements, groups, closedAt] = await Promise.all([readStatements([period.id]), readGroupStatements([period.id]), readClosedAt([period.id])]);
   const g = groups[0];
   if (!g) throw new Error('no_group_statement');
-  return { period, closedOn: closedAt.get(period.id) ?? null, preview: false, group: groupFigures(g), members: statements.map((s) => memberMonth(s)) };
+  const imported = g.source === 'import';
+  return { period, closedOn: imported ? null : (closedAt.get(period.id) ?? null), imported, preview: false, group: groupFigures(g), members: statements.map((s) => memberMonth(s)) };
 }
 
 export async function loadMonthExport(ctx: ExportContext, period: PeriodRow): Promise<MonthExport> {
@@ -139,8 +140,9 @@ export async function loadPeriodExport(ctx: ExportContext): Promise<PeriodExport
   const months: MonthFigures[] = closed.map((period) => {
     const g = groups.find((x) => x.period_id === period.id);
     if (!g) throw new Error('no_group_statement');
+    const imported = g.source === 'import';
     return {
-      period, closedOn: closedAt.get(period.id) ?? null, preview: false, group: groupFigures(g),
+      period, closedOn: imported ? null : (closedAt.get(period.id) ?? null), imported, preview: false, group: groupFigures(g),
       members: statements.filter((s) => s.period_id === period.id).map((s) => memberMonth(s)),
     };
   });

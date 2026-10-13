@@ -25,7 +25,7 @@ export const gf = (o: Partial<GroupFigures> = {}): GroupFigures => ({
 
 const CLOSED_ON = ['2026-03-07T10:00:00Z', '2026-04-07T10:00:00Z', '2026-05-07T10:00:00Z'];
 const figures = (i: number, members: MemberMonth[], group: Partial<GroupFigures>): MonthFigures => ({
-  period: PERIODS[i]!, closedOn: CLOSED_ON[i] ?? null, preview: i === 3, group: gf(group), members,
+  period: PERIODS[i]!, closedOn: CLOSED_ON[i] ?? null, imported: false, preview: i === 3, group: gf(group), members,
 });
 
 // Eve m1, Ann m2, Bob m3. Bob borrows 1,000 (+150 interest) in February, is short by 100 in April and pays a penalty of 100.

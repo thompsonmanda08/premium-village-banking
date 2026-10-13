@@ -19,8 +19,11 @@ export type MemberMonth = {
   interest_earned: number; interest_earned_to_date: number;
 };
 
-/** A closed month, or the open month as a preview (always last, `preview` true, `closedOn` null). */
-export type MonthFigures = { period: PeriodRow; closedOn: string | null; preview: boolean; group: GroupFigures; members: MemberMonth[] };
+/**
+ * A closed month, or the open month as a preview (always last, `preview` true, `closedOn` null). A month loaded from the treasurer's
+ * workbook is `imported` with no `closedOn`: the date it was closed in the database is the import date, which would mislead.
+ */
+export type MonthFigures = { period: PeriodRow; closedOn: string | null; imported: boolean; preview: boolean; group: GroupFigures; members: MemberMonth[] };
 
 /** The only member fields ever read: no e-mail, phone or account id. */
 export type Person = { id: string; short_name: string; full_name: string; status: string };

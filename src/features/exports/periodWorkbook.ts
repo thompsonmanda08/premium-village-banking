@@ -62,7 +62,7 @@ function summarySheet(wb: Workbook, d: PeriodExport): void {
   const ws = newSheet(wb, 'Summary');
   const start = writeLines(ws, heading(d, 'summary'));
   const rows: Cell[][] = d.months.map((m) => [
-    monthTitle(m), m.preview ? 'Open: preview' : m.closedOn ? dayCell(m.closedOn) : null,
+    monthTitle(m), m.preview ? 'Open: preview' : m.imported ? 'From the workbook' : m.closedOn ? dayCell(m.closedOn) : null,
     m.group.savings, m.group.received, m.group.loans_sent, m.group.interest_collected, m.group.fee_pot_in, m.group.fee_pot_out,
     m.group.fee_pot_balance, m.group.meeting_pot_in, m.group.meeting_pot_balance, m.group.idle_cash, m.group.total_savings, m.group.total_owed,
   ]);

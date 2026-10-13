@@ -112,3 +112,10 @@ test('a reason that looks like a formula is written as plain text', async () => 
   expect(cell.value).toBe('=HYPERLINK("http://example.test","click")');
   expect(cell.type).toBe(ValueType.String);
 });
+
+test('a month imported from the treasurer’s workbook says so instead of giving a close date', async () => {
+  const d = monthExport(1, { figures: { ...MONTHS[1]!, closedOn: null, imported: true } });
+  const lines = rowsOf((await build(d)).getWorksheet('Members')!);
+  expect(lines[1]![0]).toBe('Imported from the treasurer’s workbook');
+  expect(lines.flat().map(String).join('\n')).not.toContain('Closed on');
+});

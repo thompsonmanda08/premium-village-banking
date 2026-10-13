@@ -42,13 +42,15 @@ const ENTRY_COLS: Col[] = [
 const title = (d: MonthExport): string => `${d.groupName}: ${d.figures.period.label}${d.figures.preview ? ' (preview)' : ''}`;
 
 function membersSheet(wb: Workbook, d: MonthExport): void {
-  const { period, closedOn, preview, members } = d.figures;
+  const { period, closedOn, imported, preview, members } = d.figures;
   const ws = newSheet(wb, 'Members');
   const status = preview
     ? `PREVIEW: ${period.label} is still open, so these figures can change until it is closed.`
-    : closedOn
-      ? `Closed on ${dayText(closedOn)}`
-      : 'Closed';
+    : imported
+      ? 'Imported from the treasurer’s workbook'
+      : closedOn
+        ? `Closed on ${dayText(closedOn)}`
+        : 'Closed';
   const start = writeLines(ws, [title(d), status, `Cycle ${d.cycleLabel}. Deadline ${formatDate(period.deadline)}. Generated ${dayText(d.generatedOn.toISOString())}. A negative figure is a credit.`]);
   const names = new Map(d.people.map((p) => [p.id, p.short_name]));
   const fees = feeFold(d.entries, d.originals);
