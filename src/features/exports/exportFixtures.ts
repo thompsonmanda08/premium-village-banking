@@ -1,8 +1,8 @@
 import type { PayoutRow } from '@/features/ledger/memberViews';
-import { entry, loan, year } from '@/features/ledger/testFixtures';
+import { entry, loan, memberStatus, year } from '@/features/ledger/testFixtures';
 import { loadExcel, type Worksheet } from './loadExcel';
 import type { Cell } from './sheetKit';
-import type { GroupFigures, MemberMonth, MonthExport, MonthFigures, Person } from './types';
+import type { GroupFigures, MemberMonth, MonthExport, MonthFigures, PeriodExport, Person } from './types';
 
 // Feb, Mar and Apr are closed (p1..p3), May is open (p4). Synthetic people and amounts only.
 export const PERIODS = year(3, 'open');
@@ -74,6 +74,17 @@ export const MAR_ENTRIES = [
 export const monthExport = (i: number, o: Partial<MonthExport> = {}): MonthExport => ({
   groupName: 'Test Group', cycleLabel: 'Cycle 2026', generatedOn: new Date('2026-10-13T08:00:00Z'),
   figures: MONTHS[i]!, minimumDue: {}, people: PEOPLE, periods: PERIODS, entries: [], originals: [], ...o,
+});
+
+export const NEW_MEMBER: Person = { id: 'm4', short_name: 'Cy', full_name: 'Cy Example', status: 'active' };
+
+// Bob is defaulted; the reason is a treasurer's note and must never reach a file.
+export const BOB_STATUS = memberStatus({ member_id: 'm3', defaulted: true, reason: 'Missed three months' });
+
+export const periodExport = (o: Partial<PeriodExport> = {}): PeriodExport => ({
+  groupName: 'Test Group', cycleLabel: 'Cycle 2026', generatedOn: new Date('2026-10-13T08:00:00Z'),
+  months: MONTHS, openLeftOut: null, payoutAsAt: 'May 2026', people: PEOPLE, periods: PERIODS, loans: [LOAN],
+  statuses: [BOB_STATUS], payout: PAYOUT, ...o,
 });
 
 /** Reads a generated file back the way Excel would. */
