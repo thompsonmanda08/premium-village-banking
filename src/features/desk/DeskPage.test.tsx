@@ -132,3 +132,12 @@ test('the Desk links to the members’ ledgers, with a month open or not', () =>
   renderLedger(<DeskPage />, { isAdmin: true });
   expect(screen.getByRole('link', { name: 'Open members' })).toHaveAttribute('href', '/desk/members');
 });
+
+test('the Desk links to the reports, with a month open or not', () => {
+  const { unmount } = renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByRole('link', { name: 'Open reports' })).toHaveAttribute('href', '/desk/reports');
+  unmount();
+  hooks.cycle.mockReturnValue(ok({ cycle: { id: 'c1', label: 'Cycle 2026' }, periods: year(8) }));
+  renderLedger(<DeskPage />, { isAdmin: true });
+  expect(screen.getByRole('link', { name: 'Open reports' })).toHaveAttribute('href', '/desk/reports');
+});

@@ -39,20 +39,12 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/manifest\.webmanifest$/, /^\/sw\.js$/, /^\/workbox-/],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Inter ships one woff2 per script; precache Latin only. The rest still load on demand when online (unicode-range).
-        globIgnores: ['**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese,latin-ext}-wght-normal-*.woff2', '**/exceljs-*.js'],
+        globIgnores: ['**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese,latin-ext}-wght-normal-*.woff2', '**/exceljs*.js'],
         cleanupOutdatedCaches: true,
       },
     }),
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  build: {
-    rollupOptions: {
-      output: {
-        // ExcelJS (about 1 MB) is needed only when the treasurer exports: its own chunk, which the precache below leaves out.
-        manualChunks: (id: string) => (id.includes('/node_modules/exceljs/') ? 'exceljs' : undefined),
-      },
-    },
-  },
   server: { port: 3000 },
   preview: {
     headers: {

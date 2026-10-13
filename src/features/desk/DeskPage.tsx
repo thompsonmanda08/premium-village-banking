@@ -90,6 +90,20 @@ function DeskBody() {
           }
         />
       </Card>
+      <Card>
+        <CardHeader
+          title="Reports"
+          subtitle="Download the month, the whole period or one member’s report as Excel files."
+          action={
+            <Link
+              to="/desk/reports"
+              className="inline-flex h-12 items-center rounded-xl px-5 font-semibold text-accent underline transition duration-150 hover:bg-surface-2 active:scale-[.97]"
+            >
+              Open reports
+            </Link>
+          }
+        />
+      </Card>
     </div>
   );
 }

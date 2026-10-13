@@ -12,6 +12,7 @@ import { formatDate, money } from '@/lib/format';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Skeleton, type Tone } from '@/ui';
 import { CorrectEntrySheet } from './CorrectEntrySheet';
 import { DefaultPanel } from './DefaultPanel';
+import { MemberReportButton } from './MemberReportButton';
 import { WaiveEntrySheet } from './WaiveEntrySheet';
 
 const BADGE: Record<KindTone, Tone> = { in: 'success', charged: 'warning', earned: 'accent', correction: 'info', other: 'neutral' };
@@ -142,7 +143,12 @@ function MemberLedgerHeader() {
       <PageHeader
         title={member?.full_name ?? member?.short_name ?? 'Member ledger'}
         subtitle="Entries, corrections and default status"
-        actions={<Link to="/desk/members" className={link}>All members</Link>}
+        actions={
+          <>
+            {member ? <MemberReportButton memberId={memberId} memberName={member.short_name ?? member.full_name ?? 'this member'} /> : null}
+            <Link to="/desk/members" className={link}>All members</Link>
+          </>
+        }
       />
       <MemberLedgerBody />
     </>

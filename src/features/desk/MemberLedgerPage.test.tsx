@@ -8,6 +8,8 @@ const hooks = vi.hoisted(() => ({ members: vi.fn(), cycle: vi.fn(), entries: vi.
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }));
 vi.mock('react-router', async (orig) => ({ ...(await orig<typeof import('react-router')>()), useParams: () => ({ memberId: 'm1' }) }));
 vi.mock('@/features/group/GroupPage', () => ({ useGroupMembers: () => hooks.members() }));
+vi.mock('@/features/exports/exportActions', () => ({ exportMember: vi.fn() }));
+vi.mock('@/features/exports/download', () => ({ downloadBytes: vi.fn() }));
 vi.mock('@/features/ledger/queries', async (orig) => ({
   ...(await orig<typeof import('@/features/ledger/queries')>()),
   useLedgerCycle: () => hooks.cycle(),
@@ -159,4 +161,9 @@ test('the default panel names who last changed the status when it can', () => {
   hooks.actors.mockReturnValue(ok([{ user_id: 'u7', short_name: 'Ann' }]));
   renderPage();
   expect(screen.getByText('Changed 8 Oct 2026 by Ann: Missed three months')).toBeInTheDocument();
+});
+
+test('the member’s page offers their report', () => {
+  renderPage();
+  expect(screen.getByRole('button', { name: 'Download Eve’s report' })).toBeInTheDocument();
 });
