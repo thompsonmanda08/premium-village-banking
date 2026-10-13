@@ -27,11 +27,13 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   { files: ['scripts/**/*.mjs', '*.config.{js,ts}', 'public/**/*.js'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
-  // Workbook parsing is a local script (scripts/ledger-*.mjs); it must never reach the browser bundle.
+  // Workbook parsing is a local script (scripts/ledger-*.mjs); the browser loads exceljs only lazily, through src/features/exports/loadExcel.ts.
   {
     files: ['src/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': ['error', { paths: [{ name: 'exceljs', message: 'exceljs is for the local ledger scripts only.' }] }],
+      'no-restricted-imports': ['error', { paths: [{ name: 'exceljs', message: 'Load exceljs only through src/features/exports/loadExcel.ts so it stays a lazy chunk.' }] }],
     },
   },
+  // The one place allowed to import it: a dynamic import, so the library stays out of the main bundle.
+  { files: ['src/features/exports/loadExcel.ts'], rules: { 'no-restricted-imports': 'off' } },
 );
