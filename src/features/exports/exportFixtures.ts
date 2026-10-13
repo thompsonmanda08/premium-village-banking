@@ -2,7 +2,7 @@ import type { PayoutRow } from '@/features/ledger/memberViews';
 import { entry, loan, memberStatus, year } from '@/features/ledger/testFixtures';
 import { loadExcel, type Worksheet } from './loadExcel';
 import type { Cell } from './sheetKit';
-import type { GroupFigures, MemberMonth, MonthExport, MonthFigures, PeriodExport, Person } from './types';
+import type { GroupFigures, MemberExport, MemberMonth, MonthExport, MonthFigures, PeriodExport, Person } from './types';
 
 // Feb, Mar and Apr are closed (p1..p3), May is open (p4). Synthetic people and amounts only.
 export const PERIODS = year(3, 'open');
@@ -85,6 +85,28 @@ export const periodExport = (o: Partial<PeriodExport> = {}): PeriodExport => ({
   groupName: 'Test Group', cycleLabel: 'Cycle 2026', generatedOn: new Date('2026-10-13T08:00:00Z'),
   months: MONTHS, openLeftOut: null, payoutAsAt: 'May 2026', people: PEOPLE, periods: PERIODS, loans: [LOAN],
   statuses: [BOB_STATUS], payout: PAYOUT, ...o,
+});
+
+// Bob's entries: the penalty scenario shared with supabase/tests/database/19_correction_parity.sql (100, waive 30, +20, -10: 80 now) and a saving.
+export const BOB_ENTRIES = [
+  entry({ id: 'e1', member_id: 'm3', kind: 'penalty', amount: 100, period_id: 'p3', source: 'app', reason: 'other: Missed the meeting', created_at: '2026-04-05T08:00:00Z' }),
+  entry({ id: 'c1', member_id: 'm3', kind: 'waiver', amount: 30, period_id: 'p4', source: 'correction', corrects_entry_id: 'e1', reason: 'Slip found', created_at: '2026-05-08T08:00:00Z' }),
+  entry({ id: 'c2', member_id: 'm3', kind: 'penalty', amount: 20, period_id: 'p4', source: 'correction', corrects_entry_id: 'e1', reason: 'Treasurer raised it', created_at: '2026-05-08T08:01:00Z' }),
+  entry({ id: 'c3', member_id: 'm3', kind: 'adjustment', amount: 10, period_id: 'p4', source: 'correction', corrects_entry_id: 'e1', reason: 'Settled on 80', created_at: '2026-05-08T08:02:00Z' }),
+  entry({ id: 'e2', member_id: 'm3', kind: 'saving', amount: 100, period_id: 'p2', source: 'import', created_at: '2026-04-01T00:00:00Z' }),
+];
+
+// A member who must never appear in Bob's file.
+export const SENTINEL: Person = { id: 'm9', short_name: 'Zed', full_name: 'Zed Sentinel', status: 'active' };
+
+export const memberExport = (o: Partial<MemberExport> = {}): MemberExport => ({
+  groupName: 'Test Group', cycleLabel: 'Cycle 2026', generatedOn: new Date('2026-10-13T08:00:00Z'),
+  person: PEOPLE[2]!,
+  months: MONTHS.flatMap((m) => {
+    const row = m.members.find((x) => x.member_id === 'm3');
+    return row ? [{ period: m.period, closedOn: m.closedOn, preview: m.preview, row }] : [];
+  }),
+  openLeftOut: null, payoutAsAt: 'May 2026', periods: PERIODS, loans: [LOAN], status: BOB_STATUS, payout: PAYOUT[2]!, entries: BOB_ENTRIES, ...o,
 });
 
 /** Reads a generated file back the way Excel would. */
