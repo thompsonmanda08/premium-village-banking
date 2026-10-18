@@ -38,7 +38,7 @@ export const cycleMonths = (statuses: PeriodRow['status'][]): PeriodRow[] =>
 export const year = (closed: number, next: PeriodRow['status'] = 'planned'): PeriodRow[] =>
   cycleMonths(Array.from({ length: 12 }, (_, i): PeriodRow['status'] => (i < closed ? 'closed' : i === closed ? next : 'planned')));
 
-export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member?: MemberRow | null } = {}) {
+export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member?: MemberRow | null; visibility?: GroupRow['figures_visibility'] } = {}) {
   const member = opts.member === undefined ? MEMBER : opts.member;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   // A wrapper (not wrapped JSX) so `rerender(<Page />)` keeps the providers and the same client.
@@ -46,7 +46,7 @@ export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member
     <QueryClientProvider client={client}>
       <ToastProvider>
         <MemoryRouter>
-          <GroupProvider value={{ group: GROUP, member, isAdmin: opts.isAdmin ?? false }}>{children}</GroupProvider>
+          <GroupProvider value={{ group: opts.visibility ? { ...GROUP, figures_visibility: opts.visibility } : GROUP, member, isAdmin: opts.isAdmin ?? false }}>{children}</GroupProvider>
         </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>
