@@ -14,7 +14,7 @@ export type MonthStat = {
   period: PeriodRow; label: string;
   saved: number; cum: number; loans: number; owed: number; idle: number; use: number; excessBilled: number; interestCollected: number;
   /** Member-level fields are null when member statements are not available to the viewer. */
-  savers: number | null; minDue: number | null; minMet: number | null; metPct: number | null;
+  count: number | null; savers: number | null; minDue: number | null; minMet: number | null; metPct: number | null;
 };
 
 export type MemberStat = {
@@ -48,13 +48,13 @@ export function monthStats(periods: PeriodRow[], groupRows: GroupStatementRow[],
       period: p, label: p.label, saved: g.savings, cum: g.total_savings, loans: g.loans_sent, owed: g.total_owed, idle: g.idle_cash,
       use: g.total_owed + g.idle_cash > 0 ? g.total_owed / (g.total_owed + g.idle_cash) : 0, excessBilled: g.excess_billed, interestCollected: g.interest_collected,
     };
-    if (!statements) return [{ ...base, savers: null, minDue: null, minMet: null, metPct: null }];
+    if (!statements) return [{ ...base, count: null, savers: null, minDue: null, minMet: null, metPct: null }];
     const now = byPeriod.get(p.id) ?? [];
     const before = i > 0 ? (byPeriod.get(closed[i - 1]!.id) ?? []) : [];
     const owedLastMonth = new Set(before.filter((s) => s.next_minimum > 0).map((s) => s.member_id));
     const due = now.filter((s) => owedLastMonth.has(s.member_id));
     const met = due.filter((s) => s.unpaid_minimum === 0).length;
-    return [{ ...base, savers: now.filter((s) => s.saving >= minSaving).length, minDue: due.length, minMet: met, metPct: due.length > 0 ? met / due.length : null }];
+    return [{ ...base, count: now.length, savers: now.filter((s) => s.saving >= minSaving).length, minDue: due.length, minMet: met, metPct: due.length > 0 ? met / due.length : null }];
   });
 }
 
@@ -134,11 +134,12 @@ export function healthIndicators({ months, members, atRisk, minSaving }: { month
       key: 'atRisk', label: 'Balances at risk', value: atRiskShare, target: TARGETS.atRisk.text, status: lower(atRiskShare, TARGETS.atRisk),
       say: atRisk.length === 0 ? 'Nobody has missed the last two statements.' : `${atRisk.length} ${plural(atRisk.length, 'member', 'members')} paid nothing on the last two statements. Together they owe ${money(owedByRisk)}.`,
     });
-    if (last.savers !== null && members.length > 0) {
-      const share = last.savers / members.length;
+    const asked = last.count ?? members.length; // that month's members; today's roster when the count is not known
+    if (last.savers !== null && asked > 0) {
+      const share = last.savers / asked;
       indicators.push({
         key: 'savers', label: `Saving at least ${money(minSaving)}`, value: share, target: TARGETS.savers.text, status: higher(share, TARGETS.savers),
-        say: `${last.savers} of ${members.length} members met the ${money(minSaving)} minimum in ${last.label}.`,
+        say: `${last.savers} of ${asked} members met the ${money(minSaving)} minimum in ${last.label}.`,
       });
     }
   }
