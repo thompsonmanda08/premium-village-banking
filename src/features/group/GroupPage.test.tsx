@@ -9,6 +9,7 @@ const membersQuery = vi.fn();
 vi.mock('@/lib/supabase', () => ({
   supabase: { from: () => ({ select: () => ({ eq: () => ({ order: () => membersQuery() }) }) }) },
 }));
+vi.mock('./GroupReport', () => ({ GroupReport: ({ people }: { people: unknown[] }) => <p>Group report for {people.length} active members</p> }));
 const { GroupPage } = await import('./GroupPage');
 
 const GROUP: GroupRow = { id: 'g1', name: 'Premium Village Banking', currency: 'ZMW', owner_user_id: 'x', figures_visibility: 'open' };
@@ -100,4 +101,16 @@ test('a failed background refetch keeps the list on screen', async () => {
   await act(() => new Promise((r) => setTimeout(r, 0))); // observers are notified on the next tick
   expect(screen.getByText('Sapi Mulimbika')).toBeInTheDocument();
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('the group report sits above the member list and is given the active members only', async () => {
+  membersQuery.mockResolvedValue({ data: ROWS, error: null });
+  renderGroup();
+  expect(await screen.findByText('Group report for 2 active members')).toBeInTheDocument();
+});
+
+test('the group report waits for the member list', () => {
+  membersQuery.mockReturnValue(new Promise(() => {}));
+  renderGroup();
+  expect(screen.queryByText(/Group report for/)).toBeNull();
 });

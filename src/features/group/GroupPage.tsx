@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { RefreshCw, Users } from 'lucide-react';
 import { PullToRefresh } from '@/app/PullToRefresh';
 import { friendlyError } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import { Alert, Avatar, Badge, Button, Card, EmptyState, IconButton, PageHeader, Skeleton } from '@/ui';
+import { activeMembers } from '@/features/ledger/model';
 import { useGroup } from './GroupContext';
+import { GroupReport } from './GroupReport';
 
 export function useGroupMembers(groupId: string) {
   return useQuery({
@@ -23,6 +26,7 @@ export function GroupPage() {
   const { data } = members;
   const active = data?.filter((m) => m.status === 'active') ?? [];
   const refetch = () => void members.refetch();
+  const people = useMemo(() => activeMembers(data ?? []), [data]);
 
   return (
     <PullToRefresh onRefresh={() => members.refetch()}>
@@ -44,6 +48,7 @@ export function GroupPage() {
           ? 'Everyone in the group can see each member’s figures.'
           : 'Members see only their own figures. Group totals are shared with everyone.'}
       </p>
+      {data !== undefined ? <div className="mb-6"><GroupReport people={people} /></div> : null}
       {data === undefined ? (
         // Data wins over a failed background refetch: the error state is only for when there is nothing to show.
         members.isError ? (
