@@ -177,6 +177,18 @@ isOneToOne: false
       referencedColumns: ["id","group_id"]
     }
                   ]
+                },"expenses": {
+                  Row: {
+                    "amount": number,"created_at": string,"created_by": string | null,"cycle_id": string,"group_id": string,"id": string,"note": string,"pot": string,"spent_on": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"created_at"?: string,"created_by"?: string | null,"cycle_id": string,"group_id": string,"id"?: string,"note": string,"pot": string,"spent_on": string
+                  }
+                  Update: {
+                    "amount"?: number,"created_at"?: string,"created_by"?: string | null,"cycle_id"?: string,"group_id"?: string,"id"?: string,"note"?: string,"pot"?: string,"spent_on"?: string
+                  }
+                  Relationships: []
                 },"group_statements": {
                   Row: {
                     "created_at": string,"excess_billed": number,"excess_rate": number,"fee_pot_balance": number,"fee_pot_in": number,"fee_pot_out": number,"group_id": string,"id": string,"idle_cash": number,"interest_collected": number,"loans_sent": number,"meeting_pot_balance": number,"meeting_pot_in": number,"opening_cash": number,"period_id": string,"received": number,"savings": number,"source": string,"total_owed": number,"total_savings": number
@@ -283,14 +295,14 @@ isOneToOne: false
                   ]
                 },"loans": {
                   Row: {
-                    "approved_reason": string | null,"arrears_warning": string | null,"cap_warning": string | null,"created_at": string,"group_id": string,"id": string,"interest": number,"member_id": string,"period_id": string,"principal": number,"sent_at": string,"status": string,"term_months": number,"wallet_id": string | null
+                    "approved_reason": string | null,"arrears_warning": string | null,"cap_warning": string | null,"created_at": string,"group_id": string,"id": string,"interest": number,"member_id": string,"period_id": string,"principal": number,"purpose": string | null,"sent_at": string,"status": string,"term_months": number,"wallet_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_reason"?: string | null,"arrears_warning"?: string | null,"cap_warning"?: string | null,"created_at"?: string,"group_id": string,"id"?: string,"interest": number,"member_id": string,"period_id": string,"principal": number,"sent_at"?: string,"status"?: string,"term_months": number,"wallet_id"?: string | null
+                    "approved_reason"?: string | null,"arrears_warning"?: string | null,"cap_warning"?: string | null,"created_at"?: string,"group_id": string,"id"?: string,"interest": number,"member_id": string,"period_id": string,"principal": number,"purpose": string | null,"sent_at"?: string,"status"?: string,"term_months": number,"wallet_id"?: string | null
                   }
                   Update: {
-                    "approved_reason"?: string | null,"arrears_warning"?: string | null,"cap_warning"?: string | null,"created_at"?: string,"group_id"?: string,"id"?: string,"interest"?: number,"member_id"?: string,"period_id"?: string,"principal"?: number,"sent_at"?: string,"status"?: string,"term_months"?: number,"wallet_id"?: string | null
+                    "approved_reason"?: string | null,"arrears_warning"?: string | null,"cap_warning"?: string | null,"created_at"?: string,"group_id"?: string,"id"?: string,"interest"?: number,"member_id"?: string,"period_id"?: string,"principal"?: number,"purpose"?: string | null,"sent_at"?: string,"status"?: string,"term_months"?: number,"wallet_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -365,14 +377,14 @@ isOneToOne: false
                   ]
                 },"members": {
                   Row: {
-                    "created_at": string,"email": string | null,"full_name": string,"group_id": string,"id": string,"joined_on": string,"phone": string | null,"role": string,"short_name": string,"status": string,"user_id": string | null
+                    "created_at": string,"email": string | null,"full_name": string,"group_id": string,"id": string,"joined_on": string,"phone": string | null,"position": string | null,"role": string,"short_name": string,"status": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"email"?: string | null,"full_name": string,"group_id": string,"id"?: string,"joined_on"?: string,"phone"?: string | null,"role"?: string,"short_name": string,"status"?: string,"user_id"?: string | null
+                    "created_at"?: string,"email"?: string | null,"full_name": string,"group_id": string,"id"?: string,"joined_on"?: string,"phone"?: string | null,"position"?: string | null,"role"?: string,"short_name": string,"status"?: string,"user_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string | null,"full_name"?: string,"group_id"?: string,"id"?: string,"joined_on"?: string,"phone"?: string | null,"role"?: string,"short_name"?: string,"status"?: string,"user_id"?: string | null
+                    "created_at"?: string,"email"?: string | null,"full_name"?: string,"group_id"?: string,"id"?: string,"joined_on"?: string,"phone"?: string | null,"position"?: string | null,"role"?: string,"short_name"?: string,"status"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -522,14 +534,14 @@ isOneToOne: false
           Views: {
             "group_members": {
                   Row: {
-                    "full_name": string | null,"group_id": string | null,"id": string | null,"linked": boolean | null,"role": string | null,"short_name": string | null,"status": string | null
+                    "full_name": string | null,"group_id": string | null,"id": string | null,"linked": boolean | null,"position": string | null,"role": string | null,"short_name": string | null,"status": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                           "full_name"?: string | null,"group_id"?: string | null,"id"?: string | null,"linked"?: never,"role"?: string | null,"short_name"?: string | null,"status"?: string | null
+                           "full_name"?: string | null,"group_id"?: string | null,"id"?: string | null,"linked"?: never,"position"?: string | null,"role"?: string | null,"short_name"?: string | null,"status"?: string | null
                          }
                         Update: {
-                           "full_name"?: string | null,"group_id"?: string | null,"id"?: string | null,"linked"?: never,"role"?: string | null,"short_name"?: string | null,"status"?: string | null
+                           "full_name"?: string | null,"group_id"?: string | null,"id"?: string | null,"linked"?: never,"position"?: string | null,"role"?: string | null,"short_name"?: string | null,"status"?: string | null
                          }
                         Relationships: [
                     {
@@ -660,6 +672,26 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"lending_by_purpose":
+{ Args: { "p_cycle": string }; Returns: {
+              "loans": number,"principal": number,"purpose": string
+            }[]
+                           },
+"pot_balances":
+{ Args: { "p_cycle": string }; Returns: {
+              "collected": number,"pot": string,"remaining": number,"spent": number
+            }[]
+                           },
+"record_expense":
+{ Args: { "p_amount": number,"p_cycle": string,"p_note": string,"p_pot": string,"p_spent_on": string }; Returns: {
+              "amount": number,"created_at": string,"created_by": string | null,"cycle_id": string,"group_id": string,"id": string,"note": string,"pot": string,"spent_on": string
+            }
+                           },
+"set_loan_purpose":
+{ Args: { "p_loan": string,"p_purpose": string }; Returns: {
+              "approved_reason": string | null,"arrears_warning": string | null,"cap_warning": string | null,"created_at": string,"group_id": string,"id": string,"interest": number,"member_id": string,"period_id": string,"principal": number,"purpose": string | null,"sent_at": string,"status": string,"term_months": number,"wallet_id": string | null
+            }
+                           },
 "payout_preview":
 { Args: { "p_cycle": string }; Returns: {
               "interest_earned": number,"member_id": string,"owed": number,"payout": number,"pot_share": number,"savings": number,"short_name": string

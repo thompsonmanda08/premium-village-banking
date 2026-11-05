@@ -93,6 +93,9 @@ export function useRefreshLedger(groupId: string) {
       qc.invalidateQueries({ queryKey: ['entries'] }),
       qc.invalidateQueries({ queryKey: ['loans'] }),
       qc.invalidateQueries({ queryKey: ['payout-preview'] }),
+      qc.invalidateQueries({ queryKey: ['pots'] }),
+      qc.invalidateQueries({ queryKey: ['expenses'] }),
+      qc.invalidateQueries({ queryKey: ['lending-purpose'] }),
       qc.invalidateQueries({ queryKey: ['minimum-payable'] }),
       qc.invalidateQueries({ queryKey: ['member-statuses', groupId] }),
       qc.invalidateQueries({ queryKey: ['group-statements'] }),
@@ -375,6 +378,47 @@ export function useCycleRules(cycleId: string | undefined) {
     enabled: Boolean(cycleId),
     queryFn: async (): Promise<CycleRules | null> => {
       const { data, error } = await supabase.from('cycle_rules').select('min_saving, loan_rate, excess_rate, loan_multiples, membership_fee').eq('cycle_id', cycleId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export type PurposeRow = { purpose: string; loans: number; principal: number };
+/** What the group lends for: totals only, readable by every member. */
+export function useLendingByPurpose(cycleId: string | undefined) {
+  return useQuery({
+    queryKey: ['lending-purpose', cycleId],
+    enabled: Boolean(cycleId),
+    queryFn: async (): Promise<PurposeRow[]> => {
+      const { data, error } = await supabase.rpc('lending_by_purpose', { p_cycle: cycleId! });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export type PotRow = { pot: string; collected: number; spent: number; remaining: number };
+/** The hosting pot and the fee pot: collected, spent and left. */
+export function usePots(cycleId: string | undefined) {
+  return useQuery({
+    queryKey: ['pots', cycleId],
+    enabled: Boolean(cycleId),
+    queryFn: async (): Promise<PotRow[]> => {
+      const { data, error } = await supabase.rpc('pot_balances', { p_cycle: cycleId! });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** What has been spent from the pots this cycle, newest first. */
+export function useExpenses(cycleId: string | undefined) {
+  return useQuery({
+    queryKey: ['expenses', cycleId],
+    enabled: Boolean(cycleId),
+    queryFn: async (): Promise<Tables<'expenses'>[]> => {
+      const { data, error } = await supabase.from('expenses').select('*').eq('cycle_id', cycleId!).order('spent_on', { ascending: false }).order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },

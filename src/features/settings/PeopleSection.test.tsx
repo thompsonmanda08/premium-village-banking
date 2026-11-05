@@ -152,7 +152,7 @@ test('editing: valid details are saved with a trimmed, nullable email', async ()
   const row = await renderPeople([PLAIN]);
   await userEvent.type(row().getByLabelText('Email'), ' tafara@example.com ');
   await userEvent.click(row().getByRole('button', { name: 'Save details' }));
-  expect(update).toHaveBeenCalledWith({ full_name: 'Tafara Moyo', short_name: 'Tafara', email: 'tafara@example.com', phone: null });
+  expect(update).toHaveBeenCalledWith({ full_name: 'Tafara Moyo', short_name: 'Tafara', email: 'tafara@example.com', phone: null, position: null });
   expect(await screen.findByText('Details saved')).toBeInTheDocument();
 });
 
@@ -201,4 +201,11 @@ test('adding: the short name defaults to the first name', async () => {
   await userEvent.click(add.getByRole('button', { name: 'Add member' }));
   expect(insert).toHaveBeenCalledWith({ group_id: 'g1', full_name: 'Test Person', short_name: 'Test' });
   expect(await screen.findByText('Member added')).toBeInTheDocument();
+});
+
+test('editing: a committee position is saved with the details', async () => {
+  const row = await renderPeople([PLAIN]);
+  await userEvent.selectOptions(row().getByLabelText('Position in the group'), 'treasurer');
+  await userEvent.click(row().getByRole('button', { name: 'Save details' }));
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ position: 'treasurer' }));
 });

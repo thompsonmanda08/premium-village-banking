@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { compactKwacha, percent } from '@/features/charts/format';
-import { RankedBars } from '@/features/charts/RankedBars';
 import { SeriesChart } from '@/features/charts/SeriesChart';
 import { useGroup } from '@/features/group/GroupContext';
+import { purposeLabel } from './labels';
+import { RankedBars } from '@/features/charts/RankedBars';
 import { atRiskIds, closedPeriods, followUp, healthIndicators, memberStats, monthStats, type Person, type Status } from '@/features/ledger/groupStats';
-import { useCycleRules, useCycleStatements, useGroupStatements, useLedgerCycle } from '@/features/ledger/queries';
+import { useCycleRules, useCycleStatements, useGroupStatements, useLedgerCycle, useLendingByPurpose } from '@/features/ledger/queries';
 import { friendlyError } from '@/lib/errors';
 import { money } from '@/lib/format';
 import { Alert, Badge, Button, EmptyState, Panel, Skeleton, type Tone } from '@/ui';
@@ -34,6 +35,7 @@ export function GroupReport({ people }: { people: Person[] }) {
   const groupRows = useGroupStatements(ids);
   const rules = useCycleRules(cycle.data?.cycle?.id);
   const statements = useCycleStatements(ids, canMembers);
+  const purposes = useLendingByPurpose(cycle.data?.cycle?.id);
   const minSaving = rules.data?.min_saving ?? FALLBACK_MIN_SAVING;
 
   const memberRows = canMembers ? statements.data : undefined;
@@ -151,6 +153,17 @@ export function GroupReport({ people }: { people: Person[] }) {
             ]}
           />
         </Panel>
+        {purposes.data && purposes.data.length > 0 ? (
+          <Panel id="gr-purpose" title="What the group lends for" hint="Total lent this cycle, by what the loan is for. “Not stated” is a loan sent without a purpose.">
+            <RankedBars
+              label={`What the group lends for. ${purposes.data.map((p) => `${purposeLabel(p.purpose)}: ${money(p.principal)}`).join('; ')}.`}
+              rows={purposes.data.map((p) => ({ label: purposeLabel(p.purpose), value: p.principal }))}
+              format={money}
+              nameLabel="Purpose"
+              valueLabel="Lent"
+            />
+          </Panel>
+        ) : null}
         {members ? (
           <>
             <Panel id="gr-disc" title="Discipline" hint={`Share of members who paid at least their statement minimum, and who saved at least ${money(minSaving)}.`}>

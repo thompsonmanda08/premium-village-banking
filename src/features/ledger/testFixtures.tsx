@@ -68,7 +68,7 @@ export const entry = (o: Partial<EntryRow> = {}): EntryRow => ({
 
 export const loan = (o: Partial<LoanRow> = {}): LoanRow => ({
   id: 'l1', created_at: '2026-09-02T09:00:00Z', group_id: 'g1', member_id: 'm1', period_id: 'p8', principal: 1000, interest: 150,
-  term_months: 3, sent_at: '2026-09-02T09:00:00Z', wallet_id: null, cap_warning: null, arrears_warning: null, approved_reason: null,
+  term_months: 3, sent_at: '2026-09-02T09:00:00Z', wallet_id: null, cap_warning: null, arrears_warning: null, approved_reason: null, purpose: null,
   status: 'open', ...o,
 });
 

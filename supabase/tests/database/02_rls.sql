@@ -162,7 +162,7 @@ select hasnt_column('public', 'group_members', 'email', 'view hides email');
 select hasnt_column('public', 'group_members', 'phone', 'view hides phone');
 select hasnt_column('public', 'group_members', 'user_id', 'view hides user_id');
 select hasnt_column('public', 'group_members', 'joined_on', 'view hides joined_on');
-select columns_are('public', 'group_members', array['id', 'group_id', 'full_name', 'short_name', 'role', 'status', 'linked'],
+select columns_are('public', 'group_members', array['id', 'group_id', 'full_name', 'short_name', 'role', 'status', 'linked', 'position'],
   'view exposes exactly the list columns');
 select tests.login_as(tests.id('member'));
 -- 5 fixture members + 'Newbie' (admin) + 'Ollie' (owner)

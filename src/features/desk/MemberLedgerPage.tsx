@@ -12,6 +12,7 @@ import { formatDate, money } from '@/lib/format';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Skeleton, type Tone } from '@/ui';
 import { CorrectEntrySheet } from './CorrectEntrySheet';
 import { DefaultPanel } from './DefaultPanel';
+import { MemberProgress } from './MemberProgress';
 import { MemberReportButton } from './MemberReportButton';
 import { WaiveEntrySheet } from './WaiveEntrySheet';
 
@@ -68,6 +69,8 @@ function MemberLedgerBody() {
   return (
     <div className="grid gap-4 md:gap-5">
       {cycleId ? <DefaultPanel memberId={memberId} memberName={name} cycleId={cycleId} status={status} changedBy={changedBy} /> : null}
+
+      <MemberProgress memberId={memberId} name={name} periods={periods} />
 
       <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">
         {open ? `Corrections land in ${open.label}; the original stays in its own month.` : 'Open the next month to post corrections or waivers.'}

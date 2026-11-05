@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { useGroup } from '@/features/group/GroupContext';
+import { POSITIONS } from '@/features/group/labels';
 import { formatDate } from '@/lib/format';
 import { invokeInvite } from '@/lib/functions';
 import { expectRows } from '@/lib/mutate';
 import { friendlyError } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
-import { Alert, Badge, Button, Skeleton, TextField, useConfirmTap, type Tone } from '@/ui';
+import { Alert, Badge, Button, SelectField, Skeleton, TextField, useConfirmTap, type Tone } from '@/ui';
 import { defaultShortName, validateMember } from './memberForm';
 import { Section } from './Section';
 import { useAction } from './useAction';
@@ -61,6 +62,7 @@ function MemberRow({ member }: { member: AdminMember }) {
   // Marking yourself left would demote you first, then fail as a non-admin: leaving you demoted but active.
   const isSelf = useGroup().member?.id === member.id;
   const [form, setForm] = useState({ full_name: member.full_name, short_name: member.short_name, email: member.email ?? '', phone: member.phone ?? '' });
+  const [position, setPosition] = useState(member.position ?? '');
   const [showErrors, setShowErrors] = useState(false);
   const errors = validateMember(form);
   const { status, invite } = inviteStatus(member, new Date());
@@ -72,7 +74,7 @@ function MemberRow({ member }: { member: AdminMember }) {
     expectRows(
       await supabase
         .from('members')
-        .update({ full_name: form.full_name.trim(), short_name: form.short_name.trim(), email: form.email.trim() || null, phone: form.phone.trim() || null })
+        .update({ full_name: form.full_name.trim(), short_name: form.short_name.trim(), email: form.email.trim() || null, phone: form.phone.trim() || null, position: position || null })
         .eq('id', member.id)
         .select('id'),
     );
@@ -131,6 +133,10 @@ function MemberRow({ member }: { member: AdminMember }) {
         <TextField label="Short name" maxLength={40} {...field('short_name')} error={showErrors ? errors.short_name : undefined} />
         <TextField label="Email" type="email" inputMode="email" {...field('email')} hint="Invites go to this address." error={showErrors ? errors.email : undefined} />
         <TextField label="Phone" type="tel" inputMode="tel" {...field('phone')} />
+        <SelectField label="Position in the group" value={position} onChange={(e) => setPosition(e.target.value)}>
+          <option value="">No position</option>
+          {POSITIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+        </SelectField>
         </div>
         <Button variant="secondary" isLoading={saveDetails.isPending} onClick={() => submitDetails()}>Save details</Button>
 
@@ -187,7 +193,7 @@ export function PeopleSection() {
         <ul role="list" className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:items-start">
           {members.data.map((m) => (
             // Key changes whenever server data changes, so the row's form state resets after a save.
-            <li key={`${m.id}:${m.full_name}:${m.short_name}:${m.email ?? ''}:${m.phone ?? ''}:${m.role}:${m.status}`}>
+            <li key={`${m.id}:${m.full_name}:${m.short_name}:${m.email ?? ''}:${m.phone ?? ''}:${m.position ?? ''}:${m.role}:${m.status}`}>
               <MemberRow member={m} />
             </li>
           ))}

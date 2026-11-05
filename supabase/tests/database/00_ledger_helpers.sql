@@ -156,7 +156,9 @@ create or replace function tests.admin_calls() returns table (name text, call te
     ('post_correction', $c$select post_correction(tests.id('entry'), 1, 'x')$c$),
     ('post_waiver', $c$select post_waiver(tests.id('interest'), 1, 'x')$c$),
     ('close_month', $c$select close_month(tests.lp(1))$c$),
-    ('ledger_check', $c$select ledger_check(tests.id('lg'))$c$)
+    ('ledger_check', $c$select ledger_check(tests.id('lg'))$c$),
+    ('set_loan_purpose', $c$select set_loan_purpose(gen_random_uuid(), 'business')$c$),
+    ('record_expense', $c$select record_expense(tests.id('lcycle'), 'hosting', 10, date '2026-03-01', 'x')$c$)
 $$;
 
 -- Later tasks add helpers above this line.

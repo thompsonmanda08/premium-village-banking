@@ -8,6 +8,7 @@ import { Alert, Avatar, Badge, Button, Card, EmptyState, IconButton, PageHeader,
 import { activeMembers } from '@/features/ledger/model';
 import { useGroup } from './GroupContext';
 import { GroupReport } from './GroupReport';
+import { positionLabel } from './labels';
 
 export function useGroupMembers(groupId: string) {
   return useQuery({
@@ -80,6 +81,7 @@ export function GroupPage() {
                   {m.full_name !== m.short_name ? <p className="text-sm text-muted">{m.short_name}</p> : null}
                 </div>
                 <div className="flex flex-wrap justify-end gap-1">
+                  {m.position ? <Badge tone="accent">{positionLabel(m.position)}</Badge> : null}
                   {m.role === 'admin' ? <Badge tone="accent">Admin</Badge> : <Badge>Member</Badge>}
                   {/* Whether the person has linked their account; for someone who has left, that no longer matters. */}
                   {m.status === 'left' ? <Badge>Left</Badge> : m.linked ? <Badge tone="success">Joined</Badge> : <Badge tone="warning">Not joined</Badge>}

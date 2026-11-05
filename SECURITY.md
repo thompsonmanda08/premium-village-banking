@@ -33,8 +33,8 @@ access, change or delete other people's data while testing; use your own test ac
 - Every write, and every admin-only read, is a `security definer` function that checks the caller itself:
   `is_admin` for the treasurer's actions (`open_period`, `set_deadline`, `approve_declaration`, `return_declaration`,
   `send_loan`, `apply_penalty`, `suggest_penalties`, `set_default`, `post_correction`, `post_waiver`, `close_month`,
-  `ledger_check`); `submit_declaration` lets a member declare for their own active member row (an admin may enter
-  anyone's); `payout_preview` is open to the group's members. None is executable by `anon` or `PUBLIC`.
+  `ledger_check`, `set_loan_purpose`, `record_expense`); `submit_declaration` lets a member declare for their own active member row (an admin may enter
+  anyone's); `payout_preview` is open to the group's members. `pot_balances` and `lending_by_purpose` return group totals and are open to members too; `expenses` is readable by members and written only through `record_expense`. None is executable by `anon` or `PUBLIC`.
 - No app role executes anything in schema `private`. The import (`private.import_history`) and the workbook replay
   (`private.check_cycle`) are called directly only by `ledger:import` / `ledger:check` over the owner connection;
   the admin check page reaches the replay through `ledger_check`.

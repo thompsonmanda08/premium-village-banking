@@ -10,6 +10,7 @@ import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton } fro
 import { DeclarationInbox } from './DeclarationInbox';
 import { LoansSection } from './LoansSection';
 import { MonthPanel } from './MonthPanel';
+import { PotsCard } from './PotsCard';
 import { NotYetDeclared } from './NotYetDeclared';
 import { PenaltiesSection } from './PenaltiesSection';
 
@@ -83,6 +84,7 @@ function DeskBody() {
 
         <aside aria-label="Members and tools" className="grid gap-5 md:gap-6">
           {open && ready ? <NotYetDeclared periodId={open.id} members={readyMembers} declarations={declarations.data!} wallets={wallets.data!} /> : null}
+          <PotsCard cycleId={cycle.data.cycle.id} />
           <Card>
             <CardHeader title="Tools" />
             <ul role="list" className="divide-y divide-line">

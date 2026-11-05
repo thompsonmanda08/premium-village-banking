@@ -209,3 +209,13 @@ test('the sheet cannot be closed while the loan is being sent, so it cannot be s
   await userEvent.keyboard('{Escape}');
   expect(onClose).not.toHaveBeenCalled();
 });
+
+test('a chosen purpose is saved on the loan that was just sent; none chosen asks for nothing more', async () => {
+  rpc.mockResolvedValue({ data: { id: 'loan-1' }, error: null });
+  renderSheet({ initialMemberId: 'm1', initialAmount: 1000 });
+  await userEvent.selectOptions(screen.getByLabelText('Wallet'), 'w1');
+  await userEvent.selectOptions(screen.getByLabelText('What is it for? (optional)'), 'education');
+  await userEvent.click(screen.getByRole('button', { name: 'Send loan' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Tap again to send K 1,000 to Eve' }));
+  await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('set_loan_purpose', { p_loan: 'loan-1', p_purpose: 'education' }));
+});

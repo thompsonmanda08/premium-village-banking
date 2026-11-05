@@ -51,6 +51,8 @@ const KNOWN: Record<string, string> = {
   invalid_body: 'That request wasn’t valid. Please try again.',
   invalid_email: 'Enter a valid email address.',
   invalid_member: 'That member could not be found.',
+  invalid_pot: 'Choose the hosting pot or the transfer-fee pot.',
+  invalid_purpose: 'Choose one of the listed purposes.',
   invite_failed: 'The invite could not be sent. Please try again.',
   invite_email_failed: 'The invite was saved but the email could not be sent. Try sending it again.',
   invite_in_progress: 'An invite is already being sent. Wait a moment and try again.',

@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { PURPOSES } from '@/features/group/labels';
 import { useLedgerAction } from '@/features/ledger/actions';
 import type { ActiveMember, Wallet } from '@/features/ledger/model';
 import { parseKwacha } from '@/features/ledger/money';
@@ -24,6 +25,7 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
   const [walletId, setWalletId] = useState('');
   const [fee, setFee] = useState('');
   const [reason, setReason] = useState('');
+  const [purpose, setPurpose] = useState('');
 
   const parsed = parseKwacha(amount);
   const principal = parsed !== null && parsed > 0 ? parsed : null;
@@ -44,7 +46,7 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
     (!overCap || reason.trim().length > 0) && reason.trim().length <= 500;
 
   const send = useLedgerAction<void>(async () => {
-    const { error } = await supabase.rpc('send_loan', {
+    const { data: sent, error } = await supabase.rpc('send_loan', {
       p_member: memberId,
       p_principal: principal!,
       p_wallet: walletId,
@@ -52,6 +54,8 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
       p_fee: feeValue ?? 0,
     });
     if (error) throw error;
+    // The loan is already sent; a failure here only leaves its purpose blank, so it must not read as a failed send.
+    if (purpose && sent?.id) await supabase.rpc('set_loan_purpose', { p_loan: sent.id, p_purpose: purpose });
   }, 'Loan sent.');
   const confirm = useConfirmTap(() => send.mutate(undefined, { onSuccess: onClose }));
   // Closing mid-send would leave the request row offering Send again while the first send is still on its way.
@@ -126,6 +130,10 @@ export function SendLoanSheet({ members, wallets, initialMemberId = '', initialA
           value={fee}
           onChange={(e) => edit(setFee)(e.target.value)}
         />
+        <SelectField label="What is it for? (optional)" value={purpose} onChange={(e) => edit(setPurpose)(e.target.value)}>
+          <option value="">Not stated</option>
+          {PURPOSES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+        </SelectField>
         <TextField
           label="Reason (required over the limit)"
           maxLength={500}
