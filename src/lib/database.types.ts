@@ -177,6 +177,38 @@ isOneToOne: false
       referencedColumns: ["id","group_id"]
     }
                   ]
+                },"figure_queries": {
+                  Row: {
+                    "answered_at": string | null,"answered_by": string | null,"created_at": string,"field": string,"group_id": string,"id": string,"member_id": string,"note": string,"period_id": string,"reply": string | null,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "answered_at"?: string | null,"answered_by"?: string | null,"created_at"?: string,"field": string,"group_id": string,"id"?: string,"member_id": string,"note": string,"period_id": string,"reply"?: string | null,"status"?: string
+                  }
+                  Update: {
+                    "answered_at"?: string | null,"answered_by"?: string | null,"created_at"?: string,"field"?: string,"group_id"?: string,"id"?: string,"member_id"?: string,"note"?: string,"period_id"?: string,"reply"?: string | null,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "figure_queries_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "figure_queries_member_id_group_id_fkey"
+      columns: ["member_id","group_id"]
+isOneToOne: false
+      referencedRelation: "members"
+      referencedColumns: ["id","group_id"]
+    },{
+      foreignKeyName: "figure_queries_period_id_group_id_fkey"
+      columns: ["period_id","group_id"]
+isOneToOne: false
+      referencedRelation: "periods"
+      referencedColumns: ["id","group_id"]
+    }
+                  ]
                 },"group_statements": {
                   Row: {
                     "created_at": string,"excess_billed": number,"excess_rate": number,"fee_pot_balance": number,"fee_pot_in": number,"fee_pot_out": number,"group_id": string,"id": string,"idle_cash": number,"interest_collected": number,"loans_sent": number,"meeting_pot_balance": number,"meeting_pot_in": number,"opening_cash": number,"period_id": string,"received": number,"savings": number,"source": string,"total_owed": number,"total_savings": number
@@ -589,6 +621,26 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"answer_query":
+{ Args: { "p_query": string,"p_reply": string }; Returns: {
+              "answered_at": string | null,
+"answered_by": string | null,
+"created_at": string,
+"field": string,
+"group_id": string,
+"id": string,
+"member_id": string,
+"note": string,
+"period_id": string,
+"reply": string | null,
+"status": string
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "figure_queries"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
 "apply_penalty":
 { Args: { "p_amount": number,"p_ground": string,"p_member": string,"p_period": string,"p_reason": string }; Returns: {
               "amount": number,
@@ -743,6 +795,26 @@ isOneToOne: false
                           SetofOptions: {
         from: "*"
         to: "entries"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"raise_query":
+{ Args: { "p_field": string,"p_note": string,"p_period": string }; Returns: {
+              "answered_at": string | null,
+"answered_by": string | null,
+"created_at": string,
+"field": string,
+"group_id": string,
+"id": string,
+"member_id": string,
+"note": string,
+"period_id": string,
+"reply": string | null,
+"status": string
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "figure_queries"
         isOneToOne: true
         isSetofReturn: false
       } },
