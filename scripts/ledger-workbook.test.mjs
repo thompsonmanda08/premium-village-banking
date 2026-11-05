@@ -263,7 +263,8 @@ test.each([
   expect(() => parseWorkbook(wb, 2)).toThrow(new RegExp(`${sheet}: no "${key}" column \\(headers found: `))
 })
 
-// Membership is charged in Feb, May, Aug and Nov (month indexes 1, 4, 7, 10): required there, optional elsewhere.
+// Membership is charged in Feb, May, Aug and Nov: required on Feb, Aug and Nov, optional elsewhere. May is optional because
+// the real workbooks collected the May quarter in June and have no membership column on the May sheets.
 const memberSheet = (name, withMembership) => {
   const ws = new ExcelJS.Workbook().addWorksheet(name)
   const headers = {
@@ -277,13 +278,19 @@ const memberSheet = (name, withMembership) => {
   return ws
 }
 
-test.each(['Feb', 'May', 'Aug', 'Nov'])('%s statements and reconciliations require the membership fee column', (mon) => {
+test.each(['Feb', 'Aug', 'Nov'])('%s statements and reconciliations require the membership fee column', (mon) => {
   for (const part of [1, 2])
     expect(() => readSheet(memberSheet(`${mon} ${part}`, false))).toThrow(new RegExp(`${mon} ${part}: no "membership" column \\(headers found: `))
   expect(readSheet(memberSheet(`${mon} 1`, true)).rows[0].membership).toBe(50)
 })
 
-test.each(['Mar', 'Apr', 'Jun', 'Jul', 'Sep', 'Oct'])('%s membership fee column is optional: 0 when absent, parsed when present', (mon) => {
+test('the membership column is found under the treasurer own misspelling', () => {
+  const ws = memberSheet('Aug 1', true)
+  ws.getCell('G2').value = 'Memberhsip fee'
+  expect(readSheet(ws).rows[0].membership).toBe(50)
+})
+
+test.each(['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Sep', 'Oct'])('%s membership fee column is optional: 0 when absent, parsed when present', (mon) => {
   for (const part of [1, 2]) expect(readSheet(memberSheet(`${mon} ${part}`, false)).rows[0].membership).toBe(0)
   expect(readSheet(memberSheet(`${mon} 1`, true)).rows[0].membership).toBe(50)
 })
