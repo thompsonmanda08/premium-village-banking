@@ -43,7 +43,7 @@ My calls (marked so they can be changed)
 - **Overrides log is a derived view, not the raw audit log.** The audit log stays admin-only. Members read a function result that lists, per month: corrections, waivers, applied or waived penalties, loans approved over the cap (with the reason the treasurer gave), default changes and deadline extensions.
 - **History before November has no override entries.** The 2026 import recorded none. The report says "not recorded before November 2026" for those months.
 - **A query is private to the member and the admins.** Replies are not shown to the whole group.
-- **The workbook comparison appears to members only as counts by reason code,** never as figures.
+- **The workbook comparison is not in the member report in this version.** The differences are computed by replaying months (`ledger:check`), which is too heavy per page view, and members must never see workbook figures. It stays on the admin check page.
 
 ## 4. Rules on the record (project 5)
 
@@ -66,7 +66,6 @@ My calls (marked so they can be changed)
 - arrears: members with a `next_minimum` unpaid, as a count and a total; the named list only when visibility is `open`;
 - overrides for the month (section below);
 - rules: how many of the catalog's rules were unratified at the close date (ratifications with `decided_on` on or before the close);
-- workbook comparison: counts by reason code (admins and members alike), no figures.
 It is shown on a new member page `/report/<month>` linked from the Group page and from the Passbook, newest month first.
 
 **Overrides log.** `month_overrides(p_period)` returns, for one month, rows of `when`, `kind` (`correction`, `waiver`, `penalty_applied`, `penalty_waived`, `loan_over_cap`, `default_set`, `default_cleared`, `deadline_extended`), `member` (name or null by visibility), `amount`, `reason`. It reads `entries` with `source = 'correction'` and `kind = 'waiver'`, penalty entries, `loans.approved_reason`, and the audit rows `member.default_changed` and `period.deadline_changed` (`member_status` holds only the latest state, so it cannot give a per-month history). Members cannot read the audit table; only this function reads it for them. See section 11 for how each row is attributed to a month.
