@@ -65,7 +65,7 @@ select
       guarded, so never run it after section 1.
 - [ ] Do day-to-day database work on the local stack: `bun run db:start` (needs Docker) and `SUPABASE_DB_URL` in
       `.env.local` set to `postgresql://postgres:postgres@127.0.0.1:54322/postgres` (see `README.md`). CI runs the
-      pgTAP suite on its own local stack. Production migrations go out through the "Deploy database and functions"
+      pgTAP suite on its own local stack. Production migrations go out through the "Deploy database"
       workflow (section 6).
 
 ### Link and check migrations
@@ -78,7 +78,7 @@ bun x supabase db push --dry-run
 
 `link` and `db push` ask for the database password (`SUPABASE_DB_PASSWORD`, the new one after the rotation above): type
 it at the prompt. The dry run lists what is not yet on production: at least the migration added after the build
-(`20261009000600_one_live_invite_per_member.sql`). **Leave those to the gated "Deploy database and functions" workflow
+(`20261009000600_one_live_invite_per_member.sql`). **Leave those to the gated "Deploy database" workflow
 (section 6), which applies them after a reviewer approves.** Do not run a manual `supabase db push`.
 
 ## 2. Auth settings (Dashboard, Authentication)
@@ -123,74 +123,24 @@ Open each page and confirm; set whatever differs. Dashboard menu names move arou
       they are unless you have checked that the backup and deploy workflows still connect: GitHub's runner addresses change.
 - [ ] Leaked-password protection (HIBP) needs a paid plan; skip on the free tier.
 
-## 3. Edge Function `invite-member`
+## 3. Invite function `api/invite-member`
 
-The function sends invite emails. It refuses to start without `SITE_URL`.
+The treasurer's invite emails are sent by a Vercel Node function (`api/invite-member.ts`), called same-origin by the app
+with the signed-in user's token. It replaced the Supabase Edge Function, so there is nothing to deploy to Supabase.
 
-### Before the first deploy: the code checklist
+Vercel environment variables (Production):
 
-This is the developer's (or coding agent's) job on `feat/foundation`, **before** the pull request is merged: the merge
-is what deploys the function. Do not merge until every box is ticked. A box that is not ticked needs a code change, not
-a workaround here.
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`: set by the Supabase-Vercel integration
+  (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are the fallback for the first two).
+- `SITE_URL`: the production origin, `https`, no trailing slash, never localhost. Invite links are built from it. Not set by
+  the integration. Without it the function answers 500 `invite_failed` rather than send a localhost link.
 
-Done in the code (confirm with the quick look below):
+Notes:
 
-- [x] `SITE_URL` handling: a trailing slash is stripped (links are `https://PROD_DOMAIN/invite/…`, not `…//invite/…`; the
-      CORS origin match ignores it too), and a missing or empty `SITE_URL` fails closed (the function refuses to start).
-- [x] The supabase-js import is pinned to an exact version (`jsr:@supabase/supabase-js@2.117.3`), so no lockfile is
-      needed (the root `deno.lock` stays git-ignored). Bump it on purpose.
-- [x] Migration `20261009000600_one_live_invite_per_member.sql` adds the partial unique index on `invites`; a double
-      tap gets `409 invite_in_progress` ("An invite is already being sent. Wait a moment and try again.").
-- [x] "Already registered" is detected by the Auth error `code === 'email_exists'`, not by status or message text.
-- [x] An Auth rate limit (429) comes back as `429 over_email_send_rate_limit`.
-- [x] `bun run fn:test` and `bun x deno check supabase/functions/invite-member/index.ts` pass (CI's `edge` job runs both).
-
-Still to do:
-
-- [ ] The pgTAP case for the new index (`supabase/tests/database/03_invites_admins.sql`) is green on a local stack
-      (`bun run db:start`, then `bun run db:test`) or in the CI `db` job on the pull request.
-- [ ] The Auth settings in section 2 are done, including the 24-hour OTP expiry.
-
-Quick look (each should show what the list above says):
-
-```bash
-grep -n "supabase-js@" supabase/functions/invite-member/index.ts   # an exact x.y.z, not @2
-grep -n "email_exists" supabase/functions/invite-member/index.ts
-git ls-files '*deno.lock'                                           # prints nothing: the pin does the job
-ls supabase/migrations                                              # ends with 20261009000600_…
-```
-
-### Secrets and deploy
-
-Set the secrets in one of two forms (use exactly one):
-
-```bash
-# Normal production: members sign in and the treasurer invites from PROD_DOMAIN only.
-bun x supabase secrets set SITE_URL=https://PROD_DOMAIN
-
-# Only if you also want to send invites from a preview deployment (list each preview origin; exact match, no wildcards):
-bun x supabase secrets set SITE_URL=https://PROD_DOMAIN ALLOWED_ORIGINS=https://PREVIEW_ORIGIN
-```
-
-Then:
-
-```bash
-bun x supabase secrets list
-bun x supabase functions deploy invite-member --project-ref SUPABASE_PROJECT_REF
-```
-
-- `SITE_URL` is the production origin: `https`, no trailing slash, never localhost. Invite links are built from it
-  and it is always allowed to call the function from a browser.
-- `ALLOWED_ORIGINS` is a comma-separated list of **extra** browser origins that may call the function, for example
-  the Vercel preview origin (`https://premium-village-bank-git-BRANCH-VERCEL_TEAM_SLUG.vercel.app`). Matching is exact:
-  no wildcards, so each preview origin you want to send invites from has to be listed. Production only needs `SITE_URL`
-  (the first form); use the second only if you invite from a preview. Never list localhost in production. To remove a
-  value later, run `secrets unset ALLOWED_ORIGINS`.
-- Supabase injects `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` itself. Do not set them.
-- Set the secrets before the function is deployed by anyone, including the "Deploy database and functions"
-  workflow (section 6), or the function will not start.
-- In the dashboard, Edge Functions, `invite-member`: check **Verify JWT** is on (it is set in `supabase/config.toml`).
 - Function logs can contain an invitee's email (`SECURITY_AUDIT.md` L-9). Treat the logs as personal data.
+- The service-role key lives in Vercel now; keep it out of the `VITE_` namespace so it never reaches the browser bundle.
+- The old Supabase `invite-member` function may still be deployed from before; delete it in the dashboard once the Vercel one works.
+- Tests: `pnpm test` (`api/**/*.test.ts`). Invites are tested live by inviting a member after the first deploy.
 
 ## 4. Owner account and the group
 
@@ -242,7 +192,7 @@ bun run e2e
 ## 6. GitHub
 
 1. Settings, Environments, `production`, Required reviewers: the owner and the treasurer. The workflow
-   "Deploy database and functions" runs in this environment, so **no migration or function deploy reaches
+   "Deploy database" runs in this environment, so **no migration or function deploy reaches
    production until a reviewer approves it**. A push also waits for the CI run on the same commit (job `ci-gate`) and
    stops when it is red; look at that job before approving. **Save, then reopen the page and confirm both reviewers are listed.**
    On a private repository, required reviewers need a paid GitHub plan (on GitHub Free the setting is missing or does
@@ -252,7 +202,7 @@ bun run e2e
 
    | Secret | Used by |
    |---|---|
-   | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (the rotated values, section 1) | Deploy database and functions |
+   | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (the rotated values, section 1) | Deploy database |
    | `SUPABASE_DB_URL`, `AGE_RECIPIENT` | Nightly encrypted backup |
    | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Keep Supabase awake |
    | `E2E_MEMBER_EMAIL`, `E2E_MEMBER_PASSWORD`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `VERCEL_AUTOMATION_BYPASS_SECRET` | E2E on preview |

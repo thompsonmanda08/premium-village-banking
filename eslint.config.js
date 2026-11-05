@@ -9,7 +9,6 @@ export default tseslint.config(
     ignores: [
       'dist',
       'dev-dist',
-      'supabase/functions',
       'src/lib/database.types.ts',
       'playwright-report',
       'test-results',
