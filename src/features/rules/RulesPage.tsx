@@ -1,12 +1,71 @@
 import { ScrollText } from 'lucide-react';
+import { useState } from 'react';
 import { useGroup } from '@/features/group/GroupContext';
 import { useCycles } from '@/features/cycles/useCycles';
 import { UpcomingList } from '@/features/home/UpcomingList';
 import { ordinal, pickCurrentCycle, upcomingDates } from '@/lib/calendar';
 import { friendlyError } from '@/lib/errors';
-import { localISODate, money, rate } from '@/lib/format';
+import { formatDate, localISODate, money, rate } from '@/lib/format';
 import { loanLimitLines, tenorLines } from '@/lib/rulesText';
-import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton } from '@/ui';
+import { Alert, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton } from '@/ui';
+import { RecordVoteSheet } from './RecordVoteSheet';
+import { RULE_CATALOG, type CatalogRule, type RuleBasis } from './ruleCatalog';
+import { ruleStatus, unratifiedCount, type Ratification } from './ratifications';
+import { useRatifications } from './useRatifications';
+
+const BASIS: Record<RuleBasis, string> = {
+  as_written: 'As written',
+  differs: 'Applied by the app, differs from the text',
+  not_in_constitution: 'Applied by the app, not in the constitution',
+};
+
+function statusText(rows: Ratification[], key: string, cycleId: string) {
+  const { state, row } = ruleStatus(rows, key, cycleId);
+  if (state === 'ratified' && row) return `Ratified ${formatDate(row.decided_on)}, ${row.votes_for} of ${row.votes_total}`;
+  return state === 'failed' ? 'Voted, did not pass' : 'Not yet voted';
+}
+
+function AppliedRules({ cycleId }: { cycleId: string }) {
+  const { isAdmin } = useGroup();
+  const votes = useRatifications(cycleId);
+  const [voting, setVoting] = useState<CatalogRule | null>(null);
+  const rows = votes.data;
+  return (
+    <Card className="md:col-span-2">
+      <CardHeader title="How the app applies the rules" />
+      {rows === undefined ? (
+        votes.isError ? (
+          <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void votes.refetch()}>Try again</Button>}>
+            {friendlyError(votes.error)}
+          </Alert>
+        ) : (
+          <div role="status">
+            <span className="sr-only">Loading the votes…</span>
+            <Skeleton className="h-48" />
+          </div>
+        )
+      ) : (
+        <>
+          <p className="mb-2 text-base font-semibold text-fg">{unratifiedCount(rows, cycleId)} rules not yet ratified</p>
+          <ul role="list" className="divide-y divide-line">
+            {RULE_CATALOG.map((rule) => (
+              <li key={rule.key} className="grid gap-2 py-4">
+                <h3 className="text-base font-semibold text-fg">{rule.title}</h3>
+                <p className="text-base text-fg">{rule.text}</p>
+                <p className="text-sm text-muted"><span>{BASIS[rule.basis]}</span>{rule.clause ? <span> · {rule.clause}</span> : null}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Badge tone={ruleStatus(rows, rule.key, cycleId).state === 'ratified' ? 'success' : 'neutral'}>{statusText(rows, rule.key, cycleId)}</Badge>
+                  {isAdmin ? <Button size="sm" variant="secondary" aria-label={`Record a vote on ${rule.title}`} onClick={() => setVoting(rule)}>Record a vote</Button> : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {voting ? <RecordVoteSheet rule={voting} cycleId={cycleId} open onClose={() => setVoting(null)} /> : null}
+    </Card>
+  );
+}
 
 export function RulesPage() {
   const { group } = useGroup();
@@ -85,6 +144,7 @@ export function RulesPage() {
           <CardHeader title="Key dates" />
           <UpcomingList events={upcomingDates(cycle, r, today, 6)} today={today} />
         </Card>
+        <AppliedRules cycleId={cycle.id} />
       </div>
     </>
   );

@@ -47,6 +47,8 @@ const KNOWN: Record<string, string> = {
   declaration_not_found: 'That declaration was already handled or replaced. Refresh and try again.',
   append_only: 'Ledger records can’t be changed. Post a correction instead.',
   cycle_overlap: 'Another cycle already covers these dates. Check the dates, or close that cycle first.',
+  invalid_rule: "That rule isn't recognised.",
+  invalid_vote: "Check the vote: votes for can't be more than votes counted, and the date can't be in the future.",
   invalid_note: 'Keep the note or reason to 500 characters or fewer.',
   invalid_body: 'That request wasn’t valid. Please try again.',
   invalid_email: 'Enter a valid email address.',

@@ -2,12 +2,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { ToastProvider } from '@/ui';
 import { GroupProvider } from '@/features/group/GroupContext';
 import type { Membership } from '@/features/group/useMembership';
 
 const cyclesQuery = vi.fn();
+const ratificationsQuery = vi.fn();
 vi.mock('@/lib/supabase', () => ({
-  supabase: { from: () => ({ select: () => ({ eq: () => ({ order: () => cyclesQuery() }) }) }) },
+  supabase: {
+    from: (table: string) => ({
+      select: () => ({ eq: () => (table === 'cycles' ? { order: () => cyclesQuery() } : ratificationsQuery()) }),
+    }),
+  },
 }));
 const { RulesPage } = await import('./RulesPage');
 
@@ -24,10 +30,10 @@ const RULES = {
 };
 const CYCLE = { id: 'c1', group_id: 'g1', label: 'Cycle 2027', status: 'planned', starts_on: '2027-02-15', ends_on: '2028-02-15', payout_on: '2028-02-05', created_at: '', cycle_rules: RULES };
 
-const renderRules = (qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })) => {
+const renderRules = (qc = new QueryClient({ defaultOptions: { queries: { retry: false } } }), isAdmin = false) => {
   render(
     <QueryClientProvider client={qc}>
-      <GroupProvider value={MEMBERSHIP}><RulesPage /></GroupProvider>
+      <ToastProvider><GroupProvider value={{ ...MEMBERSHIP, isAdmin }}><RulesPage /></GroupProvider></ToastProvider>
     </QueryClientProvider>,
   );
   return qc;
@@ -35,6 +41,8 @@ const renderRules = (qc = new QueryClient({ defaultOptions: { queries: { retry: 
 
 beforeEach(() => {
   cyclesQuery.mockReset();
+  ratificationsQuery.mockReset();
+  ratificationsQuery.mockResolvedValue({ data: [], error: null });
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-08T10:00:00'));
 });
@@ -44,7 +52,7 @@ test('loading: a labelled skeleton under the page title', () => {
   cyclesQuery.mockReturnValue(new Promise(() => {}));
   renderRules();
   expect(screen.getByRole('heading', { name: 'Rules' })).toBeInTheDocument();
-  expect(screen.getByRole('status')).toHaveTextContent('Loading');
+  expect(screen.getByText('Loading the rules…')).toBeInTheDocument();
 });
 
 test('lists the rules, loan limits, unambiguous repayment periods and key dates', async () => {
@@ -94,4 +102,42 @@ test('a failed background refetch keeps the rules on screen', async () => {
   await act(() => new Promise((r) => setTimeout(r, 0))); // observers are notified on the next tick
   expect(screen.getByText('K 250 a month')).toBeInTheDocument();
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+const VOTE = { rule_key: 'loan_interest', cycle_id: 'c1', passed: true, votes_for: 12, votes_total: 18, decided_on: '2026-11-14', created_at: '2026-11-14T10:00:00Z' };
+
+test('how the app applies the rules: basis, status and a count of rules not yet ratified', async () => {
+  cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
+  ratificationsQuery.mockResolvedValue({ data: [VOTE, { ...VOTE, rule_key: 'loan_cap', passed: false }], error: null });
+  renderRules();
+  expect(await screen.findByText('How the app applies the rules')).toBeInTheDocument();
+  expect(await screen.findByText('Ratified 14 Nov 2026, 12 of 18')).toBeInTheDocument();
+  expect(screen.getByText('Voted, did not pass')).toBeInTheDocument();
+  expect(screen.getAllByText('Not yet voted')).toHaveLength(11);
+  expect(screen.getAllByText('As written').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Applied by the app, differs from the text').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Applied by the app, not in the constitution').length).toBeGreaterThan(0);
+  expect(screen.getByText('12 rules not yet ratified')).toBeInTheDocument();
+});
+
+test('a member sees no Record a vote button, an admin sees one per rule', async () => {
+  cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
+  renderRules();
+  await screen.findByText('How the app applies the rules');
+  expect(screen.queryByRole('button', { name: /Record a vote/ })).toBeNull();
+});
+
+test('admin sees a Record a vote button for every rule', async () => {
+  cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
+  renderRules(undefined, true);
+  await screen.findByText('How the app applies the rules');
+  expect(await screen.findAllByRole('button', { name: /Record a vote/ })).toHaveLength(13);
+});
+
+test('the votes failing to load shows a message and a retry, the rest of the page stays', async () => {
+  cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
+  ratificationsQuery.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' } });
+  renderRules();
+  expect(await screen.findByRole('alert')).toHaveTextContent('offline');
+  expect(screen.getByText('K 250 a month')).toBeInTheDocument();
 });
