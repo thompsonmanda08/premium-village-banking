@@ -10,7 +10,7 @@ export function useRatifications(cycleId: string | undefined) {
     queryFn: async (): Promise<Ratification[]> => {
       const { data, error } = await supabase
         .from('rule_ratifications')
-        .select('rule_key, cycle_id, passed, votes_for, votes_total, decided_on, created_at')
+        .select('id, rule_key, cycle_id, passed, votes_for, votes_total, decided_on, created_at')
         .eq('cycle_id', cycleId ?? '');
       if (error) throw error;
       return data;

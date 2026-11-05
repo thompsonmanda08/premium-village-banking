@@ -3,6 +3,7 @@ import { RULE_CATALOG } from './ruleCatalog';
 import { ruleStatus, unratifiedCount, type Ratification } from './ratifications';
 
 const row = (over: Partial<Ratification>): Ratification => ({
+  id: '00000000-0000-0000-0000-000000000001',
   rule_key: 'loan_cap',
   cycle_id: 'c1',
   passed: true,
@@ -40,18 +41,13 @@ describe('ruleStatus', () => {
     expect(ruleStatus([...rows].reverse(), 'loan_cap', 'c1').state).toBe('ratified');
   });
 
-  it('treats +00:00 and Z as the same instant, so the later decided_on wins a tie', () => {
+  it('treats +00:00 and Z as the same instant, so the larger id wins a tie', () => {
     const rows = [
-      row({ passed: true, decided_on: '2026-11-03', created_at: '2026-11-02T10:00:00+00:00' }),
-      row({ passed: false, decided_on: '2026-11-04', created_at: '2026-11-02T10:00:00Z' }),
+      row({ passed: true, id: 'b', created_at: '2026-11-02T10:00:00+00:00' }),
+      row({ passed: false, id: 'a', created_at: '2026-11-02T10:00:00Z' }),
     ];
-    expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('failed');
-    expect(ruleStatus([...rows].reverse(), 'loan_cap', 'c1').state).toBe('failed');
-  });
-
-  it('still tied after decided_on: the row later in the input wins', () => {
-    const rows = [row({ passed: true }), row({ passed: false })];
-    expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('failed');
+    expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('ratified');
+    expect(ruleStatus([...rows].reverse(), 'loan_cap', 'c1').state).toBe('ratified');
   });
 
   it('ignores other cycles and other rules', () => {

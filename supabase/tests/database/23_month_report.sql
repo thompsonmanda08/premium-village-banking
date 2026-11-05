@@ -140,16 +140,18 @@ select is((select array_agg(x ->> 'name' order by x ->> 'name') from jsonb_array
 update groups set figures_visibility = 'open' where id = tests.id('lg');
 -- Rule votes for the ledger cycle (March closed 2 Apr 2026), created_at set so "latest" is unambiguous.
 insert into rule_ratifications (group_id, cycle_id, rule_key, decided_on, votes_for, votes_total, passed, created_at) values
-  (tests.id('lg'), tests.id('lcycle'), 'min_saving',   '2026-03-20', 15, 18, true,  '2026-03-20 12:00+02'),
-  (tests.id('lg'), tests.id('lcycle'), 'min_saving',   '2026-03-21', 16, 18, true,  '2026-03-21 12:00+02'),  -- same rule twice: one
-  (tests.id('lg'), tests.id('lcycle'), 'penalty_late', '2026-03-01', 5, 18, false,  '2026-03-01 12:00+02'),
-  (tests.id('lg'), tests.id('lcycle'), 'penalty_late', '2026-03-15', 14, 18, true,  '2026-03-15 12:00+02'),  -- failed, then passed
-  (tests.id('lg'), tests.id('lcycle'), 'excess_rate',  '2026-03-01', 14, 18, true,  '2026-03-01 12:00+02'),
-  (tests.id('lg'), tests.id('lcycle'), 'excess_rate',  '2026-03-25', 5, 18, false,  '2026-03-25 12:00+02'),  -- passed, then failed
+  (tests.id('lg'), tests.id('lcycle'), 'saving_minimum',   '2026-03-20', 15, 18, true,  '2026-03-20 12:00+02'),
+  (tests.id('lg'), tests.id('lcycle'), 'saving_minimum',   '2026-03-21', 16, 18, true,  '2026-03-21 12:00+02'),  -- same rule twice: one
+  (tests.id('lg'), tests.id('lcycle'), 'penalty_basis', '2026-03-01', 5, 18, false,  '2026-03-01 12:00+02'),
+  (tests.id('lg'), tests.id('lcycle'), 'penalty_basis', '2026-03-15', 14, 18, true,  '2026-03-15 12:00+02'),  -- failed, then passed
+  (tests.id('lg'), tests.id('lcycle'), 'excess_charge',  '2026-03-01', 14, 18, true,  '2026-03-01 12:00+02'),
+  (tests.id('lg'), tests.id('lcycle'), 'excess_charge',  '2026-03-25', 5, 18, false,  '2026-03-25 12:00+02'),  -- passed, then failed
   (tests.id('lg'), tests.id('lcycle'), 'loan_cap',     '2026-04-10', 14, 18, true,  '2026-04-10 12:00+02'),  -- after the close
-  (tests.id('lg'), tests.id('lcycle'), 'loan_term',    '2026-03-10', 14, 18, true,  '2026-03-10 12:00+02'),
-  (tests.id('lg'), tests.id('lcycle'), 'loan_term',    '2026-04-15', 5, 18, false,  '2026-04-15 12:00+02'),  -- failed after the close
-  (tests.id('lg'), tests.id('lcycle'), 'close_day',    '2026-04-02', 14, 18, true,  '2026-04-02 18:00+02'),  -- decided on the day of the close
+  (tests.id('lg'), tests.id('lcycle'), 'loan_terms',    '2026-03-10', 14, 18, true,  '2026-03-10 12:00+02'),
+  (tests.id('lg'), tests.id('lcycle'), 'loan_terms',    '2026-04-15', 5, 18, false,  '2026-04-15 12:00+02'),  -- failed after the close
+  (tests.id('lg'), tests.id('lcycle'), 'deadlines_and_extensions',    '2026-04-02', 14, 18, true,  '2026-04-02 18:00+02'),  -- recorded after the close, same day
+  (tests.id('lg'), tests.id('lcycle'), 'no_loans_last_month', '2026-03-30', 14, 18, true, '2026-05-01 12:00+02'),  -- backdated: dated before the close, recorded long after
+  (tests.id('lg'), tests.id('lcycle'), 'foo_bar', '2026-03-01', 14, 18, true, '2026-03-01 12:00+02'),  -- not one of the app's rules
   (tests.id('group'), tests.id('c_active'), 'interest_rate', '2026-03-01', 3, 3, true, '2026-03-01 12:00+02'); -- another group
 select tests.login_as(tests.id('other'));
 select tests.keep('rep', month_report(tests.lp(2)));
@@ -174,10 +176,11 @@ select is((select array_agg(x ->> 'name' || ':' || (x ->> 'unpaid') order by x -
     where s.period_id = tests.lp(2) and s.unpaid_minimum > 0), 'open: the named list');
 select is(tests.kept('rep') -> 'overrides', tests.kept('mar'), 'the month''s overrides');
 select is(tests.kept('rep') -> 'overrides_recorded', 'true'::jsonb, 'a month the app closed has its overrides recorded');
-select is(tests.kept('rep') -> 'rules', '{"ratified_by_close": 4}'::jsonb,
-  'rules ratified by the close: min_saving, penalty_late, loan_term (its later failed vote came after the close) '
-  'and close_day (decided on the very day of the close: the date test is <=); '
-  'not excess_rate (its latest vote by the close failed) nor loan_cap (passed after the close)');
+select is(tests.kept('rep') -> 'rules', '{"ratified_by_close": 3}'::jsonb,
+  'rules ratified by the close: saving_minimum, penalty_basis, loan_terms (its later failed vote came after the close); '
+  'not excess_charge (its latest vote by the close failed), loan_cap (decided after the close), '
+  'deadlines_and_extensions (recorded after the close, even on the same day), no_loans_last_month (backdated, recorded after the close) '
+  'nor foo_bar (not a rule of the app)');
 
 -- an imported month ------------------------------------------------------------------------------------
 -- April as the 2026 import leaves it: closed, a statement marked imported. An app entry and an audit row inside it are ignored.

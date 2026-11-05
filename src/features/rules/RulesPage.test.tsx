@@ -112,7 +112,7 @@ test('a failed background refetch keeps the rules on screen', async () => {
   expect(screen.queryByRole('alert')).toBeNull();
 });
 
-const VOTE = { rule_key: 'loan_interest', cycle_id: 'c1', passed: true, votes_for: 12, votes_total: 18, decided_on: '2026-11-14', created_at: '2026-11-14T10:00:00Z' };
+const VOTE = { id: 'v1', rule_key: 'loan_interest', cycle_id: 'c1', passed: true, votes_for: 12, votes_total: 18, decided_on: '2026-11-14', created_at: '2026-11-14T10:00:00Z' };
 
 test('how the app applies the rules: basis, status and a count of rules not yet ratified', async () => {
   cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { RULE_CATALOG } from './ruleCatalog';
 
@@ -62,5 +63,12 @@ describe('RULE_CATALOG', () => {
     const text = RULE_CATALOG.map((r) => r.text).join(' ');
     expect(text).not.toContain('(from November 2026)');
     expect(text).not.toContain('its own schedule');
+  });
+
+  it('matches private.rule_keys() in the database migration', () => {
+    const sql = readFileSync('supabase/migrations/20261105000600_report_integrity.sql', 'utf8');
+    const body = /private\.rule_keys\(\) returns text\[\][\s\S]*?array\[([\s\S]*?)\]/.exec(sql)?.[1] ?? '';
+    const dbKeys = [...body.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    expect([...dbKeys].sort()).toEqual(RULE_CATALOG.map((r) => r.key).sort());
   });
 });
