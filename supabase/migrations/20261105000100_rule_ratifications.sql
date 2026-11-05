@@ -14,15 +14,20 @@ create table public.rule_ratifications (
   note text check (length(note) <= 500),
   recorded_by uuid references auth.users,
   check (votes_total >= 1 and votes_for between 0 and votes_total),
+  -- Two thirds of the votes cast carry a rule; a stored result cannot disagree with the counts.
+  check (passed = (votes_for * 3 >= votes_total * 2)),
   foreign key (cycle_id, group_id) references public.cycles (id, group_id) on delete cascade
 );
 create index rule_ratifications_cycle_idx on public.rule_ratifications (cycle_id, rule_key, decided_on desc);
 
 create trigger rule_ratifications_append_only before update or delete on public.rule_ratifications
   for each row execute function public.ledger_append_only();
+create trigger rule_ratifications_truncate_guard before truncate on public.rule_ratifications
+  for each statement execute function public.ledger_truncate_guard();
 
 alter table public.rule_ratifications enable row level security;
 revoke all on public.rule_ratifications from public, anon, authenticated;
+revoke insert, update, delete, truncate on public.rule_ratifications from service_role;
 grant select on public.rule_ratifications to authenticated;
 create policy rule_ratifications_select on public.rule_ratifications for select to authenticated using (public.is_member(group_id));
 

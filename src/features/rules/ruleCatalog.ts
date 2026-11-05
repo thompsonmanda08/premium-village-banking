@@ -27,7 +27,7 @@ export const RULE_CATALOG: CatalogRule[] = [
   {
     key: 'loan_terms',
     title: 'How long a loan runs',
-    text: 'Up to K3,000 is repaid in 1 month, up to K5,000 in 2 months, up to K10,000 in 3 months, and K10,000 or more in 4 months. The bands are as the constitution sets them, except exactly K10,000: the constitution lists it in two bands and the app puts it in the 4-month band. The constitution is silent on a member with more than one loan, so each loan is repaid by its own instalments, set when the loan is given.',
+    text: 'Up to K3,000 is repaid in 1 month, up to K5,000 in 2 months, under K10,000 in 3 months; K10,000 or more in 4 months. The bands are as the constitution sets them, except exactly K10,000: the constitution lists it in two bands and the app puts it in the 4-month band. The constitution is silent on a member with more than one loan, so each loan is repaid by its own instalments, set when the loan is given.',
     clause: 'Article 5, Loan Management',
     basis: 'as_written',
   },
@@ -55,7 +55,7 @@ export const RULE_CATALOG: CatalogRule[] = [
   {
     key: 'minimum_payable',
     title: 'Minimum to pay each month',
-    text: 'The app shows a minimum for the month: the loan instalments due, the charge on money not lent out, and anything missed from earlier months. It is a guide, and the treasurer can change it with a reason. The constitution has no such rule.',
+    text: 'The app shows a minimum for the month: the loan instalments due, the charge on money not lent out, and anything missed from earlier months, never more than you owe. It is worked out when the month closes and the treasurer cannot change it. A member who pays less than it by the 7th may be suggested a flat K50 penalty, which the treasurer decides whether to apply. The constitution has no such rule.',
     clause: null,
     basis: 'not_in_constitution',
   },
@@ -69,14 +69,14 @@ export const RULE_CATALOG: CatalogRule[] = [
   {
     key: 'penalty_basis',
     title: 'Late payment penalty',
-    text: 'A declaration or payment after the 7th costs K50 for each day it is late. The constitution says a flat K50. The treasurer can waive the penalty with a reason, for example when the phone limit blocks a payment.',
+    text: 'A declaration or payment after the 7th costs K50 for each day it is late. The constitution says a flat K50. The app also suggests a flat K50 for saving under the minimum and for missing the minimum payment, after the 7th; the constitution sets no penalty for those. The treasurer decides which suggested penalties to apply, and can waive the penalty with a reason, for example when the phone limit blocks a payment.',
     clause: 'Savings',
     basis: 'differs',
   },
   {
     key: 'membership_fee',
     title: 'Membership fee',
-    text: 'The membership fee is K50 each quarter, due in February, May, August and November. It pays for hosting meetings and is kept apart from the lending money and interest. The constitution sets the fee and its purpose but does not name the months, so the months were chosen by the group.',
+    text: 'The membership fee is K50 each quarter, due in February, May, August and November. It pays for hosting meetings and is kept apart from the lending money and interest. The constitution sets the fee and its purpose but does not name the months. The app uses February, May, August and November.',
     clause: 'Membership',
     basis: 'as_written',
   },
@@ -97,7 +97,7 @@ export const RULE_CATALOG: CatalogRule[] = [
   {
     key: 'payout_and_pots',
     title: 'Payout and the money pots',
-    text: 'The constitution gives the payout date, 6 February 2027, and the app uses it. Interest is shared by each month\'s savings. Transfer fees for the payout come from the fees members declare. The constitution does not say how interest is shared, who pays the fees or what happens to leftover pots.',
+    text: 'The constitution gives the payout date, 6 February 2027, and the app uses it. Each month\'s interest is shared by cumulative savings, and a member marked as in default gets no share. Transfer fees for the payout come from the fees members declare. The constitution does not say how interest is shared, who pays the fees or what happens to leftover pots.',
     clause: null,
     basis: 'not_in_constitution',
   },

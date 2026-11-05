@@ -19,14 +19,16 @@ export function OverridesList({ overrides, recorded }: { overrides: OverrideRow[
   if (!recorded) return <p className="text-sm text-muted">Overrides were not recorded before November 2026.</p>;
   if (overrides.length === 0) return <p className="text-sm text-muted">No overrides this month.</p>;
   // A hidden row loses member_id too; an open group's row with only a missing short name is not private.
-  const someHidden = overrides.some((o) => o.member === null && o.member_id === null && o.kind !== 'deadline_extended');
+  // A correction of an entry that has no member keeps its reason: it is a group-level row, not a hidden one.
+  const groupLevel = (o: OverrideRow) => o.member === null && o.member_id === null && o.reason !== null && o.kind !== 'deadline_extended';
+  const someHidden = overrides.some((o) => o.member === null && o.member_id === null && o.kind !== 'deadline_extended' && !groupLevel(o));
   return (
     <div className="grid gap-2">
       <ul role="list" className="divide-y divide-line rounded-2xl border border-line bg-surface">
         {overrides.map((o, i) => (
           <li key={`${o.at}-${o.kind}-${i}`} className="grid gap-0.5 px-4 py-3">
             <p className="flex flex-wrap items-baseline justify-between gap-2 font-medium text-fg">
-              <span>{LABEL[o.kind]}{o.kind === 'deadline_extended' ? '' : ` · ${o.member ?? 'A member'}`}</span>
+              <span>{LABEL[o.kind]}{o.kind === 'deadline_extended' || groupLevel(o) ? '' : ` · ${o.member ?? 'A member'}`}</span>
               <span className="text-sm font-normal text-muted">{day(o.at)}</span>
             </p>
             {o.amount !== null ? <p className="tabular text-sm text-fg">{money(o.amount)}</p> : null}

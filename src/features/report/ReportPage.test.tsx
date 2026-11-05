@@ -85,7 +85,7 @@ test('loading and error states', () => {
   unmount();
   hooks.report.mockReturnValue({ data: undefined, isPending: false, isError: true, error: { code: 'P0001', message: 'period_not_closed' }, refetch: vi.fn() });
   renderLedger(<ReportPage />);
-  expect(screen.getByText('That month isn’t closed yet, so there is no report for it.')).toBeInTheDocument();
+  expect(screen.getByText('That month isn’t closed yet.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
 });
 

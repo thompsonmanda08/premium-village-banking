@@ -10,9 +10,10 @@ import { currentPeriod, lastClosed } from '@/features/ledger/model';
 import { useLedgerCycle, useMyStatements } from '@/features/ledger/queries';
 import { reportPath } from '@/features/report/reportQueries';
 import { QueryFigureSheet } from '@/features/queries/QueryFigureSheet';
-import { QUERY_FIELDS } from '@/features/queries/queryHooks';
+import { QUERY_FIELDS, fieldLabel, useMyQueries } from '@/features/queries/queryHooks';
+import { friendlyError } from '@/lib/errors';
 import { money } from '@/lib/format';
-import { Button, EmptyState } from '@/ui';
+import { Alert, Button, EmptyState } from '@/ui';
 import { BreakdownPanel } from './BreakdownPanel';
 
 function breakdown(s: StatementRow): Array<{ label: string; value: number }> {
@@ -41,6 +42,7 @@ export function PassbookPage() {
   const latest = views[0];
   const open = currentPeriod(periods);
   const closed = lastClosed(periods);
+  const myQueries = useMyQueries(member?.id);
   const [questioning, setQuestioning] = useState<string | null>(null);
 
   return (
@@ -83,6 +85,29 @@ export function PassbookPage() {
             </div>
             {questioning ? <QueryFigureSheet periodId={latest.period.id} field={questioning} open onClose={() => setQuestioning(null)} /> : null}
           </>
+        ) : null}
+
+        {member ? (
+          <section aria-labelledby="my-questions" className="rounded-2xl border border-line bg-surface p-4 md:p-5">
+            <h3 id="my-questions" className="text-base font-semibold text-fg">Your questions</h3>
+            {myQueries.isError ? (
+              <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void myQueries.refetch()}>Try again</Button>}>
+                {friendlyError(myQueries.error)}
+              </Alert>
+            ) : myQueries.data && myQueries.data.length === 0 ? (
+              <p className="mt-1 text-sm text-muted">You haven’t asked any questions.</p>
+            ) : myQueries.data ? (
+              <ul role="list" className="mt-1 divide-y divide-line text-sm">
+                {myQueries.data.map((q) => (
+                  <li key={q.id} className="py-3">
+                    <p className="text-muted">{fieldLabel(q.field)} · {periods.find((p) => p.id === q.period_id)?.label ?? 'Earlier month'}</p>
+                    <p className="text-fg"><span className="sr-only">Your question: </span>{q.note}</p>
+                    {q.reply ? <p className="mt-1 text-muted"><span className="sr-only">Reply: </span>{q.reply}</p> : <p className="mt-1 text-muted">Waiting for a reply</p>}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
         ) : null}
 
         {open ? <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">Your {open.label} statement appears when the treasurer closes the month.</p> : null}

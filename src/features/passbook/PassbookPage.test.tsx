@@ -8,12 +8,16 @@ vi.mock('./BreakdownPanel', () => ({ BreakdownPanel: ({ memberId, periodId }: { 
 vi.mock('@/features/queries/QueryFigureSheet', () => ({
   QueryFigureSheet: ({ periodId, field }: { periodId: string; field: string }) => <p>Question sheet: {field} in {periodId}</p>,
 }));
-const hooks = vi.hoisted(() => ({ cycle: vi.fn(), statements: vi.fn() }));
+const hooks = vi.hoisted(() => ({ cycle: vi.fn(), statements: vi.fn(), queries: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: {} }));
 vi.mock('@/features/ledger/queries', async (orig) => ({
   ...(await orig<typeof import('@/features/ledger/queries')>()),
   useLedgerCycle: () => hooks.cycle(),
   useMyStatements: () => hooks.statements(),
+}));
+vi.mock('@/features/queries/queryHooks', async (orig) => ({
+  ...(await orig<typeof import('@/features/queries/queryHooks')>()),
+  useMyQueries: () => hooks.queries(),
 }));
 const { PassbookPage } = await import('./PassbookPage');
 
@@ -23,6 +27,7 @@ const cycle = (periods = year(8, 'open')) => ok({ cycle: { id: 'c1', label: 'Cyc
 beforeEach(() => {
   hooks.cycle.mockReturnValue(cycle());
   hooks.statements.mockReturnValue(ok([]));
+  hooks.queries.mockReturnValue(ok([]));
 });
 
 test('headline figures come from the latest statement and name its month', () => {
@@ -111,4 +116,31 @@ test('the breakdown and a question button for each figure appear for the latest 
   expect(screen.queryByText(/^Question sheet/)).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Question Closing balance' }));
   expect(screen.getByText('Question sheet: closing_owed in p8')).toBeInTheDocument();
+});
+
+const fq = (o = {}) => ({ id: 'q1', created_at: '2026-09-10T08:00:00Z', group_id: 'g1', period_id: 'p7', member_id: 'm1', field: 'next_minimum', note: 'Looks high', status: 'answered', reply: 'Checked, it is right', answered_by: 'u1', answered_at: '2026-09-11T08:00:00Z', ...o });
+
+test('your questions: every month, newest first, with the reply or a wait, even for an older month', () => {
+  hooks.statements.mockReturnValue(ok([statement({ id: 's8', period_id: 'p8' })]));
+  hooks.queries.mockReturnValue(ok([fq({ id: 'q2', period_id: 'p8', field: 'closing_owed', note: 'Not what I paid', status: 'open', reply: null }), fq()]));
+  renderLedger(<PassbookPage />);
+  const section = screen.getByRole('region', { name: 'Your questions' });
+  const rows = within(section).getAllByRole('listitem');
+  expect(rows).toHaveLength(2);
+  expect(rows[0]).toHaveTextContent('Sep 2026');
+  expect(rows[0]).toHaveTextContent('Closing balance');
+  expect(rows[0]).toHaveTextContent('Your question: Not what I paid');
+  expect(rows[0]).toHaveTextContent('Waiting for a reply');
+  expect(rows[1]).toHaveTextContent('Aug 2026');
+  expect(rows[1]).toHaveTextContent('Next minimum');
+  expect(rows[1]).toHaveTextContent('Reply: Checked, it is right');
+});
+
+test('your questions: an empty state, and an error state', () => {
+  const { unmount } = renderLedger(<PassbookPage />);
+  expect(screen.getByText('You haven’t asked any questions.')).toBeInTheDocument();
+  unmount();
+  hooks.queries.mockReturnValue({ data: undefined, isPending: false, isError: true, error: new Error('x'), refetch: vi.fn() });
+  renderLedger(<PassbookPage />);
+  expect(screen.getByRole('alert')).toBeInTheDocument();
 });

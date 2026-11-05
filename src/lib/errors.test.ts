@@ -57,6 +57,10 @@ test('never leaks raw errors', () => {
   expect(friendlyError(undefined)).toBe(GENERIC);
 });
 
+test('period_not_closed is not specific to reports', () => {
+  expect(friendlyError({ message: 'period_not_closed', code: 'P0001' })).toBe('That month isn’t closed yet.');
+});
+
 // Every code the database or the invite-member Edge Function can raise has its own sentence.
 const SQL_CODES = [
   'invite_not_found', 'invite_expired', 'invite_revoked', 'invite_used', 'email_mismatch', 'already_linked',

@@ -27,7 +27,7 @@ const KNOWN: Record<string, string> = {
   rules_locked: 'Rules can only change before the cycle starts.',
   // ledger (sub-project 2a)
   period_not_open: 'That month isn’t open. Pick the current month, or open it first.',
-  period_not_closed: 'That month isn’t closed yet, so there is no report for it.',
+  period_not_closed: 'That month isn’t closed yet.',
   previous_period_open: 'Close the previous month first.',
   declarations_pending: 'Some declarations are still waiting. Approve or return them first.',
   app_update_needed: 'A newer version of the app is ready. Reload this page and try again.',

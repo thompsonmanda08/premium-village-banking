@@ -58,6 +58,12 @@ select is((select data::text from audit_log where action = 'rule.ratified' and (
 -- append only -------------------------------------------------------------------------------------
 select throws_ok($$update rule_ratifications set passed = not passed$$, 'P0001', 'append_only', 'a ratification cannot be updated');
 select throws_ok($$delete from rule_ratifications$$, 'P0001', 'append_only', 'nor deleted');
+select throws_ok('truncate rule_ratifications', 'P0001', 'append_only', 'nor truncated');
+select ok(not has_table_privilege('service_role', 'public.rule_ratifications', 'INSERT,UPDATE,DELETE,TRUNCATE'), 'service_role cannot write the table');
+select throws_ok($$insert into rule_ratifications (group_id, cycle_id, rule_key, decided_on, votes_for, votes_total, passed)
+  values (tests.id('lg'), tests.id('lcycle'), 'min_saving', current_date, 1, 3, true)$$, '23514', null, 'a forged passed is refused even for the table owner');
+select throws_ok($$insert into rule_ratifications (group_id, cycle_id, rule_key, decided_on, votes_for, votes_total, passed)
+  values (tests.id('lg'), tests.id('lcycle'), 'min_saving', current_date, 2, 3, false)$$, '23514', null, 'nor a vote that carried recorded as failed');
 
 -- reading -----------------------------------------------------------------------------------------
 select tests.login_as(tests.id('member'));

@@ -36,6 +36,28 @@ describe('RULE_CATALOG', () => {
     for (const r of RULE_CATALOG.filter((x) => x.basis !== 'as_written')) expect(r.text, r.key).toMatch(/constitution/i);
   });
 
+  const text = (key: string) => RULE_CATALOG.find((r) => r.key === key)?.text ?? '';
+
+  it('states the loan bands without overlap and the payout share as the app computes it', () => {
+    expect(text('loan_terms')).not.toContain('up to K10,000');
+    expect(text('loan_terms')).toContain('under K10,000 in 3 months; K10,000 or more in 4 months');
+    expect(text('payout_and_pots')).toMatch(/cumulative savings/);
+    expect(text('payout_and_pots')).toMatch(/default/);
+    expect(text('payout_and_pots')).not.toContain('by each month');
+  });
+
+  it('does not claim a minimum the treasurer can change, and owns up to the extra flat penalties', () => {
+    expect(text('minimum_payable')).not.toMatch(/treasurer can change/);
+    expect(text('minimum_payable')).toMatch(/K50/);
+    expect(text('penalty_basis')).toMatch(/under the minimum|below the minimum/);
+    expect(text('penalty_basis')).toMatch(/missing the minimum payment|minimum payment/);
+  });
+
+  it('does not say the group chose the membership months', () => {
+    expect(text('membership_fee')).not.toContain('chosen by the group');
+    expect(text('membership_fee')).toMatch(/February, May, August and November/);
+  });
+
   it('keeps the unclear phrases out', () => {
     const text = RULE_CATALOG.map((r) => r.text).join(' ');
     expect(text).not.toContain('(from November 2026)');

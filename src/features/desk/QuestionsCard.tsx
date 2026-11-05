@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGroup } from '@/features/group/GroupContext';
+import { useLedgerCycle } from '@/features/ledger/queries';
 import { fieldLabel, useAnswerQuery, useOpenQueries, type OpenQuery } from '@/features/queries/queryHooks';
 import { friendlyError } from '@/lib/errors';
 import { Alert, Button, Card, Sheet, TextField } from '@/ui';
@@ -43,6 +44,7 @@ function AnswerSheet({ query, onClose }: { query: OpenQuery; onClose: () => void
 export function QuestionsCard() {
   const { group, isAdmin } = useGroup();
   const q = useOpenQueries(group.id, isAdmin);
+  const periods = useLedgerCycle(group.id).data?.periods ?? [];
   const [picked, setPicked] = useState<OpenQuery | null>(null);
   if (!isAdmin) return null;
   // No loading state on purpose: the card is invisible when empty, so a skeleton would flash and vanish.
@@ -62,7 +64,7 @@ export function QuestionsCard() {
           <li key={x.id} className="flex items-start justify-between gap-3 py-3">
             <span className="min-w-0">
               <span className="block font-semibold text-fg">{x.short_name}</span>
-              <span className="block text-sm text-muted">{fieldLabel(x.field)}</span>
+              <span className="block text-sm text-muted">{[fieldLabel(x.field), periods.find((p) => p.id === x.period_id)?.label].filter(Boolean).join(' · ')}</span>
               <span className="block text-sm text-fg">{x.note}</span>
               <span className="block text-xs text-muted">{new Date(x.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
             </span>

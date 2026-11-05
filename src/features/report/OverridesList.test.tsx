@@ -31,6 +31,14 @@ test('a hidden row says "A member" with no amount or reason, plus a short note',
   expect(screen.getByText('Other members’ details are kept private.')).toBeInTheDocument();
 });
 
+test('a correction of an entry with no member is a group-level row, not a private one', () => {
+  render(<OverridesList recorded overrides={[row({ kind: 'correction', member_id: null, member: null, amount: -20, reason: 'Fee posted twice' })]} />);
+  expect(screen.getByText('Correction posted')).toBeInTheDocument();
+  expect(screen.queryByText(/A member/)).toBeNull();
+  expect(screen.getByText('Fee posted twice')).toBeInTheDocument();
+  expect(screen.queryByText('Other members’ details are kept private.')).toBeNull();
+});
+
 test('a missing short name in an open group is not called private', () => {
   render(<OverridesList recorded overrides={[row({ member_id: 'm1', member: null })]} />);
   expect(screen.getByText('Charge waived · A member')).toBeInTheDocument();

@@ -45,7 +45,7 @@ function AppliedRules({ cycleId }: { cycleId: string }) {
         )
       ) : (
         <>
-          <p className="mb-2 text-base font-semibold text-fg">{unratifiedCount(rows, cycleId)} rules not yet ratified</p>
+          <p className="mb-2 text-base font-semibold text-fg">{unratifiedCount(rows, cycleId)} {unratifiedCount(rows, cycleId) === 1 ? 'rule' : 'rules'} not yet ratified</p>
           <ul role="list" className="divide-y divide-line">
             {RULE_CATALOG.map((rule) => {
               const status = ruleStatus(rows, rule.key, cycleId);

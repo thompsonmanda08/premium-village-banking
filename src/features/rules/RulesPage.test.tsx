@@ -128,6 +128,14 @@ test('how the app applies the rules: basis, status and a count of rules not yet 
   expect(screen.getByText('12 rules not yet ratified')).toBeInTheDocument();
 });
 
+test('one rule left to ratify reads in the singular', async () => {
+  const { RULE_CATALOG } = await import('./ruleCatalog');
+  cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
+  ratificationsQuery.mockResolvedValue({ data: RULE_CATALOG.slice(1).map((r) => ({ ...VOTE, rule_key: r.key })), error: null });
+  renderRules();
+  expect(await screen.findByText('1 rule not yet ratified')).toBeInTheDocument();
+});
+
 test('a member sees no Record a vote button, an admin sees one per rule', async () => {
   cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
   renderRules();
