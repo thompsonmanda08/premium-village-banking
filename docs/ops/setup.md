@@ -273,6 +273,16 @@ Then run **B** and **C** as written. All six rows of **C** must show `pass` = `t
 must match production. Record the result in the go-live record below. Do this drill again after any change to the
 backup workflow or to the migrations.
 
+## Transparency and rules (November 2026)
+
+- Three migrations deploy through the gated "Deploy database" workflow: `20261105000100_rule_ratifications.sql`,
+  `20261105000200_month_report.sql` and `20261105000400_figure_queries.sql`. Nothing to configure: no secrets, no variables.
+- Who can read what. Members: the reports of closed months, the statuses on the Rules page, and their own queries and
+  breakdowns. Admins: all queries; they can record votes and answer. Former members cannot read reports.
+- Names follow the group's open/private visibility. In a private group, other members' override rows hide name, amount and reason.
+- The Rules page shows "Not yet voted" for every rule until the treasurer records the group's votes.
+- A month report shows overrides only for months closed by the app (not before November 2026).
+
 ## 9. Known issues
 
 - **A slow or stalled Supabase request fails after 20 seconds.** The app then shows "You seem to be offline. Check your

@@ -16,6 +16,12 @@ wrongly. Update this file when a limit is removed or a new one is accepted.
 | Pot shares go to members who left but have entries this cycle, and to active members with no entries. | Same member set as `close_figures`; the constitution is silent. | A group decision on leavers. |
 | `service_role` and the table owner can still alter ledger tables outside the app; the app roles cannot. | Needed for migrations and the import. | None. |
 | The reconciliation in `ledger:check` counts pots up to the latest closed month; `payout_preview` also counts an open month's entries. | They match by construction once the month is closed. | None. |
+| After a member raises a question on an imported month, `ledger:import` cannot re-run: the import deletes periods, and `figure_queries` rows are append-only and cascade from periods. | Imports are a one-off; the group's own questions must not vanish. | Load a reissued workbook as `ledger:figures` comparison figures or as corrections instead. |
+| A free-text reason on a deadline extension is visible to every member even in a private group (it has no member attached). | The treasurer controls the text. | Reasons there must not name members; or attach a member to extensions. |
+| `minimum_breakdown` replays the whole group's close on each call and raises `statement_drifted` if a closed month's stored minimum no longer matches the replay. | Fine for 18 members; the drift error is deliberate. | Do not call it per row in a list; cache the replay if groups grow. |
+| A vote recorded after a month closes never changes that month's "rules ratified" count (it counts votes decided on or before the close date, in Lusaka time). | A closed month is a record; it should not move. | A decision to restate closed months. |
+| A report's override list for a month closed before its calendar month ends can still receive a default change or deadline change made later in that calendar month. | Rare, and the later change is real. | Stamp overrides with the close time. |
+| The three-open-queries cap and the answer-once rule rely on row locks and have no concurrent test. | Logic is covered serially; 18 members rarely collide. | A concurrent pgTAP or load test. |
 
 ## Fixed on purpose by process, not by code
 
