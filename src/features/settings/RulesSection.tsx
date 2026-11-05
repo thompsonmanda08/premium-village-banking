@@ -12,19 +12,40 @@ import { toFormValues, validateRules, type RulesFormValues } from './rulesForm';
 import { Section } from './Section';
 import { useAction } from './useAction';
 
-type Field = { key: keyof RulesFormValues; label: string; type?: string; inputMode?: 'decimal' | 'numeric'; maxLength?: number };
-const FIELDS: Field[] = [
-  { key: 'label', label: 'Cycle name', maxLength: 60 },
-  { key: 'starts_on', label: 'Starts on', type: 'date' },
-  { key: 'ends_on', label: 'Ends on', type: 'date' },
-  { key: 'payout_on', label: 'Payout day', type: 'date' },
-  { key: 'min_saving', label: 'Minimum saving (K)', inputMode: 'decimal' },
-  { key: 'membership_fee', label: 'Membership fee per quarter (K)', inputMode: 'decimal' },
-  { key: 'penalty_per_day', label: 'Late penalty per day (K)', inputMode: 'decimal' },
-  { key: 'loan_rate_pct', label: 'Loan interest (%)', inputMode: 'decimal' },
-  { key: 'excess_rate_pct', label: 'Excess interest per month (%)', inputMode: 'decimal' },
-  { key: 'window_open_day', label: 'Declarations open on day', inputMode: 'numeric' },
-  { key: 'window_close_day', label: 'Declarations close on day', inputMode: 'numeric' },
+type Field = { key: keyof RulesFormValues; label: string; hint: string; type?: string; inputMode?: 'decimal' | 'numeric'; maxLength?: number };
+// Grouped by what the treasurer is deciding, each box saying in plain words what it controls.
+const GROUPS: Array<{ title: string; fields: Field[] }> = [
+  {
+    title: 'The cycle',
+    fields: [
+      { key: 'label', label: 'Cycle name', hint: 'A name members will recognise, like “Cycle 2027”.', maxLength: 60 },
+      { key: 'starts_on', label: 'Starts on', hint: 'The first day. The rules lock on this date.', type: 'date' },
+      { key: 'ends_on', label: 'Ends on', hint: 'The last day of the cycle.', type: 'date' },
+      { key: 'payout_on', label: 'Payout day', hint: 'When savings and interest are paid out.', type: 'date' },
+    ],
+  },
+  {
+    title: 'Money',
+    fields: [
+      { key: 'min_saving', label: 'Minimum saving (K)', hint: 'The least a member saves each month.', inputMode: 'decimal' },
+      { key: 'membership_fee', label: 'Membership fee per quarter (K)', hint: 'Paid by every member each quarter.', inputMode: 'decimal' },
+      { key: 'penalty_per_day', label: 'Late penalty per day (K)', hint: 'Charged for each day a declaration is late.', inputMode: 'decimal' },
+    ],
+  },
+  {
+    title: 'Interest',
+    fields: [
+      { key: 'loan_rate_pct', label: 'Loan interest (%)', hint: 'Charged once, on the amount borrowed.', inputMode: 'decimal' },
+      { key: 'excess_rate_pct', label: 'Excess interest per month (%)', hint: 'Charged each month on cash that is not lent out.', inputMode: 'decimal' },
+    ],
+  },
+  {
+    title: 'Declaration window',
+    fields: [
+      { key: 'window_open_day', label: 'Declarations open on day', hint: 'The day of the month declarations open.', inputMode: 'numeric' },
+      { key: 'window_close_day', label: 'Declarations close on day', hint: 'The day of the month they close; later ones are late.', inputMode: 'numeric' },
+    ],
+  },
 ];
 
 export function RulesForm({ cycle, locked }: { cycle: CycleWithRules & { rules: NonNullable<CycleWithRules['rules']> }; locked: boolean }) {
@@ -65,19 +86,27 @@ export function RulesForm({ cycle, locked }: { cycle: CycleWithRules & { rules: 
         if (Object.keys(errors).length === 0) save.mutate(undefined);
       }}
     >
-      <fieldset disabled={locked} className="grid gap-3 sm:grid-cols-2">
-        {FIELDS.map((f) => (
-          <TextField
-            key={f.key}
-            label={f.label}
-            type={f.type ?? 'text'}
-            inputMode={f.inputMode}
-            maxLength={f.maxLength}
-            className={f.key === 'label' ? 'sm:col-span-2' : undefined}
-            value={values[f.key]}
-            onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
-            error={showErrors ? errors[f.key] : undefined}
-          />
+      <fieldset disabled={locked} className="grid gap-6 lg:grid-cols-2">
+        {GROUPS.map((g) => (
+          <section key={g.title} aria-label={g.title} className="grid content-start gap-3 rounded-2xl border border-line bg-surface p-4">
+            <h3 className="text-base font-semibold text-fg">{g.title}</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {g.fields.map((f) => (
+                <TextField
+                  key={f.key}
+                  label={f.label}
+                  hint={f.hint}
+                  type={f.type ?? 'text'}
+                  inputMode={f.inputMode}
+                  maxLength={f.maxLength}
+                  className={f.key === 'label' ? 'sm:col-span-2' : undefined}
+                  value={values[f.key]}
+                  onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                  error={showErrors ? errors[f.key] : undefined}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </fieldset>
       <div className="rounded-xl bg-surface-2 p-3 text-sm text-muted">

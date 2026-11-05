@@ -17,7 +17,7 @@ export function GroupDetailsSection() {
   return (
     <Section title="Group">
       <form
-        className="grid gap-3"
+        className="grid max-w-md gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           if (trimmed) save.mutate(trimmed);
