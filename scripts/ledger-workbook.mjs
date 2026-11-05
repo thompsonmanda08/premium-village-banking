@@ -15,7 +15,7 @@ const COLUMNS = {
   saving: /^savings$/i,
   cum_savings: /^cumm?\.? ?savings$/i,
   txn_fee: /^transaction fee$/i,
-  membership: /^membership/i,
+  membership: /^mem[a-z]*\s*fee/i,   // the treasurer's own sheets spell it "Memberhsip fee" from August
   loan: /^loan$/i,
   interest: /^interest on loan$/i,
   excess: /^excess( interest)?$/i,
@@ -27,8 +27,9 @@ const COLUMNS = {
   received: /^amount received/i,
 }
 // membership is charged quarterly (Feb, May, Aug, Nov = month indexes 1, 4, 7, 10): required on those sheets, optional
-// (0 when absent) on the others. See readSheet.
-const MEMBERSHIP_MONTHS = [1, 4, 7, 10]
+// (0 when absent) on the others. See readSheet. May is not required: the real workbooks have no membership column on the
+// Mar to May layout, and the May quarter was collected in June (the June sheets carry it).
+const MEMBERSHIP_MONTHS = [1, 7, 10]
 const REQUIRED = ['name', 'saving', 'txn_fee', 'loan', 'interest', 'excess', 'fee_spent', 'minimum']
 // The ledger refuses a negative here (private.import_history); only the workbook's own totals may be negative.
 const UNSIGNED = ['saving', 'txn_fee', 'membership', 'interest', 'excess', 'penalty', 'fee_spent', 'received']
