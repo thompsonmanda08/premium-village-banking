@@ -25,7 +25,7 @@ export function VisibilitySection() {
 
   return (
     <Section title="Who can see member figures" description="Applies to savings, loans and statements once the ledger is live. Changes are recorded in the audit log.">
-      <fieldset className="grid gap-2">
+      <fieldset className="grid gap-2 lg:grid-cols-2">
         <legend className="sr-only">Who can see member figures</legend>
         {OPTIONS.map((o) => (
           <label

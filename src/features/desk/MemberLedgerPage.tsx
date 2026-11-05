@@ -73,10 +73,10 @@ function MemberLedgerBody() {
         {open ? `Corrections land in ${open.label}; the original stays in its own month.` : 'Open the next month to post corrections or waivers.'}
       </p>
 
-      <section aria-labelledby="entries-title" className="grid gap-3">
-        <h2 id="entries-title" className="text-xl font-semibold text-fg">Entries</h2>
+      <section aria-labelledby="entries-title" className="grid gap-3 lg:grid-cols-2 lg:items-start">
+        <h2 id="entries-title" className="text-xl font-semibold text-fg lg:col-span-2">Entries</h2>
         {groups.length === 0 ? (
-          <p className="text-sm text-muted">Nothing recorded for this member yet.</p>
+          <p className="text-sm text-muted lg:col-span-2">Nothing recorded for this member yet.</p>
         ) : (
           groups.map((g) => (
             <Card key={g.periodId}>

@@ -39,7 +39,7 @@ function AddMember({ groupId }: { groupId: string }) {
   return (
     <details className="rounded-xl border border-line">
       <summary className="flex h-12 cursor-pointer items-center px-4 text-base font-semibold text-accent">Add a member</summary>
-      <form className="grid gap-3 px-4 pb-4" noValidate onSubmit={submit}>
+      <form className="grid gap-3 px-4 pb-4 sm:grid-cols-2" noValidate onSubmit={submit}>
         <TextField label="Full name" value={fullName} maxLength={120} onChange={(e) => setFullName(e.target.value)} autoComplete="off" error={showErrors ? errors.full_name : undefined} />
         <TextField
           label="Short name"
@@ -51,7 +51,7 @@ function AddMember({ groupId }: { groupId: string }) {
           // A blank full name is already flagged on its own field; the empty default would only repeat it.
           error={showErrors && fullName.trim() ? errors.short_name : undefined}
         />
-        <Button type="submit" isLoading={add.isPending} disabled={!fullName.trim()}>Add member</Button>
+        <Button type="submit" className="sm:col-span-2 sm:justify-self-start" isLoading={add.isPending} disabled={!fullName.trim()}>Add member</Button>
       </form>
     </details>
   );
@@ -126,10 +126,12 @@ function MemberRow({ member }: { member: AdminMember }) {
         </span>
       </summary>
       <div className="grid gap-3 border-t border-line p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
         <TextField label="Full name" maxLength={120} {...field('full_name')} error={showErrors ? errors.full_name : undefined} />
         <TextField label="Short name" maxLength={40} {...field('short_name')} error={showErrors ? errors.short_name : undefined} />
         <TextField label="Email" type="email" inputMode="email" {...field('email')} hint="Invites go to this address." error={showErrors ? errors.email : undefined} />
         <TextField label="Phone" type="tel" inputMode="tel" {...field('phone')} />
+        </div>
         <Button variant="secondary" isLoading={saveDetails.isPending} onClick={() => submitDetails()}>Save details</Button>
 
         {status !== 'linked' && active ? (
@@ -182,7 +184,7 @@ export function PeopleSection() {
           {friendlyError(members.error)}
         </Alert>
       ) : (
-        <ul role="list" className="grid grid-cols-1 gap-2">
+        <ul role="list" className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:items-start">
           {members.data.map((m) => (
             // Key changes whenever server data changes, so the row's form state resets after a save.
             <li key={`${m.id}:${m.full_name}:${m.short_name}:${m.email ?? ''}:${m.phone ?? ''}:${m.role}:${m.status}`}>

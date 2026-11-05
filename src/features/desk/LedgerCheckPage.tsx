@@ -114,9 +114,11 @@ export function LedgerCheckPage() {
               <p className="text-sm text-muted">{text}</p>
             );
           })()}
-          {data.periods.map((p) => (
-            <PeriodCard key={p.id} period={p} />
-          ))}
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            {data.periods.map((p) => (
+              <PeriodCard key={p.id} period={p} />
+            ))}
+          </div>
         </div>
       )}
     </>
