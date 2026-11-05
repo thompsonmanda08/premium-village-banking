@@ -1,11 +1,13 @@
 import { BookOpen } from 'lucide-react';
+import { Link } from 'react-router';
 import { useGroup } from '@/features/group/GroupContext';
 import { Figure } from '@/features/ledger/Figure';
 import { MemberScreen } from '@/features/ledger/MemberScreen';
 import { owedFigure, statementViews, type StatementRow } from '@/features/ledger/memberViews';
 import { MyCharts } from '@/features/ledger/MyCharts';
-import { currentPeriod } from '@/features/ledger/model';
+import { currentPeriod, lastClosed } from '@/features/ledger/model';
 import { useLedgerCycle, useMyStatements } from '@/features/ledger/queries';
+import { reportPath } from '@/features/report/ReportPage';
 import { money } from '@/lib/format';
 import { EmptyState } from '@/ui';
 
@@ -34,6 +36,7 @@ export function PassbookPage() {
   const views = statementViews(statements.data ?? [], periods);
   const latest = views[0];
   const open = currentPeriod(periods);
+  const closed = lastClosed(periods);
 
   return (
     <MemberScreen
@@ -61,6 +64,8 @@ export function PassbookPage() {
         )}
 
         {open ? <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">Your {open.label} statement appears when the treasurer closes the month.</p> : null}
+
+        {closed ? <Link to={reportPath(closed.starts_on)} className="inline-flex min-h-12 items-center font-semibold text-accent underline-offset-4 hover:underline">Read the {closed.label} report</Link> : null}
 
         <MyCharts statements={statements.data ?? []} periods={periods} view="passbook" />
 

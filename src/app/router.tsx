@@ -22,6 +22,7 @@ import { HomePage } from '@/features/home/HomePage';
 import { InvitePage } from '@/features/invite/InvitePage';
 import { TermsPage } from '@/features/legal/TermsPage';
 import { RulesPage } from '@/features/rules/RulesPage';
+import { ReportPage } from '@/features/report/ReportPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { NotFound } from '@/features/shells/NotFound';
 import { AppShell } from './AppShell';
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
                   page('desk/pool', 'Pool and members', <PoolPage />),
                   page('desk/reports', 'Reports', <ReportsPage />),
                   page('rules', 'Rules', <RulesPage />),
+                  page('report/:month?', 'Monthly report', <ReportPage />),
                   page('account', 'Account', <AccountPage />),
                   page('settings/:tab?', 'Group settings', <SettingsPage />),
                   page('*', 'Not found', <NotFound />),
