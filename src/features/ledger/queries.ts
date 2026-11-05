@@ -101,6 +101,9 @@ export function useRefreshLedger(groupId: string) {
       qc.invalidateQueries({ queryKey: ['member-statuses', groupId] }),
       qc.invalidateQueries({ queryKey: ['group-statements'] }),
       qc.invalidateQueries({ queryKey: ['cycle-statements'] }),
+      qc.invalidateQueries({ queryKey: ['my-queries'] }),
+      qc.invalidateQueries({ queryKey: ['open-queries'] }),
+      qc.invalidateQueries({ queryKey: ['minimum-breakdown'] }),
     ]);
 }
 

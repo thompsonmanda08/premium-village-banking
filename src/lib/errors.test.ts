@@ -57,6 +57,10 @@ test('never leaks raw errors', () => {
   expect(friendlyError(undefined)).toBe(GENERIC);
 });
 
+test('period_not_closed is not specific to reports', () => {
+  expect(friendlyError({ message: 'period_not_closed', code: 'P0001' })).toBe('That month isn’t closed yet.');
+});
+
 // Every code the database or the invite-member Edge Function can raise has its own sentence.
 const SQL_CODES = [
   'invite_not_found', 'invite_expired', 'invite_revoked', 'invite_used', 'email_mismatch', 'already_linked',
@@ -153,4 +157,8 @@ test('export refusals say what is wrong, not “something went wrong”', () => 
   expect(friendlyError(new Error('nothing_to_export'))).toBe('There is nothing to export yet.');
   expect(friendlyError(new Error('no_group_statement'))).toBe('This month’s statement is missing, so it can’t be exported.');
   expect(friendlyError(new Error('not_exportable'))).toBe('Only closed months and the open month can be exported.');
+});
+
+test('a drifted statement says the figure cannot be broken down and who to ask', () => {
+  expect(friendlyError({ code: 'P0001', message: 'statement_drifted' })).toBe('We couldn’t break this figure down. Ask the treasurer to check it.');
 });
