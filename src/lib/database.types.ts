@@ -666,6 +666,9 @@ isOneToOne: false
 "loan_check":
 { Args: { "p_member": string,"p_principal"?: number }; Returns: Json
                            },
+"minimum_breakdown":
+{ Args: { "p_member": string,"p_period": string }; Returns: Json
+                           },
 "month_overrides":
 { Args: { "p_period": string }; Returns: Json
                            },

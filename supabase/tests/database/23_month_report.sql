@@ -202,6 +202,96 @@ select is(month_overrides(tests.lp(4)), '[]'::jsonb, 'an imported entry alone ma
 select is(month_report(tests.lp(4)) -> 'overrides_recorded', 'false'::jsonb, 'with its overrides not recorded');
 reset role;
 
+-- why this figure (minimum_breakdown) -------------------------------------------------------------------
+select tests.login_anon();
+select throws_ok($$select minimum_breakdown(tests.lm('Ben'), tests.lp(1))$$, '42501',
+  'permission denied for function minimum_breakdown', 'anon cannot call minimum_breakdown');
+reset role;
+select ok(not has_function_privilege('anon', 'public.minimum_breakdown(uuid, uuid)', 'EXECUTE')
+      and has_function_privilege('authenticated', 'public.minimum_breakdown(uuid, uuid)', 'EXECUTE'),
+  'minimum_breakdown: anon cannot execute, signed-in users can');
+select tests.login_as(tests.id('outsider'));
+select throws_ok($$select minimum_breakdown(tests.lm('Ben'), tests.lp(1))$$, '42501', 'not_admin', 'an outsider cannot break a minimum down');
+reset role;
+select tests.login_as(tests.id('owner2'));
+select throws_ok($$select minimum_breakdown(tests.lm('Ben'), tests.lp(1))$$, '42501', 'not_admin', 'nor another group''s admin');
+reset role;
+select tests.login_as(tests.id('admin'));
+select throws_ok($$select minimum_breakdown(gen_random_uuid(), tests.lp(1))$$, '42501', 'not_admin', 'an unknown member is refused');
+select throws_ok($$select minimum_breakdown(tests.lm('Ben'), gen_random_uuid())$$, '42501', 'not_admin', 'so is an unknown month');
+select throws_ok($$select minimum_breakdown(tests.lm('Ben'), tests.lp(5))$$, 'P0001', 'period_not_closed', 'a month not closed has no breakdown');
+-- Every statement of the two months the app closed (February and March), broken down.
+select tests.keep('bd', (select jsonb_agg(jsonb_build_object('period_id', s.period_id, 'member_id', s.member_id,
+                                                          'b', minimum_breakdown(s.member_id, s.period_id)))
+                         from statements s where s.period_id in (tests.lp(1), tests.lp(2))));
+reset role;
+
+create temp view bd as
+  select s.*, x -> 'b' as b, (x -> 'b' ->> 'instalments')::numeric as inst, (x -> 'b' ->> 'excess')::numeric as exc,
+         (x -> 'b' ->> 'earlier_shortfall')::numeric as short, (x -> 'b' ->> 'capped_to_owed')::boolean as capped,
+         (x -> 'b' ->> 'minimum')::numeric as minimum
+  from jsonb_array_elements(tests.kept('bd')) x
+  join statements s on s.period_id = (x ->> 'period_id')::uuid and s.member_id = (x ->> 'member_id')::uuid;
+
+select is((select count(*)::int from bd), (select count(*)::int from statements where period_id in (tests.lp(1), tests.lp(2))),
+  'one breakdown per statement');
+select ok((select bool_and(array(select jsonb_object_keys(b) order by 1)
+                           = array['capped_to_owed', 'earlier_shortfall', 'excess', 'instalments', 'minimum']) from bd),
+  'each has the three terms, whether it was capped, and the minimum');
+select ok((select bool_and(minimum = next_minimum) from bd), 'the minimum is the statement''s next_minimum');
+select ok((select bool_and(exc = excess_charged and short = unpaid_minimum) from bd),
+  'excess and earlier shortfall are the statement''s excess_charged and unpaid_minimum');
+select ok((select bool_and(inst + exc + short = next_minimum) from bd where not capped),
+  'uncapped: the three terms sum to the stored next_minimum');
+select ok((select coalesce(bool_and(inst + exc + short > closing_owed and minimum = greatest(closing_owed, 0)), true) from bd where capped),
+  'capped: the terms exceed what is owed, and the minimum is what is owed');
+select ok((select count(*) from bd where not capped and inst > 0) > 0
+      and (select count(*) from bd where not capped and short > 0) > 0
+      and (select count(*) from bd where not capped and exc > 0) > 0,
+  'the uncapped sums exercise every term (instalments, excess and an earlier shortfall)');
+select is((select inst from bd where member_id = tests.lm('Ben') and period_id = tests.lp(1)),
+  (select sum(i.amount_due) from loan_instalments i join loans l on l.id = i.loan_id
+    where l.member_id = tests.lm('Ben') and i.period_id = tests.lp(2)),
+  'Ben''s February instalments are his loans'' March instalments');
+
+-- A minimum capped to what is owed (a synthetic statement: 30 excess and 40 shortfall, but only 50 owed).
+insert into members (group_id, full_name, short_name) values (tests.id('lg'), 'Nia Test', 'Nia');
+insert into statements (group_id, period_id, member_id, excess_charged, unpaid_minimum, closing_owed, next_minimum, source)
+values (tests.id('lg'), tests.lp(2), (select id from members where short_name = 'Nia'), 30, 40, 50, 50, 'close');
+insert into members (group_id, full_name, short_name) values (tests.id('lg'), 'Ola Test', 'Ola');
+select tests.login_as(tests.id('admin'));
+select is(minimum_breakdown((select id from members where short_name = 'Nia'), tests.lp(2)),
+  '{"instalments": 0, "excess": 30.00, "earlier_shortfall": 40.00, "capped_to_owed": true, "minimum": 50.00}'::jsonb,
+  'capped: the terms come to 70 but the minimum is the 50 owed');
+select is(minimum_breakdown((select id from members where short_name = 'Ola'), tests.lp(2)), '{"none": true}'::jsonb,
+  'a member with no statement that month gets none, not an error');
+select is(minimum_breakdown(tests.lm('Cid'), tests.lp(3)), '{"none": true}'::jsonb, 'nor in an imported month');
+select is(minimum_breakdown(tests.lm('Ben'), tests.lp(3)),
+  jsonb_build_object('imported', true, 'minimum', (select next_minimum from statements where period_id = tests.lp(3) and member_id = tests.lm('Ben'))),
+  'an imported month: not itemised, only the minimum');
+reset role;
+
+-- private figures: your own breakdown, nobody else's
+update groups set figures_visibility = 'private' where id = tests.id('lg');
+select tests.login_as(tests.id('member'));   -- Ben
+select tests.keep('bd_ben_own', minimum_breakdown(tests.lm('Ben'), tests.lp(1)));
+select throws_ok($$select minimum_breakdown(tests.lm('Cid'), tests.lp(1))$$, '42501', 'not_admin',
+  'private: another member''s breakdown is refused');
+reset role;
+select tests.login_as(tests.id('admin'));
+select tests.keep('bd_ann_cid', minimum_breakdown(tests.lm('Cid'), tests.lp(1)));
+reset role;
+update groups set figures_visibility = 'open' where id = tests.id('lg');
+select tests.login_as(tests.id('member'));
+select tests.keep('bd_ben_cid', minimum_breakdown(tests.lm('Cid'), tests.lp(1)));
+reset role;
+select is(tests.kept('bd_ben_own'), (select b from bd where member_id = tests.lm('Ben') and period_id = tests.lp(1)),
+  'private: a member sees their own breakdown');
+select is(tests.kept('bd_ann_cid'), (select b from bd where member_id = tests.lm('Cid') and period_id = tests.lp(1)),
+  'private: an admin sees anyone''s');
+select is(tests.kept('bd_ben_cid'), (select b from bd where member_id = tests.lm('Cid') and period_id = tests.lp(1)),
+  'open: another member''s breakdown is shown');
+
 -- a former member ---------------------------------------------------------------------------------------
 update members set status = 'left' where id = tests.lm('Cid');
 select tests.login_as(tests.id('other'));

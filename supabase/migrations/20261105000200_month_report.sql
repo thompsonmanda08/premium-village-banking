@@ -114,3 +114,35 @@ end $$;
 
 revoke execute on function public.month_overrides(uuid), public.month_report(uuid) from public, anon;
 grant execute on function public.month_overrides(uuid), public.month_report(uuid) to authenticated;
+
+-- "Why this figure" (spec §5): a closed month's minimum as the three terms close_figures adds into next_minimum.
+create or replace function public.minimum_breakdown(p_member uuid, p_period uuid) returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_p periods;
+  v_s statements;
+  v_inst numeric;
+begin
+  select * into v_p from periods where id = p_period;
+  if not found or not can_see_figures(v_p.group_id, p_member) then raise exception 'not_admin' using errcode = '42501'; end if;
+  if v_p.status <> 'closed' then raise exception 'period_not_closed' using errcode = 'P0001'; end if;
+  select * into v_s from statements where period_id = p_period and member_id = p_member;
+  if not found then return jsonb_build_object('none', true); end if;
+  if private.period_imported(p_period) then return jsonb_build_object('imported', true, 'minimum', v_s.next_minimum); end if;
+
+  -- Next month's instalments as the close counted them, each capped at what its loan still owed. Nothing stores those
+  -- balances, so replay the close (it is stable for a closed month; the diff check relies on that) and take its loans.
+  select coalesce(sum(least(i.amount_due, greatest((x ->> 'remaining')::numeric, 0))), 0) into v_inst
+  from jsonb_array_elements(private.close_figures(p_period) -> 'loans') x
+  join loans l on l.id = (x ->> 'loan_id')::uuid and l.member_id = p_member
+  join loan_instalments i on i.loan_id = l.id
+  join periods np on np.id = i.period_id and np.month_index = v_p.month_index + 1;
+
+  return jsonb_build_object(
+    'instalments', v_inst, 'excess', v_s.excess_charged, 'earlier_shortfall', v_s.unpaid_minimum,
+    'capped_to_owed', v_inst + v_s.excess_charged + v_s.unpaid_minimum > v_s.closing_owed,
+    'minimum', v_s.next_minimum);
+end $$;
+
+revoke execute on function public.minimum_breakdown(uuid, uuid) from public, anon;
+grant execute on function public.minimum_breakdown(uuid, uuid) to authenticated;
