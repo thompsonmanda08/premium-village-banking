@@ -1,4 +1,4 @@
-// bun run ledger:check -- [--target <ref>|local]
+// pnpm run ledger:check [--target <ref>|local]
 // Replays every imported month of Cycle 2026 through the close calculation and compares it with the workbook's figures
 // (private.check_cycle). Read-only. Prints counts per reason code only; member-level detail goes to
 // data/private/ledger-check.json, which is git-ignored and never leaves this machine. Exits 1 when any difference is
@@ -79,7 +79,7 @@ export async function main(argv, detailPath = DETAIL) {
     const [row] = await sql`
       select private.check_cycle(id) as report from cycles
       where group_id = ${group}::uuid and label = ${CYCLE_2026.label} and starts_on = ${CYCLE_2026.starts_on}::date`
-    if (!row) throw new Error(`No ${CYCLE_2026.label} on this group here yet. Run bun run ledger:import first.`)
+    if (!row) throw new Error(`No ${CYCLE_2026.label} on this group here yet. Run pnpm run ledger:import first.`)
     mkdirSync(dirname(detailPath), { recursive: true })
     writeFileSync(detailPath, JSON.stringify(row.report, null, 2), { mode: 0o600 })
     const rows = summarise(row.report)

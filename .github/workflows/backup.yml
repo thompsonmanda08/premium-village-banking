@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.120.0   # matches the supabase devDependency in bun.lock
+          version: 2.120.0   # matches the supabase devDependency in pnpm-lock.yaml
       - run: sudo apt-get update && sudo apt-get install -y age
       - name: Check the secrets this job needs
         env:

@@ -2,7 +2,7 @@ import { expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
 
 // The seed accounts exist only on a local Supabase stack, never on the hosted project, so the fallback needs both: no
-// BASE_URL and an app Supabase URL (VITE_SUPABASE_URL, which `bun run e2e` does not read from .env.local: export it) on
+// BASE_URL and an app Supabase URL (VITE_SUPABASE_URL, which `pnpm run e2e` does not read from .env.local: export it) on
 // localhost. Anywhere else the tests run only when E2E_MEMBER_* and E2E_ADMIN_* are set. Hosted E2E accounts must satisfy
 // the project's Auth password policy: at least 12 characters, with letters and digits.
 const supabaseHost = (() => {
