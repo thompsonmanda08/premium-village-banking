@@ -91,3 +91,16 @@ test('the less common amounts start folded, open when they hold a figure, and th
   await userEvent.type(screen.getByLabelText('Loan repayment'), '100.50');
   expect(screen.getByText('You are sending').nextElementSibling).toHaveTextContent('350.50');
 });
+
+test('a saved declaration with a penalty opens Other charges, and a group opened by hand stays open when a box is cleared', async () => {
+  const { container, unmount } = renderForm(declaration({ penalty: 50 }));
+  expect([...container.querySelectorAll('details')].map((d) => d.open)).toEqual([true, false]);
+  unmount();
+
+  const fresh = renderForm();
+  await userEvent.click(screen.getByText('Other charges'));
+  const penalty = screen.getByLabelText('Penalty');
+  await userEvent.type(penalty, '5');
+  await userEvent.clear(penalty);
+  expect(fresh.container.querySelectorAll('details')[0]!.open).toBe(true);
+});

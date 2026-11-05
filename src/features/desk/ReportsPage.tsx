@@ -81,7 +81,7 @@ function ReportsBody() {
         </section>
       </Card>
 
-      <Card>
+      <Card className="lg:col-span-2">
         <section aria-labelledby="reports-member" className="grid gap-3">
           <h2 id="reports-member" className="text-lg font-semibold text-fg">One member</h2>
           <p className="text-sm text-muted">A report with only that member’s own figures, safe to send to them.</p>

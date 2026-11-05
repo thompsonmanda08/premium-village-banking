@@ -106,7 +106,7 @@ function DeskBody() {
           }
         />
       </Card>
-      <Card>
+      <Card className="lg:col-span-2">
         <CardHeader
           title="Reports"
           subtitle="Download the month, the whole period or one member’s report as Excel files."

@@ -166,7 +166,7 @@ function CloseBody() {
         </section>
       </Card>
 
-      <section aria-labelledby="close-preview-title" className="grid gap-3">
+      <section aria-labelledby="close-preview-title" className="grid gap-3 lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="close-preview-title" className="text-xl font-semibold text-fg">What the close will write</h2>
           <Button

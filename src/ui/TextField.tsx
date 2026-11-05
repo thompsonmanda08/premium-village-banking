@@ -20,7 +20,7 @@ export function TextField({ label, hint, error, info, prefix, id, className, ...
   const describedBy = [hint && !error ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
   return (
     <div className={cn('grid gap-1.5', className)}>
-      <div className="flex items-center gap-1">
+      <div className="relative flex items-center gap-1">
         <label htmlFor={fieldId} className="text-sm font-medium text-fg">{label}</label>
         {info ? <InfoTip label={label}>{info}</InfoTip> : null}
       </div>

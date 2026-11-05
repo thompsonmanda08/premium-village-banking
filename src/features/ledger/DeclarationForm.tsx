@@ -26,9 +26,11 @@ const COPY: Record<AmountKey, { hint: string; info: string }> = {
 };
 
 /** A collapsed group of fields: the common path stays short, and the rest is one tap away. */
-function More({ title, hint, open, children }: { title: string; hint: string; keys: readonly AmountKey[]; open: boolean; children: React.ReactNode }) {
+function More({ title, hint, filled, children }: { title: string; hint: string; filled: boolean; children: React.ReactNode }) {
+  // Open by hand or because it holds a figure; once opened it stays open, so clearing a box never folds the group away.
+  const [opened, setOpened] = useState(false);
   return (
-    <details open={open} className="group rounded-xl border border-line">
+    <details open={opened || filled} onToggle={(e) => setOpened(e.currentTarget.open)} className="group rounded-xl border border-line">
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2">
         <span>
           <span className="block text-base font-medium text-fg">{title}</span>
@@ -83,7 +85,7 @@ export function DeclarationForm({ periodId, memberId, wallets, initial, onDone }
     <TextField key={k} label={lookup(k).label} hint={COPY[k].hint} info={COPY[k].info} prefix="K" inputMode="decimal" autoComplete="off" placeholder="0" error={errors[k]} value={values[k]} onChange={set(k)} />
   );
   // A group opens when it already holds a figure or an error, so nothing typed is ever hidden.
-  const open = (keys: readonly AmountKey[]) => keys.some((k) => values[k].trim() !== '' || errors[k]);
+  const filled = (keys: readonly AmountKey[]) => keys.some((k) => values[k].trim() !== '' || errors[k]);
   const sending = sumKwacha(...MONEY.map((k) => parseKwacha(values[k]) ?? 0));
 
   return (
@@ -91,10 +93,10 @@ export function DeclarationForm({ periodId, memberId, wallets, initial, onDone }
       {errors.form ? <Alert tone="danger">{errors.form}</Alert> : null}
       <div className="grid gap-4 @md:grid-cols-2">{PRIMARY.map(field)}</div>
 
-      <More title="Other charges" hint="Excess, membership, penalty or the mobile-money fee" keys={OTHER} open={open(OTHER)}>
+      <More title="Other charges" hint="Excess, membership, penalty or the mobile-money fee" filled={filled(OTHER)}>
         <div className="grid gap-4 @md:grid-cols-2">{OTHER.map(field)}</div>
       </More>
-      <More title="Ask to borrow" hint="A request for the treasurer, not money you send" keys={BORROW} open={open(BORROW)}>
+      <More title="Ask to borrow" hint="A request for the treasurer, not money you send" filled={filled(BORROW)}>
         {BORROW.map(field)}
       </More>
 

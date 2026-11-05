@@ -13,3 +13,15 @@ test('a tap shows the explanation, Escape hides it', async () => {
   await userEvent.keyboard('{Escape}');
   expect(screen.queryByRole('tooltip')).toBeNull();
 });
+
+test('Enter toggles it, and a tap elsewhere closes it', async () => {
+  render(<><InfoTip label="Penalty">Explained.</InfoTip><p>elsewhere</p></>);
+  await userEvent.tab();
+  await userEvent.keyboard('{Enter}');
+  expect(screen.getByRole('tooltip')).toBeInTheDocument();
+  await userEvent.keyboard('{Enter}');
+  expect(screen.queryByRole('tooltip')).toBeNull();
+  await userEvent.keyboard('{Enter}');
+  await userEvent.click(screen.getByText('elsewhere'));
+  expect(screen.queryByRole('tooltip')).toBeNull();
+});
