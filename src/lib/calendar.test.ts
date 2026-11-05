@@ -8,7 +8,7 @@ test('before the cycle: start first, then monthly windows and loan days', () => 
   expect(upcomingDates(cycle, rules, '2027-01-10', 4)).toEqual([
     { date: '2027-02-15', label: 'Cycle starts', kind: 'start' },
     { date: '2027-03-05', label: 'Declarations open (5th–7th)', kind: 'window' },
-    { date: '2027-03-08', label: 'Loans sent out', kind: 'loans' },
+    { date: '2027-03-08', label: 'Loans open (any day)', kind: 'loans' },
     { date: '2027-04-05', label: 'Declarations open (5th–7th)', kind: 'window' },
   ]);
 });

@@ -28,7 +28,7 @@ export function upcomingDates(cycle: CycleDates, rules: WindowRules, today: stri
   let m = sm;
   while (y < ey || (y === ey && m <= em)) {
     events.push({ date: iso(y, m, rules.window_open_day), label: windowLabel, kind: 'window' });
-    events.push({ date: iso(y, m, rules.window_close_day + 1), label: 'Loans sent out', kind: 'loans' });
+    events.push({ date: iso(y, m, rules.window_close_day + 1), label: 'Loans open (any day)', kind: 'loans' });
     m += 1;
     if (m > 12) {
       m = 1;
