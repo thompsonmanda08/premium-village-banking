@@ -53,12 +53,20 @@ test('daysBetween counts calendar days across months and years', () => {
   expect(daysBetween('2027-03-01', '2027-02-28')).toBe(-1);
 });
 
-test('cycleMonths: a 15 Feb to 15 Feb cycle is twelve months, Feb to Jan, with the current one part filled', () => {
+test('cycleMonths: a 15 Feb to 15 Feb cycle is twelve calendar months, Feb to Jan, with the current one part filled', () => {
   const months = cycleMonths({ starts_on: '2027-02-15', ends_on: '2028-02-15' }, '2027-04-22');
   expect(months.map((m) => m.label)).toEqual(['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan']);
   expect(months.slice(0, 3).map((m) => m.state)).toEqual(['past', 'past', 'current']);
-  expect(months[2]!.fill).toBeCloseTo(7 / 30);
+  expect(months[2]!.fill).toBeCloseTo(21 / 30);
   expect(months[3]).toMatchObject({ state: 'future', fill: 0 });
+});
+
+test('cycleMonths follows the ledger: the 5th to 7th of November is month 10, not the tail of month 9', () => {
+  const months = cycleMonths({ starts_on: '2026-02-15', ends_on: '2027-02-15' }, '2026-11-05');
+  expect(months.findIndex((m) => m.state === 'current')).toBe(9);
+  expect(months[8]).toMatchObject({ label: 'Oct', state: 'past', fill: 1 });
+  expect(months[0]!.start).toBe('2026-02-15');
+  expect(months[11]).toMatchObject({ label: 'Jan', start: '2027-01-01', state: 'future' });
 });
 
 test('cycleMonths before the start is all future, after the end all past', () => {

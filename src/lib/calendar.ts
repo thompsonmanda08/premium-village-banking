@@ -62,16 +62,16 @@ export const daysBetween = (from: string, to: string): number => Math.round((utc
 export type CycleMonth = { start: string; label: string; state: 'past' | 'current' | 'future'; fill: number };
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
-/** The cycle as monthly periods that begin on the cycle's start day; `fill` is how much of each period has gone by. */
+/**
+ * The cycle as the ledger's months: calendar months (Feb is month 1 … Nov is month 10, Jan is 12), the first starting on
+ * the cycle's start day and the last ending on its end day. `fill` is how much of each month has gone by.
+ */
 export function cycleMonths(cycle: { starts_on: string; ends_on: string }, today: string): CycleMonth[] {
-  const [sy, sm, sd] = cycle.starts_on.split('-').map(Number) as [number, number, number];
-  const starts: string[] = [];
-  for (let i = 0; ; i++) {
-    const y = sy + Math.floor((sm - 1 + i) / 12);
-    const m = ((sm - 1 + i) % 12) + 1;
-    const start = iso(y, m, sd);
-    if (start >= cycle.ends_on) break;
-    starts.push(start);
+  const [sy, sm] = cycle.starts_on.split('-').map(Number) as [number, number];
+  const [ey, em] = cycle.ends_on.split('-').map(Number) as [number, number];
+  const starts: string[] = [cycle.starts_on];
+  for (let i = 1; sy * 12 + (sm - 1) + i < ey * 12 + (em - 1); i++) {
+    starts.push(iso(sy + Math.floor((sm - 1 + i) / 12), ((sm - 1 + i) % 12) + 1, 1));
   }
   return starts.map((start, i) => {
     const end = starts[i + 1] ?? cycle.ends_on;
