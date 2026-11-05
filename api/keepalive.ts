@@ -1,5 +1,4 @@
 // Vercel Cron calls this daily (see vercel.json) so the free Supabase project never idles into a pause.
-// It makes the same harmless read as .github/workflows/keepalive.yml, from Vercel instead of GitHub.
 export async function GET(req: Request) {
   // Vercel sends `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is set; without one the ping is open (it is read-only).
   const secret = process.env.CRON_SECRET

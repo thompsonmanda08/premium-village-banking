@@ -61,7 +61,9 @@ export async function POST(req: Request) {
     }
     const put = await r2.fetch(object(key), { method: 'PUT', body, headers: { 'Content-Type': type } })
     if (!put.ok) {
-      await asCaller.rpc('remove_proof', { p_id: row.id }) // no record of a file that is not there
+      // No record of a file that is not there; if this also fails the dangling row needs a human, so log it.
+      const { error: removeError } = await asCaller.rpc('remove_proof', { p_id: row.id })
+      if (removeError) console.error('proof cleanup failed', row.id, removeError)
       throw new HttpError(502, 'upload_failed')
     }
     return json(200, { id: row.id })
