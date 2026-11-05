@@ -40,14 +40,3 @@ export const inviteLink = (siteUrl: string, token: string): string => `${trimSla
 /** GoTrue refusing to send another email (HTTP 429, or its `over_*_rate_limit` codes). */
 export const isRateLimited = (err: { status?: number; code?: string }): boolean =>
   err.status === 429 || err.code === 'over_email_send_rate_limit' || err.code === 'over_request_rate_limit';
-
-/**
- * Value for Access-Control-Allow-Origin. Allowed = siteUrl plus the comma-separated
- * allowedOriginsEnv (trimmed, trailing slashes dropped, empty entries ignored). Exact string match only,
- * no wildcards: an allowed request origin is reflected, anything else (or none) gets siteUrl.
- */
-export function corsOrigin(requestOrigin: string | null, siteUrl: string, allowedOriginsEnv: string | undefined): string {
-  const site = trimSlashes(siteUrl);
-  const allowed = new Set([site, ...(allowedOriginsEnv ?? '').split(',').map(trimSlashes).filter(Boolean)]);
-  return requestOrigin && allowed.has(requestOrigin) ? requestOrigin : site;
-}

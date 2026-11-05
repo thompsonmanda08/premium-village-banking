@@ -1,8 +1,8 @@
-name: Deploy database and functions
+name: Deploy database
 on:
   push:
     branches: [main]
-    paths: ['supabase/migrations/**', 'supabase/functions/**']
+    paths: ['supabase/migrations/**']
   workflow_dispatch:
 
 permissions:
@@ -68,6 +68,3 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      - run: supabase functions deploy invite-member --project-ref "$PROJECT_REF"
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
