@@ -666,6 +666,12 @@ isOneToOne: false
 "loan_check":
 { Args: { "p_member": string,"p_principal"?: number }; Returns: Json
                            },
+"month_overrides":
+{ Args: { "p_period": string }; Returns: Json
+                           },
+"month_report":
+{ Args: { "p_period": string }; Returns: Json
+                           },
 "open_period":
 { Args: { "p_cycle": string,"p_deadline"?: string,"p_month_index": number }; Returns: {
               "closed_at": string | null,
