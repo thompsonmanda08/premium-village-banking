@@ -5,37 +5,41 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 // The light palette of DESIGN.md (emails stay light: clients don't agree on dark mode). Lime never fills on white, so the
 // button is ink with lime lettering, as accent-solid is in the app.
 const C = { canvas: '#EEF0F2', surface: '#FFFFFF', line: '#DFE2E6', fg: '#121417', muted: '#555B65', accent: '#3F6212', solid: '#16181B', lime: '#C6F432', soft: '#EAF7C4' };
+// Absolute and public: mail clients can't resolve {{ .SiteURL }} reliably (it is the vercel.app address, behind a trailing slash).
+const LOGO = 'https://village-banking.inter-webb.com/brand-mark.png';
+// DESIGN.md dark column, applied through prefers-color-scheme (Apple Mail, iOS and most mobile clients; others stay light).
+const D = { canvas: '#0F1113', surface: '#1A1D20', line: '#2E3338', fg: '#F3F4F1', muted: '#9EA3AB', accent: '#C6F432', solid: '#C6F432', on: '#121417', soft: '#2A3318' };
 const FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const MONO = "'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace";
 const type = (size, weight, line, color) =>
   `font-family:${FONT};font-size:${size}px;font-weight:${weight};line-height:${line};color:${color};`;
 
-const p = (text) => `<p style="margin:0 0 16px;${type(16, 400, 1.6, C.fg)}">${text}</p>`;
-const small = (text) => `<p style="margin:0 0 16px;${type(14, 400, 1.6, C.muted)}">${text}</p>`;
+const p = (text) => `<p class="fg" style="margin:0 0 16px;${type(16, 400, 1.6, C.fg)}">${text}</p>`;
+const small = (text) => `<p class="muted" style="margin:0 0 16px;${type(14, 400, 1.6, C.muted)}">${text}</p>`;
 
 const button = (label) => `
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px;">
                 <tr>
-                  <td align="center" bgcolor="${C.solid}" style="border-radius:999px;">
-                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:14px 28px;${type(16, 600, 1.2, C.lime)}text-decoration:none;border-radius:999px;">${label}</a>
+                  <td align="center" bgcolor="${C.solid}" class="btn" style="border-radius:999px;">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" class="btn-a" style="display:inline-block;padding:14px 28px;${type(16, 600, 1.2, C.lime)}text-decoration:none;border-radius:999px;">${label}</a>
                   </td>
                 </tr>
               </table>`;
 
 const fallback = `
-              <p style="margin:0 0 6px;${type(13, 400, 1.6, C.muted)}">Button not working? Copy this link into your browser:</p>
-              <p style="margin:0 0 20px;${type(13, 400, 1.5, C.accent)}word-break:break-all;"><a href="{{ .ConfirmationURL }}" target="_blank" style="color:${C.accent};text-decoration:underline;">{{ .ConfirmationURL }}</a></p>`;
+              <p class="muted" style="margin:0 0 6px;${type(13, 400, 1.6, C.muted)}">Button not working? Copy this link into your browser:</p>
+              <p style="margin:0 0 20px;${type(13, 400, 1.5, C.accent)}word-break:break-all;"><a href="{{ .ConfirmationURL }}" target="_blank" class="link" style="color:${C.accent};text-decoration:underline;">{{ .ConfirmationURL }}</a></p>`;
 
 const code = `
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:8px 0 24px;">
                 <tr>
-                  <td align="center" bgcolor="${C.soft}" style="border-radius:12px;padding:18px 12px;">
-                    <span style="font-family:${MONO};font-size:32px;font-weight:700;letter-spacing:8px;color:${C.fg};">{{ .Token }}</span>
+                  <td align="center" bgcolor="${C.soft}" class="soft" style="border-radius:12px;padding:18px 12px;">
+                    <span class="fg" style="font-family:${MONO};font-size:32px;font-weight:700;letter-spacing:8px;color:${C.fg};">{{ .Token }}</span>
                   </td>
                 </tr>
               </table>`;
 
-const divider = `<hr style="border:none;border-top:1px solid ${C.line};margin:4px 0 20px;">`;
+const divider = `<hr class="rule" style="border:none;border-top:1px solid ${C.line};margin:4px 0 20px;">`;
 
 function layout({ title, preheader, heading, body, footer }) {
   return `<!doctype html>
@@ -43,13 +47,26 @@ function layout({ title, preheader, heading, body, footer }) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <meta name="supported-color-schemes" content="light">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .bg-canvas { background-color:${D.canvas} !important; }
+      .bg-surface { background-color:${D.surface} !important; border-color:${D.line} !important; }
+      .fg { color:${D.fg} !important; }
+      .muted { color:${D.muted} !important; }
+      .link { color:${D.accent} !important; }
+      .btn { background-color:${D.solid} !important; }
+      .btn-a { color:${D.on} !important; }
+      .soft { background-color:${D.soft} !important; }
+      .rule { border-top-color:${D.line} !important; }
+    }
+  </style>
   <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background-color:${C.canvas};">
+<body class="bg-canvas" style="margin:0;padding:0;background-color:${C.canvas};">
   <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="${C.canvas}" style="background-color:${C.canvas};">
+  <table role="presentation" class="bg-canvas" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="${C.canvas}" style="background-color:${C.canvas};">
     <tr>
       <td align="center" style="padding:32px 16px 40px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;">
@@ -57,21 +74,21 @@ function layout({ title, preheader, heading, body, footer }) {
             <td style="padding:0 4px 20px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="vertical-align:middle;"><img src="{{ .SiteURL }}/brand-mark.png" width="48" height="48" alt="" style="display:block;border:0;border-radius:24px;"></td>
-                  <td style="vertical-align:middle;padding-left:12px;${type(16, 600, 1.3, C.fg)}">Premium Village Banking</td>
+                  <td style="vertical-align:middle;"><img src="${LOGO}" width="48" height="48" alt="Premium Village Banking" style="display:block;border:0;border-radius:24px;"></td>
+                  <td class="fg" style="vertical-align:middle;padding-left:12px;${type(16, 600, 1.3, C.fg)}">Premium Village Banking</td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td bgcolor="${C.surface}" style="background-color:${C.surface};border:1px solid ${C.line};border-radius:16px;padding:32px 28px 12px;">
-              <h1 style="margin:0 0 16px;${type(24, 600, 1.25, C.fg)}letter-spacing:-0.01em;">${heading}</h1>
+            <td class="bg-surface" bgcolor="${C.surface}" style="background-color:${C.surface};border:1px solid ${C.line};border-radius:16px;padding:32px 28px 12px;">
+              <h1 class="fg" style="margin:0 0 16px;${type(24, 600, 1.25, C.fg)}letter-spacing:-0.01em;">${heading}</h1>
               ${body}
             </td>
           </tr>
           <tr>
             <td style="padding:20px 8px 0;">
-              <p style="margin:0;${type(13, 400, 1.6, C.muted)}">${footer}</p>
+              <p class="muted" style="margin:0;${type(13, 400, 1.6, C.muted)}">${footer}</p>
             </td>
           </tr>
         </table>
