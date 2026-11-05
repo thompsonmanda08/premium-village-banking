@@ -27,11 +27,13 @@ begin
   v_to := (v_p.starts_on + interval '1 month') at time zone 'Africa/Lusaka';
 
   return coalesce((
+    -- Another member's row in a private group keeps only when and what: no name, id, amount or reason.
     select jsonb_agg(jsonb_build_object(
              'at', o.at, 'kind', o.kind,
-             'member_id', case when can_see_figures(v_p.group_id, o.member_id) then o.member_id end,
-             'member', case when can_see_figures(v_p.group_id, o.member_id) then m.short_name end,
-             'amount', o.amount, 'reason', o.reason) order by o.at, o.kind)
+             'member_id', case when not h.hide then o.member_id end,
+             'member', case when not h.hide then m.short_name end,
+             'amount', case when not h.hide then o.amount end,
+             'reason', case when not h.hide then o.reason end) order by o.at, o.kind)
     from (
       -- Corrections and waivers belong to the month they were posted in, whichever month's entry they correct.
       -- A correction's amount is the change: negative when it lowers the original.
@@ -62,7 +64,8 @@ begin
         and (a.data ->> 'to')::date > (a.data ->> 'from')::date
         and a.created_at >= v_from and a.created_at < v_to
     ) o
-    left join members m on m.id = o.member_id), '[]'::jsonb);
+    left join members m on m.id = o.member_id
+    cross join lateral (select o.member_id is not null and not can_see_figures(v_p.group_id, o.member_id) as hide) h), '[]'::jsonb);
 end $$;
 
 create or replace function public.month_report(p_period uuid) returns jsonb
@@ -81,15 +84,13 @@ begin
   return jsonb_build_object(
     'period', jsonb_build_object('id', v_p.id, 'label', v_p.label, 'month_index', v_p.month_index, 'closed_at', v_p.closed_at),
     'group', (select to_jsonb(g) from group_statements g where g.period_id = p_period),
-    -- sent_*: loans sent in this month. open_*: loans of this cycle whose status is 'open' when the report is read
-    -- (not as of this month's close), counted at the principal lent, not what is left to repay.
-    'loans', (select jsonb_build_object(
-                'sent_count', count(*) filter (where l.period_id = p_period),
-                'sent_principal', coalesce(sum(l.principal) filter (where l.period_id = p_period), 0),
-                'open_count', count(*) filter (where l.status = 'open'),
-                'open_principal', coalesce(sum(l.principal) filter (where l.status = 'open'), 0))
-              from loans l join periods lp on lp.id = l.period_id
-              where lp.cycle_id = v_p.cycle_id),
+    -- sent_*: loans sent in this month. members_owing and total_owed: what was owed at this month's close
+    -- (its statements and group statement), so a published month never changes.
+    'loans', jsonb_build_object(
+                'sent_count', (select count(*) from loans l where l.period_id = p_period),
+                'sent_principal', (select coalesce(sum(l.principal), 0) from loans l where l.period_id = p_period),
+                'members_owing', (select count(*) from statements s where s.period_id = p_period and s.closing_owed > 0),
+                'total_owed', (select g.total_owed from group_statements g where g.period_id = p_period)),
     -- Arrears: last month's minimum not paid by this close.
     'arrears', (select jsonb_build_object(
                   'count', count(*),
@@ -100,13 +101,15 @@ begin
                 where s.period_id = p_period and s.unpaid_minimum > 0),
     'overrides', month_overrides(p_period),
     'overrides_recorded', not private.period_imported(p_period),
-    -- A rule counts when its latest vote in this cycle (by created_at) passed on or before the close date.
+    -- Of this cycle's votes decided by the close date, a rule counts when its latest (by created_at) passed.
+    -- Votes decided after the close cannot change a published month.
     'rules', jsonb_build_object('ratified_by_close', (
                select count(*)::int from (
-                 select distinct on (r.rule_key) r.passed, r.decided_on
-                 from rule_ratifications r where r.cycle_id = v_p.cycle_id
+                 select distinct on (r.rule_key) r.passed
+                 from rule_ratifications r
+                 where r.cycle_id = v_p.cycle_id and r.decided_on <= (v_p.closed_at at time zone 'Africa/Lusaka')::date
                  order by r.rule_key, r.created_at desc, r.id desc) x
-               where x.passed and x.decided_on <= (v_p.closed_at at time zone 'Africa/Lusaka')::date)));
+               where x.passed)));
 end $$;
 
 revoke execute on function public.month_overrides(uuid), public.month_report(uuid) from public, anon;

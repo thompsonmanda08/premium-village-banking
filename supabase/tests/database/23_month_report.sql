@@ -27,6 +27,14 @@ insert into audit_log (group_id, action, entity, entity_id, data, created_at)
 values (tests.id('lg'), 'member.default_changed', 'members', tests.lm('Gus'),
         jsonb_build_object('cycle_id', tests.id('lcycle'), 'from', false, 'defaulted', true, 'reason', 'missed the meeting'),
         timestamptz '2026-02-20 12:00+02');
+-- Month boundaries in Lusaka time (UTC+2): 23:30 on 28 Feb is February; 00:30 on 1 Mar (22:30 UTC on 28 Feb) is March.
+insert into audit_log (group_id, action, entity, entity_id, data, created_at) values
+  (tests.id('lg'), 'member.default_changed', 'members', tests.lm('Hal'),
+   jsonb_build_object('cycle_id', tests.id('lcycle'), 'from', false, 'defaulted', true, 'reason', 'late on the last day'),
+   timestamptz '2026-02-28 23:30+02'),
+  (tests.id('lg'), 'member.default_changed', 'members', tests.lm('Hal'),
+   jsonb_build_object('cycle_id', tests.id('lcycle'), 'from', true, 'defaulted', false, 'reason', 'early on the first day'),
+   timestamptz '2026-03-01 00:30+02');
 
 -- refusals --------------------------------------------------------------------------------------------
 select tests.login_anon();
@@ -71,18 +79,21 @@ create temp view o as
 
 select is((select array_agg(kind || ':' || coalesce(member, '-') || ':' || coalesce(amount::text, 'null') order by kind, member)
            from o where log = 'mar'),
-  array['correction:Ann:-100.00', 'deadline_extended:-:null', 'default_cleared:Dee:null', 'default_set:Dee:null',
-        'penalty_applied:Dee:100.00', 'penalty_waived:Dee:40.00', 'waiver:Fay:112.50'],
-  'March lists each override once: the correction (signed), the waivers, the penalty, both default changes and the extension');
+  array['correction:Ann:-100.00', 'deadline_extended:-:null', 'default_cleared:Dee:null', 'default_cleared:Hal:null',
+        'default_set:Dee:null', 'penalty_applied:Dee:100.00', 'penalty_waived:Dee:40.00', 'waiver:Fay:112.50'],
+  'March lists each override once: the correction (signed), the waivers, the penalty, the default changes and the extension');
 select is((select reason from o where log = 'mar' and kind = 'penalty_waived'), 'first offence', 'with the treasurer''s reason');
 select is((select reason from o where log = 'mar' and kind = 'deadline_extended'), 'network outage', 'the extension''s reason');
-select is((select reason from o where log = 'mar' and kind = 'default_cleared'), 'paid up', 'the default change''s reason');
+select is((select reason from o where log = 'mar' and kind = 'default_cleared' and member = 'Dee'), 'paid up', 'the default change''s reason');
+select is((select reason from o where log = 'mar' and member = 'Hal'), 'early on the first day', '00:30 on 1 March (Lusaka) is March');
+select is((select reason from o where log = 'feb' and member = 'Hal'), 'late on the last day', '23:30 on 28 February (Lusaka) is February');
 select is((select member_id from o where log = 'mar' and kind = 'penalty_applied'), tests.lm('Dee'), 'and the member''s id');
 select is((select array_agg(at order by ord) from (select (x ->> 'at')::timestamptz as at, ord from tests.kept_json k,
              jsonb_array_elements(k.v) with ordinality as e(x, ord) where k.name = 'mar') s),
           (select array_agg(at order by at) from o where log = 'mar'), 'ordered by when it happened');
-select is((select array_agg(kind || ':' || member || ':' || coalesce(amount::text, 'null') || ':' || reason order by kind) from o where log = 'feb'),
-  array['default_set:Gus:null:missed the meeting', 'loan_over_cap:Ben:3001.00:agreed at the meeting'],
+select is((select array_agg(kind || ':' || member || ':' || coalesce(amount::text, 'null') || ':' || reason order by kind, member) from o where log = 'feb'),
+  array['default_set:Gus:null:missed the meeting', 'default_set:Hal:null:late on the last day',
+        'loan_over_cap:Ben:3001.00:agreed at the meeting'],
   'February: the loan over the cap (principal and reason) and the default flag dated in February');
 
 -- private figures ------------------------------------------------------------------------------------
@@ -100,18 +111,24 @@ select tests.keep('mar_ann', month_overrides(tests.lp(2)));
 select tests.keep('rep_ann', month_report(tests.lp(2)));
 reset role;
 
-select is((select count(*)::int from o where log = 'mar_ben'), 7, 'private: a member still sees every override');
-select is((select count(*)::int from o where log = 'mar_ben' and (member is not null or member_id is not null)), 0,
-  'but no other member''s name or id');
-select is((select member from o where log = 'feb_ben' and kind = 'loan_over_cap'), 'Ben', 'a member''s own row keeps the name');
-select is((select member_id from o where log = 'feb_ben' and kind = 'loan_over_cap'), tests.lm('Ben'), 'and the id');
-select is((select count(*)::int from o where log = 'feb_cid' and (member is not null or member_id is not null)), 0,
-  'another member sees neither in Ben''s row');
-select is((select count(*)::int from o where log = 'mar_ann' and member is not null), 6, 'an admin sees every name');
-select is((select count(*)::int from members m
-            where m.group_id = tests.id('lg') and m.id <> tests.lm('Ben')
-              and (tests.kept('rep_ben')::text like '%' || m.short_name || '%' or tests.kept('rep_ben')::text like '%' || m.id || '%')), 0,
-  'private: nowhere in Ben''s report is another member''s name or id');
+select is((select array_agg(kind order by kind) from o where log = 'mar_ben'),
+  array['correction', 'deadline_extended', 'default_cleared', 'default_cleared', 'default_set', 'penalty_applied', 'penalty_waived', 'waiver'],
+  'private: a member still sees when and what for every override');
+select is((select count(*)::int from o where log = 'mar_ben' and kind <> 'deadline_extended'
+            and (member is not null or member_id is not null or amount is not null or reason is not null)), 0,
+  'but another member''s row has no name, id, amount or reason');
+select ok((select bool_and(at is not null) from o where log = 'mar_ben'), 'the time stays on every row');
+select is((select reason from o where log = 'mar_ben' and kind = 'deadline_extended'), 'network outage',
+  'a row about no member keeps its reason');
+select is((select member || ':' || member_id || ':' || amount || ':' || reason from o where log = 'feb_ben' and kind = 'loan_over_cap'),
+  'Ben:' || tests.lm('Ben') || ':3001.00:agreed at the meeting', 'a member''s own row keeps everything');
+select is((select count(*)::int from o where log = 'feb_cid'
+            and (member is not null or member_id is not null or amount is not null or reason is not null)), 0,
+  'another member sees none of it in Ben''s row');
+select is((select count(*)::int from o where log = 'mar_ann' and member is not null), 7, 'an admin sees every name');
+select is((select amount || ':' || reason from o where log = 'mar_ann' and kind = 'penalty_applied'),
+  '100.00:late_declaration: declared 2 days late', 'and every amount and reason');
+select is(tests.kept('rep_ben') -> 'overrides', tests.kept('mar_ben'), 'the report carries the same hidden rows');
 select is(tests.kept('rep_ben') -> 'arrears' -> 'members', 'null'::jsonb, 'private: no arrears list for a member');
 select is((tests.kept('rep_ben') -> 'arrears' ->> 'count')::int,
   (select count(*)::int from statements where period_id = tests.lp(2) and unpaid_minimum > 0), 'but the count is there');
@@ -130,21 +147,24 @@ insert into rule_ratifications (group_id, cycle_id, rule_key, decided_on, votes_
   (tests.id('lg'), tests.id('lcycle'), 'excess_rate',  '2026-03-01', 14, 18, true,  '2026-03-01 12:00+02'),
   (tests.id('lg'), tests.id('lcycle'), 'excess_rate',  '2026-03-25', 5, 18, false,  '2026-03-25 12:00+02'),  -- passed, then failed
   (tests.id('lg'), tests.id('lcycle'), 'loan_cap',     '2026-04-10', 14, 18, true,  '2026-04-10 12:00+02'),  -- after the close
+  (tests.id('lg'), tests.id('lcycle'), 'loan_term',    '2026-03-10', 14, 18, true,  '2026-03-10 12:00+02'),
+  (tests.id('lg'), tests.id('lcycle'), 'loan_term',    '2026-04-15', 5, 18, false,  '2026-04-15 12:00+02'),  -- failed after the close
   (tests.id('group'), tests.id('c_active'), 'interest_rate', '2026-03-01', 3, 3, true, '2026-03-01 12:00+02'); -- another group
 select tests.login_as(tests.id('other'));
 select tests.keep('rep', month_report(tests.lp(2)));
+select tests.keep('rep_feb', month_report(tests.lp(1)));
 reset role;
 
 select is(tests.kept('rep') -> 'period',
   jsonb_build_object('id', tests.lp(2), 'label', 'Mar 2026', 'month_index', 2, 'closed_at', timestamptz '2026-04-02 10:00+02'), 'the month');
 select is(tests.kept('rep') -> 'group', (select to_jsonb(g) from group_statements g where g.period_id = tests.lp(2)), 'the group statement');
-select is(tests.kept('rep') -> 'loans', (select jsonb_build_object(
-    'sent_count', count(*) filter (where period_id = tests.lp(2)),
-    'sent_principal', sum(principal) filter (where period_id = tests.lp(2)),
-    'open_count', count(*) filter (where status = 'open'),
-    'open_principal', sum(principal) filter (where status = 'open')) from loans where group_id = tests.id('lg')),
-  'loans: sent in March, and still open in the cycle');
-select is((tests.kept('rep') -> 'loans' ->> 'sent_principal')::numeric, 750.00, 'Fay''s 750 was the one March loan');
+-- February (figures from 11_ledger_close.sql): Cid 3,000, Ben 1,000 and 3,001 sent, 7,001 in all; Fay's March loan is not
+-- February's. Nothing paid yet, so the 18 savers each owe their excess share at least; Zed owes nothing. Owed 8,081.05.
+select is(tests.kept('rep_feb') -> 'loans',
+  '{"sent_count": 3, "sent_principal": 7001.00, "members_owing": 18, "total_owed": 8081.05}'::jsonb,
+  'February''s loans: sent that month, and what was owed at its close');
+select is((tests.kept('rep') -> 'loans' ->> 'sent_count')::int || ':' || (tests.kept('rep') -> 'loans' ->> 'sent_principal'), '1:750.00',
+  'March: Fay''s 750 was the one loan sent');
 select is((tests.kept('rep') -> 'arrears' ->> 'total')::numeric,
   (select sum(unpaid_minimum) from statements where period_id = tests.lp(2) and unpaid_minimum > 0), 'arrears total');
 select ok((tests.kept('rep') -> 'arrears' ->> 'count')::int > 0, 'someone is in arrears in March');
@@ -153,8 +173,9 @@ select is((select array_agg(x ->> 'name' || ':' || (x ->> 'unpaid') order by x -
     where s.period_id = tests.lp(2) and s.unpaid_minimum > 0), 'open: the named list');
 select is(tests.kept('rep') -> 'overrides', tests.kept('mar'), 'the month''s overrides');
 select is(tests.kept('rep') -> 'overrides_recorded', 'true'::jsonb, 'a month the app closed has its overrides recorded');
-select is(tests.kept('rep') -> 'rules', '{"ratified_by_close": 2}'::jsonb,
-  'rules ratified by the close: min_saving and penalty_late (excess_rate''s latest vote failed, loan_cap came after)');
+select is(tests.kept('rep') -> 'rules', '{"ratified_by_close": 3}'::jsonb,
+  'rules ratified by the close: min_saving, penalty_late and loan_term (its later failed vote came after the close); '
+  'not excess_rate (its latest vote by the close failed) nor loan_cap (passed after the close)');
 
 -- an imported month ------------------------------------------------------------------------------------
 -- April as the 2026 import leaves it: closed, a statement marked imported. An app entry and an audit row inside it are ignored.
@@ -169,6 +190,23 @@ select tests.login_as(tests.id('member'));
 select is(month_overrides(tests.lp(3)), '[]'::jsonb, 'an imported month has no overrides');
 select is(month_report(tests.lp(3)) -> 'overrides', '[]'::jsonb, 'the report shows none');
 select is(month_report(tests.lp(3)) -> 'overrides_recorded', 'false'::jsonb, 'and says they were not recorded');
+reset role;
+-- May: imported, known only by an entry marked imported (no statements). Its app penalty is ignored too.
+update periods set status = 'closed', closed_at = timestamptz '2026-06-02 10:00+02' where id = tests.lp(4);
+insert into entries (group_id, period_id, member_id, kind, amount, source) values
+  (tests.id('lg'), tests.lp(4), tests.lm('Ben'), 'saving', 250, 'import');
+insert into entries (group_id, period_id, member_id, kind, amount, source, reason)
+values (tests.id('lg'), tests.lp(4), tests.lm('Dee'), 'penalty', 50, 'app', 'other: synthetic');
+select tests.login_as(tests.id('member'));
+select is(month_overrides(tests.lp(4)), '[]'::jsonb, 'an imported entry alone makes a month imported');
+select is(month_report(tests.lp(4)) -> 'overrides_recorded', 'false'::jsonb, 'with its overrides not recorded');
+reset role;
+
+-- a former member ---------------------------------------------------------------------------------------
+update members set status = 'left' where id = tests.lm('Cid');
+select tests.login_as(tests.id('other'));
+select throws_ok($$select month_report(tests.lp(2))$$, '42501', 'not_admin', 'a member who has left cannot read the report');
+select throws_ok($$select month_overrides(tests.lp(2))$$, '42501', 'not_admin', 'nor the overrides');
 reset role;
 
 select * from finish();
