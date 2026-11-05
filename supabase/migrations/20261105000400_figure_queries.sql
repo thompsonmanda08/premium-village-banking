@@ -15,6 +15,7 @@ create table public.figure_queries (
   answered_by uuid references auth.users,
   answered_at timestamptz,
   check ((status = 'answered') = (reply is not null and answered_at is not null)),
+  check (status <> 'answered' or answered_by is not null),
   foreign key (period_id, group_id) references public.periods (id, group_id) on delete cascade,
   foreign key (member_id, group_id) references public.members (id, group_id) on delete cascade
 );

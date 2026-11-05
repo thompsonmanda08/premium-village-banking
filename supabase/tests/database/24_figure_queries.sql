@@ -173,6 +173,9 @@ select throws_ok(format($$insert into figure_queries (group_id, period_id, membe
 select throws_ok(format($$insert into figure_queries (group_id, period_id, member_id, field, note, status)
   values (%L, %L, %L, 'cum_savings', 'x', 'closed')$$, tests.id('lg'), tests.lp(1), tests.lm('Ben')), '23514', null,
   'status is open or answered');
+select throws_ok(format($$insert into figure_queries (group_id, period_id, member_id, field, note, status, reply, answered_at)
+  values (%L, %L, %L, 'cum_savings', 'x', 'answered', 'y', now())$$, tests.id('lg'), tests.lp(1), tests.lm('Ben')), '23514', null,
+  'an answered query names who answered it');
 
 select * from finish();
 rollback;

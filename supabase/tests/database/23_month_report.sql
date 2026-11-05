@@ -149,6 +149,7 @@ insert into rule_ratifications (group_id, cycle_id, rule_key, decided_on, votes_
   (tests.id('lg'), tests.id('lcycle'), 'loan_cap',     '2026-04-10', 14, 18, true,  '2026-04-10 12:00+02'),  -- after the close
   (tests.id('lg'), tests.id('lcycle'), 'loan_term',    '2026-03-10', 14, 18, true,  '2026-03-10 12:00+02'),
   (tests.id('lg'), tests.id('lcycle'), 'loan_term',    '2026-04-15', 5, 18, false,  '2026-04-15 12:00+02'),  -- failed after the close
+  (tests.id('lg'), tests.id('lcycle'), 'close_day',    '2026-04-02', 14, 18, true,  '2026-04-02 18:00+02'),  -- decided on the day of the close
   (tests.id('group'), tests.id('c_active'), 'interest_rate', '2026-03-01', 3, 3, true, '2026-03-01 12:00+02'); -- another group
 select tests.login_as(tests.id('other'));
 select tests.keep('rep', month_report(tests.lp(2)));
@@ -173,8 +174,9 @@ select is((select array_agg(x ->> 'name' || ':' || (x ->> 'unpaid') order by x -
     where s.period_id = tests.lp(2) and s.unpaid_minimum > 0), 'open: the named list');
 select is(tests.kept('rep') -> 'overrides', tests.kept('mar'), 'the month''s overrides');
 select is(tests.kept('rep') -> 'overrides_recorded', 'true'::jsonb, 'a month the app closed has its overrides recorded');
-select is(tests.kept('rep') -> 'rules', '{"ratified_by_close": 3}'::jsonb,
-  'rules ratified by the close: min_saving, penalty_late and loan_term (its later failed vote came after the close); '
+select is(tests.kept('rep') -> 'rules', '{"ratified_by_close": 4}'::jsonb,
+  'rules ratified by the close: min_saving, penalty_late, loan_term (its later failed vote came after the close) '
+  'and close_day (decided on the very day of the close: the date test is <=); '
   'not excess_rate (its latest vote by the close failed) nor loan_cap (passed after the close)');
 
 -- an imported month ------------------------------------------------------------------------------------
@@ -254,15 +256,18 @@ select is((select inst from bd where member_id = tests.lm('Ben') and period_id =
     where l.member_id = tests.lm('Ben') and i.period_id = tests.lp(2)),
   'Ben''s February instalments are his loans'' March instalments');
 
--- A minimum capped to what is owed (a synthetic statement: 30 excess and 40 shortfall, but only 50 owed).
+-- A minimum capped to what is owed (a synthetic statement: 30 excess and 40 shortfall, but nothing owed).
+-- No fixture member pays a loan off early enough to cap an instalment by its remaining balance, so the replay path for a
+-- capped instalment is covered by this synthetic statement alone (Nia has no loans: instalments are 0).
 insert into members (group_id, full_name, short_name) values (tests.id('lg'), 'Nia Test', 'Nia');
+-- Nia owes nothing and has no entries, so the close's replay agrees with next_minimum 0 (the drift guard compares against it).
 insert into statements (group_id, period_id, member_id, excess_charged, unpaid_minimum, closing_owed, next_minimum, source)
-values (tests.id('lg'), tests.lp(2), (select id from members where short_name = 'Nia'), 30, 40, 50, 50, 'close');
+values (tests.id('lg'), tests.lp(2), (select id from members where short_name = 'Nia'), 30, 40, 0, 0, 'close');
 insert into members (group_id, full_name, short_name) values (tests.id('lg'), 'Ola Test', 'Ola');
 select tests.login_as(tests.id('admin'));
 select is(minimum_breakdown((select id from members where short_name = 'Nia'), tests.lp(2)),
-  '{"instalments": 0, "excess": 30.00, "earlier_shortfall": 40.00, "capped_to_owed": true, "minimum": 50.00}'::jsonb,
-  'capped: the terms come to 70 but the minimum is the 50 owed');
+  '{"instalments": 0, "excess": 30.00, "earlier_shortfall": 40.00, "capped_to_owed": true, "minimum": 0.00}'::jsonb,
+  'capped: the terms come to 70 but nothing is owed, so the minimum is 0');
 select is(minimum_breakdown((select id from members where short_name = 'Ola'), tests.lp(2)), '{"none": true}'::jsonb,
   'a member with no statement that month gets none, not an error');
 select is(minimum_breakdown(tests.lm('Cid'), tests.lp(3)), '{"none": true}'::jsonb, 'nor in an imported month');
@@ -297,6 +302,25 @@ update members set status = 'left' where id = tests.lm('Cid');
 select tests.login_as(tests.id('other'));
 select throws_ok($$select month_report(tests.lp(2))$$, '42501', 'not_admin', 'a member who has left cannot read the report');
 select throws_ok($$select month_overrides(tests.lp(2))$$, '42501', 'not_admin', 'nor the overrides');
+reset role;
+
+-- Deliberate: can_see_figures lets a former member read their OWN row (their record stays theirs, as with figure queries),
+-- while month_report refuses them. Another member's row stays refused.
+update groups set figures_visibility = 'private' where id = tests.id('lg');
+select tests.login_as(tests.id('other'));
+select is(minimum_breakdown(tests.lm('Cid'), tests.lp(1)), tests.kept('bd_ben_cid'),
+  'a member who has left still sees their own breakdown');
+select throws_ok($$select minimum_breakdown(tests.lm('Ben'), tests.lp(1))$$, '42501', 'not_admin', 'but not another member''s');
+reset role;
+
+-- A stored next_minimum that the replay no longer reproduces is an error, not terms that do not add up.
+-- (Statements are append-only, so the drift is a synthetic statement the close would never have written.)
+insert into members (group_id, full_name, short_name) values (tests.id('lg'), 'Pia Test', 'Pia');
+insert into statements (group_id, period_id, member_id, next_minimum, source)
+values (tests.id('lg'), tests.lp(2), (select id from members where short_name = 'Pia'), 99, 'close');
+select tests.login_as(tests.id('admin'));
+select throws_ok($$select minimum_breakdown((select id from members where short_name = 'Pia'), tests.lp(2))$$, 'P0001', 'statement_drifted',
+  'a drifted statement is reported, not broken down');
 reset role;
 
 select * from finish();

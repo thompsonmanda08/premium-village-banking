@@ -122,6 +122,8 @@ declare
   v_p periods;
   v_s statements;
   v_inst numeric;
+  v_fig jsonb;
+  v_replayed numeric;
 begin
   select * into v_p from periods where id = p_period;
   if not found or not can_see_figures(v_p.group_id, p_member) then raise exception 'not_admin' using errcode = '42501'; end if;
@@ -132,8 +134,14 @@ begin
 
   -- Next month's instalments as the close counted them, each capped at what its loan still owed. Nothing stores those
   -- balances, so replay the close (it is stable for a closed month; the diff check relies on that) and take its loans.
+  -- shortcut: this replays the whole group's close, so never call it per row across a list; upgrade by storing the terms.
+  v_fig := private.close_figures(p_period);
+  -- If the replay no longer reproduces the stored minimum, the terms would not add up: say so rather than show them.
+  select (m ->> 'next_minimum')::numeric into v_replayed
+  from jsonb_array_elements(v_fig -> 'members') m where (m ->> 'member_id')::uuid = p_member;
+  if v_replayed is null or abs(v_replayed - v_s.next_minimum) > 0.01 then raise exception 'statement_drifted' using errcode = 'P0001'; end if;
   select coalesce(sum(least(i.amount_due, greatest((x ->> 'remaining')::numeric, 0))), 0) into v_inst
-  from jsonb_array_elements(private.close_figures(p_period) -> 'loans') x
+  from jsonb_array_elements(v_fig -> 'loans') x
   join loans l on l.id = (x ->> 'loan_id')::uuid and l.member_id = p_member
   join loan_instalments i on i.loan_id = l.id
   join periods np on np.id = i.period_id and np.month_index = v_p.month_index + 1;
