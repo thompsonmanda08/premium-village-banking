@@ -20,6 +20,7 @@
     "db:types": "bun scripts/db-cli.mjs types",
     "ledger:import": "bun scripts/ledger-import.mjs",
     "ledger:check": "bun scripts/ledger-check.mjs",
+    "ledger:figures": "node --env-file-if-exists=.env.local scripts/ledger-figures.mjs",
     "fn:test": "bun x deno test --allow-env supabase/functions/invite-member/lib.test.ts"
   },
   "dependencies": {
