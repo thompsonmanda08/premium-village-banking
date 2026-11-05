@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { money } from '@/lib/format';
-import { AMOUNTS, sentTotal } from './declarationForm';
+import { AMOUNTS, sentTotal } from './declarationModel';
 import type { DeclarationRow } from './model';
 
 export function DeclarationSummary({ d, walletName }: { d: DeclarationRow; walletName?: string }) {

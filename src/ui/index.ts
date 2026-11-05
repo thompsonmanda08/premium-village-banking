@@ -2,6 +2,7 @@ export { cn } from './cn';
 export { Button, type ButtonProps } from './Button';
 export { IconButton } from './IconButton';
 export { Card, CardHeader } from './Card';
+export { Panel } from './Panel';
 export { Badge, type Tone } from './Badge';
 export { TextField } from './TextField';
 export { SelectField } from './SelectField';

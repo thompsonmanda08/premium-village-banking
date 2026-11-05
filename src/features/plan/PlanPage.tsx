@@ -5,6 +5,7 @@ import { latestStatement, owedFigure, remainingInstalments } from '@/features/le
 import { useLedgerCycle, useMyLoans, useMyStatements, usePayoutPreview } from '@/features/ledger/queries';
 import { formatDate, money } from '@/lib/format';
 import { Card } from '@/ui';
+import { PlanProjection } from './PlanProjection';
 
 export function PlanPage() {
   const { group, member } = useGroup();
@@ -35,6 +36,8 @@ export function PlanPage() {
         ) : (
           <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">Your first statement appears when the treasurer closes a month.</p>
         )}
+
+        <PlanProjection statements={statements.data ?? []} periods={periods} />
 
         <section aria-labelledby="loans-heading" className="grid gap-3">
           <h2 id="loans-heading" className="text-lg font-semibold text-fg">Your loans</h2>

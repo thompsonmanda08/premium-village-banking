@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { compactKwacha, percent } from '@/features/charts/format';
 import { RankedBars } from '@/features/charts/RankedBars';
 import { SeriesChart } from '@/features/charts/SeriesChart';
@@ -7,7 +7,8 @@ import { atRiskIds, closedPeriods, followUp, healthIndicators, memberStats, mont
 import { useCycleRules, useCycleStatements, useGroupStatements, useLedgerCycle } from '@/features/ledger/queries';
 import { friendlyError } from '@/lib/errors';
 import { money } from '@/lib/format';
-import { Alert, Badge, Button, Card, EmptyState, Skeleton, type Tone } from '@/ui';
+import { Alert, Badge, Button, EmptyState, Panel, Skeleton, type Tone } from '@/ui';
+import { Figure } from '@/features/ledger/Figure';
 
 const BADGE: Record<Status, { tone: Tone; text: string }> = { good: { tone: 'success', text: 'On track' }, watch: { tone: 'warning', text: 'Watch' }, bad: { tone: 'danger', text: 'Act' } };
 const SOFT: Record<Status, string> = { good: 'bg-success-soft', watch: 'bg-warning-soft', bad: 'bg-danger-soft' };
@@ -15,30 +16,6 @@ const short = (label: string): string => label.split(' ')[0] ?? label;
 const whole = (n: number): string => `${Math.round(n)}%`;
 // A cycle always has rules; 250 is the constitution's minimum saving, used only if the row cannot be read.
 const FALLBACK_MIN_SAVING = 250;
-
-function Panel({ id, title, hint, children }: { id: string; title: string; hint?: string; children: ReactNode }) {
-  return (
-    <Card>
-      <section aria-labelledby={id} className="grid gap-3">
-        <div>
-          <h2 id={id} className="text-lg font-semibold text-fg">{title}</h2>
-          {hint ? <p className="mt-0.5 text-sm text-muted">{hint}</p> : null}
-        </div>
-        {children}
-      </section>
-    </Card>
-  );
-}
-
-function Figure({ label, value, note }: { label: string; value: string; note?: string }) {
-  return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="tabular mt-1 text-xl font-semibold text-fg">{value}</p>
-      {note ? <p className="mt-0.5 text-sm text-muted">{note}</p> : null}
-    </div>
-  );
-}
 
 const th = 'px-2 py-1.5 font-medium text-muted';
 const td = 'tabular px-2 py-1.5 text-fg';
