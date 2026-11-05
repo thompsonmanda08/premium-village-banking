@@ -21,6 +21,7 @@
     "db:types": "node --env-file-if-exists=.env.local scripts/db-cli.mjs types",
     "ledger:import": "node --env-file-if-exists=.env.local scripts/ledger-import.mjs",
     "ledger:check": "node --env-file-if-exists=.env.local scripts/ledger-check.mjs",
+    "r2:check": "node --env-file-if-exists=.env.local scripts/r2-check.mjs",
     "ledger:figures": "node --env-file-if-exists=.env.local scripts/ledger-figures.mjs"
   },
   "dependencies": {
