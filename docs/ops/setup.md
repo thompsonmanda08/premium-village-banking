@@ -9,7 +9,7 @@ chat, issues, commits or screenshots, and never print `.env.local`.
 > Section 1 puts a guard in place. Read it before you do anything else.
 
 Accounts and tools you need: Supabase, Vercel, GitHub (admin on the repo), Google Cloud, Resend, a domain you
-control; locally `bun`, `git`, `age`, `psql`, and Docker (only for the restore drill in section 8).
+control; locally `pnpm`, `git`, `age`, `psql`, and Docker (only for the restore drill in section 8).
 Every account password you create below (the owner and the three Playwright accounts) must meet the
 project's policy: **at least 12 characters, with letters and digits**.
 
@@ -57,13 +57,13 @@ select
 - [ ] `real_group` is 0, or it is 1 and that group belongs to the right owner. If it is 1, skip the bootstrap in
       section 4 (it refuses to run twice).
 - [ ] `pgtap_installed`: decide. It is harmless but unused in production. To remove it: `drop extension if exists pgtap;`.
-      `bun run db:test` recreates it, which is one more reason not to run that command here.
-- [ ] Put `PROD_PROJECT_REF=SUPABASE_PROJECT_REF` in your local `.env.local`. From then on `bun run db:reset` and
-      `bun run db:test` refuse any `SUPABASE_DB_URL` that names this project (while it is unset the guards do nothing),
+      `pnpm run db:test` recreates it, which is one more reason not to run that command here.
+- [ ] Put `PROD_PROJECT_REF=SUPABASE_PROJECT_REF` in your local `.env.local`. From then on `pnpm run db:reset` and
+      `pnpm run db:test` refuse any `SUPABASE_DB_URL` that names this project (while it is unset the guards do nothing),
       and `db:reset` also refuses any non-local URL unless `--allow-hosted` is passed. Do not test the guards by running
       the commands against production. They cover those scripts only: the Supabase CLI's own `db reset --linked` is not
       guarded, so never run it after section 1.
-- [ ] Do day-to-day database work on the local stack: `bun run db:start` (needs Docker) and `SUPABASE_DB_URL` in
+- [ ] Do day-to-day database work on the local stack: `pnpm run db:start` (needs Docker) and `SUPABASE_DB_URL` in
       `.env.local` set to `postgresql://postgres:postgres@127.0.0.1:54322/postgres` (see `README.md`). CI runs the
       pgTAP suite on its own local stack. Production migrations go out through the "Deploy database"
       workflow (section 6).
@@ -71,9 +71,9 @@ select
 ### Link and check migrations
 
 ```bash
-bun x supabase login
-bun x supabase link --project-ref SUPABASE_PROJECT_REF
-bun x supabase db push --dry-run
+pnpm exec supabase login
+pnpm exec supabase link --project-ref SUPABASE_PROJECT_REF
+pnpm exec supabase db push --dry-run
 ```
 
 `link` and `db push` ask for the database password (`SUPABASE_DB_PASSWORD`, the new one after the rotation above): type
@@ -167,7 +167,7 @@ select private.bootstrap_test_group('E2E_OWNER_EMAIL', 'E2E_ADMIN_EMAIL', 'E2E_M
 
 ## 5. Vercel
 
-1. Import the GitHub repo. Framework preset: Vite (`vercel.json` already sets bun, the build and the output).
+1. Import the GitHub repo. Framework preset: Vite (`vercel.json` already sets pnpm, the build and the output).
 2. Environment variables (Production **and** Preview): `VITE_SUPABASE_URL` = `SUPABASE_URL`,
    `VITE_SUPABASE_ANON_KEY` = `SUPABASE_ANON_KEY`. Nothing else: no service-role key, no database URL.
 3. Domains: add `PROD_DOMAIN`. Production branch: `main`.
@@ -176,12 +176,12 @@ select private.bootstrap_test_group('E2E_OWNER_EMAIL', 'E2E_ADMIN_EMAIL', 'E2E_M
    this before relying on CI. Open a pull request (or use any existing preview) and take its URL as `PREVIEW_URL`:
 
 ```bash
-bun x playwright install chromium
+pnpm exec playwright install chromium
 BASE_URL=PREVIEW_URL \
 VERCEL_AUTOMATION_BYPASS_SECRET='VERCEL_AUTOMATION_BYPASS_SECRET' \
 E2E_MEMBER_EMAIL='E2E_MEMBER_EMAIL' E2E_MEMBER_PASSWORD='E2E_MEMBER_PASSWORD' \
 E2E_ADMIN_EMAIL='E2E_ADMIN_EMAIL' E2E_ADMIN_PASSWORD='E2E_ADMIN_PASSWORD' \
-bun run e2e
+pnpm run e2e
 ```
 
    Replace each quoted CAPITALS value with the real one. Start the line with a space or load the values from a
@@ -243,7 +243,7 @@ echo "$DB"        # must show 127.0.0.1:54322; stop if it does not
 ```
 
 - When you are done, delete the decrypted copies (`rm -rf backup backup.tar.gz`, plus the downloaded `.age` file) and
-  run `bun x supabase stop --no-backup`, which also discards the local database volume.
+  run `pnpm exec supabase stop --no-backup`, which also discards the local database volume.
 
 The procedure includes the privilege hardening (steps **A**, **B**, **C**). Add two things to it,
 so that **C** proves **A** and **B** really remove the extra access that a fresh hosted project hands out:

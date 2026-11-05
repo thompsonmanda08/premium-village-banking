@@ -91,7 +91,7 @@ echo "$DB"   # must show 127.0.0.1:54322 before any psql command below; an empty
    or `authenticated`):
 
 ```
-bun x supabase start
+pnpm exec supabase start
 psql --variable ON_ERROR_STOP=1 --dbname "$DB" <<'SQL'
 drop schema public cascade;
 drop schema if exists private cascade;
@@ -121,7 +121,7 @@ psql --single-transaction --variable ON_ERROR_STOP=1 \
    `select count(*) from auth.users` matches too.
 8. Clean up. The dump is real member data and `pvb-backup.key` opens every backup: delete the decrypted copies
    (`rm -rf backup backup.tar.gz`, and the downloaded `.age` file), delete the key from this machine (it lives offline),
-   and run `bun x supabase stop --no-backup` so the local database volume goes too.
+   and run `pnpm exec supabase stop --no-backup` so the local database volume goes too.
 
 ## Restore into production
 
