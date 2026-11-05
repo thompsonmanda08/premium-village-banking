@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { DeclarationSummary } from '@/features/ledger/DeclarationSummary';
 import { useLedgerAction } from '@/features/ledger/actions';
-import { sentTotal } from '@/features/ledger/declarationForm';
+import { sentTotal } from '@/features/ledger/declarationModel';
 import { liveDeclarations, submittedLabel, type ActiveMember, type DeclarationRow, type Wallet } from '@/features/ledger/model';
 import { sumKwacha } from '@/features/ledger/money';
 import { money } from '@/lib/format';

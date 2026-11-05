@@ -8,6 +8,7 @@ import { ToastProvider } from '@/ui';
 import type { EntryRow, InstalmentRow, LoanRow, StatementRow } from './memberViews';
 import type { DeclarationRow, PeriodRow } from './model';
 import type { CloseMember, ClosePreview, MemberStatusRow } from './queries';
+import type { Tables } from '@/lib/database.types';
 
 export const GROUP: GroupRow = { id: 'g1', name: 'Test Group', currency: 'ZMW', owner_user_id: 'u0', figures_visibility: 'open' };
 export const MEMBER: MemberRow = { id: 'm1', group_id: 'g1', full_name: 'Eve Example', short_name: 'Eve', role: 'member', status: 'active', email: 'eve@example.test' };
@@ -37,7 +38,7 @@ export const cycleMonths = (statuses: PeriodRow['status'][]): PeriodRow[] =>
 export const year = (closed: number, next: PeriodRow['status'] = 'planned'): PeriodRow[] =>
   cycleMonths(Array.from({ length: 12 }, (_, i): PeriodRow['status'] => (i < closed ? 'closed' : i === closed ? next : 'planned')));
 
-export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member?: MemberRow | null } = {}) {
+export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member?: MemberRow | null; visibility?: GroupRow['figures_visibility'] } = {}) {
   const member = opts.member === undefined ? MEMBER : opts.member;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   // A wrapper (not wrapped JSX) so `rerender(<Page />)` keeps the providers and the same client.
@@ -45,7 +46,7 @@ export function renderLedger(ui: ReactElement, opts: { isAdmin?: boolean; member
     <QueryClientProvider client={client}>
       <ToastProvider>
         <MemoryRouter>
-          <GroupProvider value={{ group: GROUP, member, isAdmin: opts.isAdmin ?? false }}>{children}</GroupProvider>
+          <GroupProvider value={{ group: opts.visibility ? { ...GROUP, figures_visibility: opts.visibility } : GROUP, member, isAdmin: opts.isAdmin ?? false }}>{children}</GroupProvider>
         </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>
@@ -94,4 +95,10 @@ export const closePreview = (o: Partial<ClosePreview> = {}): ClosePreview => ({
 export const memberStatus = (o: Partial<MemberStatusRow> = {}): MemberStatusRow => ({
   id: 'ms1', created_at: '2026-10-08T08:00:00Z', group_id: 'g1', member_id: 'm1', cycle_id: 'c1', defaulted: true,
   changed_at: '2026-10-08T08:00:00Z', changed_by: null, reason: 'Missed three months', ...o,
+});
+
+export const groupStatement = (o: Partial<Tables<'group_statements'>> = {}): Tables<'group_statements'> => ({
+  id: 'gs1', created_at: '2026-10-01T00:00:00Z', group_id: 'g1', period_id: 'p8', source: 'close', opening_cash: 5000, received: 900, savings: 3000,
+  loans_sent: 1000, idle_cash: 7000, excess_rate: 0.1, excess_billed: 700, interest_collected: 120, fee_pot_in: 0, fee_pot_out: 0, fee_pot_balance: 40,
+  meeting_pot_in: 0, meeting_pot_balance: 900, total_savings: 40500, total_owed: 2300, ...o,
 });

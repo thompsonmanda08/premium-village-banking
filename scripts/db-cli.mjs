@@ -1,5 +1,5 @@
 // Runs the Supabase CLI: push | reset | types. `reset` only touches a local stack (see resetRefusal).
-// A script wrapper because `bun run` does not expose .env.local to package.json shell expansion,
+// A script wrapper because `pnpm run` does not expose .env.local to package.json shell expansion,
 // and so the connection string can be scrubbed from anything the CLI prints.
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
@@ -16,7 +16,7 @@ const args = {
   types: ['gen', 'types', 'typescript', '--db-url', env.SUPABASE_DB_URL, '--schema', 'public'],
 }[process.argv[2]]
 if (!args) {
-  console.error('Usage: bun scripts/db-cli.mjs <push|reset|types>')
+  console.error('Usage: node scripts/db-cli.mjs <push|reset|types>')
   process.exit(1)
 }
 if (args.includes(undefined) || args.includes('')) {

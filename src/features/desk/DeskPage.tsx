@@ -92,6 +92,20 @@ function DeskBody() {
       </Card>
       <Card>
         <CardHeader
+          title="Pool and members"
+          subtitle="Where the payout pool stands, and how every member is doing: savings, interest, net gain and what they would receive."
+          action={
+            <Link
+              to="/desk/pool"
+              className="inline-flex h-12 items-center rounded-xl px-5 font-semibold text-accent underline transition duration-150 hover:bg-surface-2 active:scale-[.97]"
+            >
+              Open the pool
+            </Link>
+          }
+        />
+      </Card>
+      <Card>
+        <CardHeader
           title="Reports"
           subtitle="Download the month, the whole period or one member’s report as Excel files."
           action={

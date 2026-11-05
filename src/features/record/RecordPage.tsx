@@ -2,7 +2,8 @@ import { ScrollText } from 'lucide-react';
 import { useGroup } from '@/features/group/GroupContext';
 import { MemberScreen } from '@/features/ledger/MemberScreen';
 import { entryTone, groupEntriesByPeriod, kindLabel, toneLabel, type KindTone } from '@/features/ledger/memberViews';
-import { useLedgerCycle, useMyEntries } from '@/features/ledger/queries';
+import { MyCharts } from '@/features/ledger/MyCharts';
+import { useLedgerCycle, useMyEntries, useMyStatements } from '@/features/ledger/queries';
 import { formatDate, money } from '@/lib/format';
 import { Badge, EmptyState, type Tone } from '@/ui';
 
@@ -12,10 +13,14 @@ export function RecordPage() {
   const { group, member } = useGroup();
   const cycle = useLedgerCycle(group.id);
   const entries = useMyEntries(member?.id);
+  const statements = useMyStatements(member?.id);
   const groups = groupEntriesByPeriod(entries.data ?? [], cycle.data?.periods ?? []);
 
   return (
-    <MemberScreen title="Record" subtitle="Everything recorded against you" loadingLabel="Loading your record" queries={[cycle, entries]}>
+    <MemberScreen title="Record" subtitle="Everything recorded against you" loadingLabel="Loading your record" queries={[cycle, entries, statements]}>
+      <div className="mb-4 md:mb-5 lg:max-w-3xl">
+        <MyCharts statements={statements.data ?? []} periods={cycle.data?.periods ?? []} view="record" />
+      </div>
       {groups.length === 0 ? (
         <EmptyState icon={<ScrollText className="size-7" />} title="Nothing recorded yet">
           Your savings, payments and charges appear here as the treasurer records them.

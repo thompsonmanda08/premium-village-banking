@@ -89,6 +89,15 @@
     line-height: 1.5;
     -webkit-tap-highlight-color: transparent;
   }
+  /* No 300ms tap delay; controls are not text, so a long-press must not select their labels. */
+  button, a, [role="button"], summary, label {
+    touch-action: manipulation;
+  }
+  button, [role="button"], summary {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
   :focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 2px;

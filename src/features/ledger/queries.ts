@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Tables } from '@/lib/database.types';
+import { fetchAllRows } from '@/features/exports/paging';
 import { supabase } from '@/lib/supabase';
 import type { PenaltySuggestion } from './deskMoney';
 import type { EntryRow, LoanRow, LoanWithInstalments, PayoutRow, StatementRow } from './memberViews';
@@ -94,6 +95,8 @@ export function useRefreshLedger(groupId: string) {
       qc.invalidateQueries({ queryKey: ['payout-preview'] }),
       qc.invalidateQueries({ queryKey: ['minimum-payable'] }),
       qc.invalidateQueries({ queryKey: ['member-statuses', groupId] }),
+      qc.invalidateQueries({ queryKey: ['group-statements'] }),
+      qc.invalidateQueries({ queryKey: ['cycle-statements'] }),
     ]);
 }
 
@@ -147,6 +150,19 @@ export function usePayoutPreview(cycleId: string | undefined, memberId: string |
       const { data, error } = await supabase.rpc('payout_preview', { p_cycle: cycleId! });
       if (error) throw error;
       return data.find((r) => r.member_id === memberId) ?? null;
+    },
+  });
+}
+
+/** Every member's payout_preview row. The database only returns them to the treasurer; `enabled` keeps anyone else from asking. */
+export function useGroupPayout(cycleId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['payout-preview', cycleId, 'all'],
+    enabled: Boolean(cycleId && enabled),
+    queryFn: async (): Promise<PayoutRow[]> => {
+      const { data, error } = await supabase.rpc('payout_preview', { p_cycle: cycleId! });
+      if (error) throw error;
+      return data;
     },
   });
 }
@@ -323,6 +339,44 @@ export function useActorNames(groupId: string) {
       const { data, error } = await supabase.from('members').select('user_id, short_name').eq('group_id', groupId).not('user_id', 'is', null);
       if (error) throw error;
       return data.flatMap((m) => (m.user_id ? [{ user_id: m.user_id, short_name: m.short_name }] : []));
+    },
+  });
+}
+
+/** The group statements of the given months. Any member of the group may read them: they are totals, not individual figures. */
+export function useGroupStatements(periodIds: string[]) {
+  return useQuery({
+    queryKey: ['group-statements', ...periodIds],
+    enabled: periodIds.length > 0,
+    queryFn: async (): Promise<Tables<'group_statements'>[]> => {
+      const { data, error } = await supabase.from('group_statements').select('*').in('period_id', periodIds);
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** Every statement the viewer may see for the given months (the treasurer sees all; a member sees all only in a group that keeps figures open). Read only when `enabled`. */
+export function useCycleStatements(periodIds: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: ['cycle-statements', ...periodIds],
+    enabled: enabled && periodIds.length > 0,
+    queryFn: (): Promise<StatementRow[]> =>
+      fetchAllRows<StatementRow>((a, b) => supabase.from('statements').select('*').in('period_id', periodIds).order('created_at').order('id').range(a, b)),
+  });
+}
+
+export type CycleRules = Pick<Tables<'cycle_rules'>, 'min_saving' | 'loan_rate' | 'excess_rate' | 'loan_multiples' | 'membership_fee'>;
+
+/** The cycle's rules (any member of the group may read them). */
+export function useCycleRules(cycleId: string | undefined) {
+  return useQuery({
+    queryKey: ['cycle-rules', cycleId],
+    enabled: Boolean(cycleId),
+    queryFn: async (): Promise<CycleRules | null> => {
+      const { data, error } = await supabase.from('cycle_rules').select('min_saving, loan_rate, excess_rate, loan_multiples, membership_fee').eq('cycle_id', cycleId!).maybeSingle();
+      if (error) throw error;
+      return data;
     },
   });
 }

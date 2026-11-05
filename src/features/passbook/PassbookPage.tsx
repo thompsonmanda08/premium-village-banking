@@ -3,6 +3,7 @@ import { useGroup } from '@/features/group/GroupContext';
 import { Figure } from '@/features/ledger/Figure';
 import { MemberScreen } from '@/features/ledger/MemberScreen';
 import { owedFigure, statementViews, type StatementRow } from '@/features/ledger/memberViews';
+import { MyCharts } from '@/features/ledger/MyCharts';
 import { currentPeriod } from '@/features/ledger/model';
 import { useLedgerCycle, useMyStatements } from '@/features/ledger/queries';
 import { money } from '@/lib/format';
@@ -60,6 +61,8 @@ export function PassbookPage() {
         )}
 
         {open ? <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">Your {open.label} statement appears when the treasurer closes the month.</p> : null}
+
+        <MyCharts statements={statements.data ?? []} periods={periods} view="passbook" />
 
         {views.map(({ statement: s, period }) => (
           <div key={s.id} className="rounded-2xl border border-line bg-surface shadow-sm dark:shadow-none">

@@ -2,12 +2,14 @@ import { screen, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { entry, renderLedger, year } from '@/features/ledger/testFixtures';
 
-const hooks = vi.hoisted(() => ({ cycle: vi.fn(), entries: vi.fn() }));
+const hooks = vi.hoisted(() => ({ cycle: vi.fn(), entries: vi.fn(), statements: vi.fn() }));
+vi.mock('@/features/ledger/MyCharts', () => ({ MyCharts: () => null }));
 vi.mock('@/lib/supabase', () => ({ supabase: {} }));
 vi.mock('@/features/ledger/queries', async (orig) => ({
   ...(await orig<typeof import('@/features/ledger/queries')>()),
   useLedgerCycle: () => hooks.cycle(),
   useMyEntries: () => hooks.entries(),
+  useMyStatements: () => hooks.statements(),
 }));
 const { RecordPage } = await import('./RecordPage');
 
@@ -16,6 +18,7 @@ const ok = <T,>(data: T) => ({ data, isPending: false, isError: false, error: nu
 beforeEach(() => {
   hooks.cycle.mockReturnValue(ok({ cycle: { id: 'c1', label: 'Cycle 2026' }, periods: year(8, 'open') }));
   hooks.entries.mockReturnValue(ok([]));
+  hooks.statements.mockReturnValue(ok([]));
 });
 
 test('entries are grouped by month, newest month first, with what was paid in', () => {
