@@ -8,7 +8,7 @@ import { owedFigure, statementViews, type StatementRow } from '@/features/ledger
 import { MyCharts } from '@/features/ledger/MyCharts';
 import { currentPeriod, lastClosed } from '@/features/ledger/model';
 import { useLedgerCycle, useMyStatements } from '@/features/ledger/queries';
-import { reportPath } from '@/features/report/ReportPage';
+import { reportPath } from '@/features/report/reportQueries';
 import { QueryFigureSheet } from '@/features/queries/QueryFigureSheet';
 import { QUERY_FIELDS } from '@/features/queries/queryHooks';
 import { money } from '@/lib/format';

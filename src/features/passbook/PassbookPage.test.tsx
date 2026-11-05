@@ -1,9 +1,13 @@
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { renderLedger, statement, year } from '@/features/ledger/testFixtures';
 
 vi.mock('@/features/ledger/MyCharts', () => ({ MyCharts: () => null }));
-vi.mock('./BreakdownPanel', () => ({ BreakdownPanel: ({ periodId }: { periodId: string }) => <p>Breakdown for {periodId}</p> }));
+vi.mock('./BreakdownPanel', () => ({ BreakdownPanel: ({ memberId, periodId }: { memberId: string; periodId: string }) => <p>Breakdown for {memberId} in {periodId}</p> }));
+vi.mock('@/features/queries/QueryFigureSheet', () => ({
+  QueryFigureSheet: ({ periodId, field }: { periodId: string; field: string }) => <p>Question sheet: {field} in {periodId}</p>,
+}));
 const hooks = vi.hoisted(() => ({ cycle: vi.fn(), statements: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: {} }));
 vi.mock('@/features/ledger/queries', async (orig) => ({
@@ -102,6 +106,9 @@ test('a member without a profile is handled by the shared frame', () => {
 test('the breakdown and a question button for each figure appear for the latest statement', async () => {
   hooks.statements.mockReturnValue(ok([statement({ id: 's8', period_id: 'p8' })]));
   renderLedger(<PassbookPage />);
-  expect(screen.getByText('Breakdown for p8')).toBeInTheDocument();
+  expect(screen.getByText('Breakdown for m1 in p8')).toBeInTheDocument();
   expect(screen.getAllByRole('button', { name: /^Question / })).toHaveLength(6);
+  expect(screen.queryByText(/^Question sheet/)).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Question Closing balance' }));
+  expect(screen.getByText('Question sheet: closing_owed in p8')).toBeInTheDocument();
 });

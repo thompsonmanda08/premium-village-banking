@@ -58,3 +58,11 @@ test('a failure is said in plain words', async () => {
   renderLedger(<BreakdownPanel memberId="m1" periodId="p8" />);
   expect(await screen.findByRole('alert')).toBeInTheDocument();
 });
+
+test('a drifted statement shows the friendly sentence, not the raw message', async () => {
+  rpc.mockResolvedValue({ data: null, error: { message: 'statement_drifted', code: 'P0001' } });
+  renderLedger(<BreakdownPanel memberId="m1" periodId="p8" />);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('We couldn’t break this figure down. Ask the treasurer to check it.');
+  expect(alert).not.toHaveTextContent('statement_drifted');
+});

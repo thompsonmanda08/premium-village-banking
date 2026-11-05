@@ -154,3 +154,7 @@ test('export refusals say what is wrong, not “something went wrong”', () => 
   expect(friendlyError(new Error('no_group_statement'))).toBe('This month’s statement is missing, so it can’t be exported.');
   expect(friendlyError(new Error('not_exportable'))).toBe('Only closed months and the open month can be exported.');
 });
+
+test('a drifted statement says the figure cannot be broken down and who to ask', () => {
+  expect(friendlyError({ code: 'P0001', message: 'statement_drifted' })).toBe('We couldn’t break this figure down. Ask the treasurer to check it.');
+});

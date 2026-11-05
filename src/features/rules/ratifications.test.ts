@@ -33,6 +33,27 @@ describe('ruleStatus', () => {
     expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('ratified');
   });
 
+  it('compares instants, not strings, when offsets are mixed', () => {
+    // 10:00:00Z is later than 10:30 at +02:00 (08:30Z), though it sorts lower as text.
+    const rows = [row({ passed: false, created_at: '2026-11-02T10:30:00+02:00' }), row({ created_at: '2026-11-02T10:00:00Z' })];
+    expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('ratified');
+    expect(ruleStatus([...rows].reverse(), 'loan_cap', 'c1').state).toBe('ratified');
+  });
+
+  it('treats +00:00 and Z as the same instant, so the later decided_on wins a tie', () => {
+    const rows = [
+      row({ passed: true, decided_on: '2026-11-03', created_at: '2026-11-02T10:00:00+00:00' }),
+      row({ passed: false, decided_on: '2026-11-04', created_at: '2026-11-02T10:00:00Z' }),
+    ];
+    expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('failed');
+    expect(ruleStatus([...rows].reverse(), 'loan_cap', 'c1').state).toBe('failed');
+  });
+
+  it('still tied after decided_on: the row later in the input wins', () => {
+    const rows = [row({ passed: true }), row({ passed: false })];
+    expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('failed');
+  });
+
   it('ignores other cycles and other rules', () => {
     const rows = [row({ cycle_id: 'c2' }), row({ rule_key: 'loan_terms' })];
     expect(ruleStatus(rows, 'loan_cap', 'c1').state).toBe('not_voted');

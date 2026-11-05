@@ -18,7 +18,8 @@ const day = (at: string) => new Date(at).toLocaleDateString('en-GB', { day: 'num
 export function OverridesList({ overrides, recorded }: { overrides: OverrideRow[]; recorded: boolean }) {
   if (!recorded) return <p className="text-sm text-muted">Overrides were not recorded before November 2026.</p>;
   if (overrides.length === 0) return <p className="text-sm text-muted">No overrides this month.</p>;
-  const someHidden = overrides.some((o) => o.member === null && o.kind !== 'deadline_extended');
+  // A hidden row loses member_id too; an open group's row with only a missing short name is not private.
+  const someHidden = overrides.some((o) => o.member === null && o.member_id === null && o.kind !== 'deadline_extended');
   return (
     <div className="grid gap-2">
       <ul role="list" className="divide-y divide-line rounded-2xl border border-line bg-surface">

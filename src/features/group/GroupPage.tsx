@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { Alert, Avatar, Badge, Button, Card, EmptyState, IconButton, PageHeader, Skeleton } from '@/ui';
 import { activeMembers, lastClosed } from '@/features/ledger/model';
 import { useLedgerCycle } from '@/features/ledger/queries';
-import { reportPath } from '@/features/report/ReportPage';
+import { reportPath } from '@/features/report/reportQueries';
 import { useGroup } from './GroupContext';
 import { GroupReport } from './GroupReport';
 

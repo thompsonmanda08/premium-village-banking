@@ -17,7 +17,12 @@ function AnswerSheet({ query, onClose }: { query: OpenQuery; onClose: () => void
     if (!text) return setError('Write your answer.');
     if (text.length > 500) return setError('Keep it to 500 characters or fewer.');
     setError(undefined);
-    if (!answer.isPending) answer.mutate({ queryId: query.id, reply: text }, { onSuccess: onClose });
+    // Answered by someone else meanwhile, or withdrawn: the row is stale, so drop it (the toast says why).
+    const stale = (err: unknown) => {
+      const { code, message } = err as { code?: unknown; message?: unknown };
+      return [code, message].some((k) => k === 'already_answered' || k === 'query_not_found');
+    };
+    if (!answer.isPending) answer.mutate({ queryId: query.id, reply: text }, { onSuccess: onClose, onError: (err) => stale(err) && onClose() });
   };
   return (
     <Sheet
@@ -34,9 +39,13 @@ function AnswerSheet({ query, onClose }: { query: OpenQuery; onClose: () => void
   );
 }
 
-function Questions({ groupId }: { groupId: string }) {
-  const q = useOpenQueries(groupId);
+/** Open questions from members, for the treasurer. Nothing for a member, and nothing when none are open. */
+export function QuestionsCard() {
+  const { group, isAdmin } = useGroup();
+  const q = useOpenQueries(group.id, isAdmin);
   const [picked, setPicked] = useState<OpenQuery | null>(null);
+  if (!isAdmin) return null;
+  // No loading state on purpose: the card is invisible when empty, so a skeleton would flash and vanish.
   if (q.isError) {
     return (
       <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void q.refetch()}>Try again</Button>}>
@@ -64,10 +73,4 @@ function Questions({ groupId }: { groupId: string }) {
       {picked ? <AnswerSheet query={picked} onClose={() => setPicked(null)} /> : null}
     </Card>
   );
-}
-
-/** Open questions from members, for the treasurer. Nothing for a member, and nothing when none are open. */
-export function QuestionsCard() {
-  const { group, isAdmin } = useGroup();
-  return isAdmin ? <Questions groupId={group.id} /> : null;
 }

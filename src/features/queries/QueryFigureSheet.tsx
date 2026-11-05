@@ -39,8 +39,8 @@ export function QueryFigureSheet({ periodId, field, open, onClose }: Props) {
           <ul role="list" aria-label="Your earlier questions" className="grid gap-2 text-sm">
             {earlier.map((q) => (
               <li key={q.id} className="rounded-xl bg-surface-2 px-4 py-3">
-                <p className="text-fg">{q.note}</p>
-                {q.reply ? <p className="mt-1 text-muted">{q.reply}</p> : <p className="mt-1 text-muted">Waiting for a reply</p>}
+                <p className="text-fg"><span className="sr-only">Your question: </span>{q.note}</p>
+                {q.reply ? <p className="mt-1 text-muted"><span className="sr-only">Reply: </span>{q.reply}</p> : <p className="mt-1 text-muted">Waiting for a reply</p>}
               </li>
             ))}
           </ul>

@@ -50,6 +50,7 @@ const KNOWN: Record<string, string> = {
   cycle_overlap: 'Another cycle already covers these dates. Check the dates, or close that cycle first.',
   invalid_rule: "That rule isn't recognised.",
   invalid_vote: "Check the vote: votes for can't be more than votes counted, and the date can't be in the future.",
+  statement_drifted: 'We couldn’t break this figure down. Ask the treasurer to check it.',
   invalid_field: 'Pick one of the figures on your statement.',
   too_many_queries: 'You already have 3 open questions. Wait for an answer before asking another.',
   query_not_found: 'That question no longer exists.',

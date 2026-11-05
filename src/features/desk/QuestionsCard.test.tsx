@@ -60,3 +60,41 @@ test('a failure to load is said in plain words', () => {
   renderLedger(<QuestionsCard />, { isAdmin: true });
   expect(screen.getByRole('alert')).toBeInTheDocument();
 });
+
+test('Enter in the answer box sends it', async () => {
+  renderLedger(<QuestionsCard />, { isAdmin: true });
+  await userEvent.click(screen.getByRole('button', { name: 'Answer Ann' }));
+  await userEvent.type(screen.getByLabelText('Your answer'), 'Fixed it{Enter}');
+  expect(rpc).toHaveBeenCalledWith('answer_query', { p_query: 'q2', p_reply: 'Fixed it' });
+});
+
+test('a question answered or removed meanwhile closes the sheet and says so', async () => {
+  for (const [message, said] of [['already_answered', 'That question has already been answered.'], ['query_not_found', 'That question no longer exists.']] as const) {
+    rpc.mockResolvedValue({ data: null, error: { message, code: 'P0001' } });
+    const { unmount } = renderLedger(<QuestionsCard />, { isAdmin: true });
+    await userEvent.click(screen.getByRole('button', { name: 'Answer Ann' }));
+    await userEvent.type(screen.getByLabelText('Your answer'), 'Fixed it');
+    await userEvent.click(screen.getByRole('button', { name: 'Send answer' }));
+    expect(await screen.findByText(said)).toBeInTheDocument();
+    await vi.waitFor(() => expect(screen.queryByLabelText('Your answer')).toBeNull());
+    unmount();
+  }
+});
+
+test('another failure keeps the sheet open for a retry', async () => {
+  rpc.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' } });
+  renderLedger(<QuestionsCard />, { isAdmin: true });
+  await userEvent.click(screen.getByRole('button', { name: 'Answer Ann' }));
+  await userEvent.type(screen.getByLabelText('Your answer'), 'Fixed it');
+  await userEvent.click(screen.getByRole('button', { name: 'Send answer' }));
+  expect(await screen.findByText(/offline/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+});
+
+test('the hook is asked for only when the viewer is an admin', () => {
+  renderLedger(<QuestionsCard />, { isAdmin: true });
+  expect(open).toHaveBeenLastCalledWith('g1', true);
+  open.mockClear();
+  renderLedger(<QuestionsCard />, { isAdmin: false });
+  expect(open).toHaveBeenLastCalledWith('g1', false);
+});

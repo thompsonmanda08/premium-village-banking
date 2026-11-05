@@ -27,14 +27,14 @@ export const RULE_CATALOG: CatalogRule[] = [
   {
     key: 'loan_terms',
     title: 'How long a loan runs',
-    text: 'Up to K3,000 is repaid in 1 month, up to K5,000 in 2 months, up to K10,000 in 3 months, and K10,000 or more in 4 months. The app gives each loan its own schedule and puts exactly K10,000 in the 4-month band, because the constitution lists it in two bands.',
+    text: 'Up to K3,000 is repaid in 1 month, up to K5,000 in 2 months, up to K10,000 in 3 months, and K10,000 or more in 4 months. The bands are as the constitution sets them, except exactly K10,000: the constitution lists it in two bands and the app puts it in the 4-month band. The constitution is silent on a member with more than one loan, so each loan is repaid by its own instalments, set when the loan is given.',
     clause: 'Article 5, Loan Management',
     basis: 'as_written',
   },
   {
     key: 'loan_cap',
     title: 'How much a member can borrow',
-    text: 'A loan may be up to 3 times your savings in the first 4 months of the cycle, 2 times from the fifth month, and 1 time in the last 3 months (from November 2026). Savings are counted as built up to date.',
+    text: 'A loan may be up to 3 times your savings in the first 4 months of the cycle, 2 times from the fifth month, and 1 time in the last 3 months of the cycle, which begin in November 2026. Savings are counted as built up to date.',
     clause: 'Article 5, Loan Management',
     basis: 'as_written',
   },
@@ -48,9 +48,9 @@ export const RULE_CATALOG: CatalogRule[] = [
   {
     key: 'excess_charge',
     title: 'Charge on money not lent out',
-    text: 'Money that is not borrowed is charged 10% and the charge is shared by all members according to their savings. The constitution does not say how often. The app charges it every month.',
+    text: 'Money that is not borrowed is charged 10% and the charge is shared by all members according to their savings. The constitution says this, but not how often, so the app charges it every month.',
     clause: 'Article 5, Loan Management',
-    basis: 'differs',
+    basis: 'as_written',
   },
   {
     key: 'minimum_payable',
@@ -76,29 +76,29 @@ export const RULE_CATALOG: CatalogRule[] = [
   {
     key: 'membership_fee',
     title: 'Membership fee',
-    text: 'The membership fee is K50 each quarter, due in February, May, August and November. It pays for hosting meetings and is kept apart from the lending money and interest. The constitution does not name the months.',
+    text: 'The membership fee is K50 each quarter, due in February, May, August and November. It pays for hosting meetings and is kept apart from the lending money and interest. The constitution sets the fee and its purpose but does not name the months, so the months were chosen by the group.',
     clause: 'Membership',
     basis: 'as_written',
   },
   {
     key: 'deadlines_and_extensions',
     title: 'Deadlines and extensions',
-    text: 'Declarations and payments are made between the 5th and 7th of each month. The group can move the deadline for a month, and the app then charges no penalty up to the new date.',
+    text: 'Declarations and payments are made between the 5th and 7th of each month. The constitution sets the same window and a penalty for anything after the 7th, but says nothing about moving the deadline. The group can move the deadline for a month, and the app then charges no penalty up to the new date.',
     clause: 'Savings',
     basis: 'differs',
   },
   {
     key: 'default_handling',
     title: 'When a member defaults',
-    text: 'A member in default can only withdraw their own savings, and the interest on those savings goes to the group. The constitution does not say when a member counts as in default or whether the unpaid loan is taken off their savings.',
+    text: 'A member in default can only withdraw their own savings, and the interest on those savings goes to the group. The first part is as the constitution says. The constitution does not say when a member counts as in default or whether the unpaid loan is taken off their savings.',
     clause: 'Article 5, Loan Management',
     basis: 'as_written',
   },
   {
     key: 'payout_and_pots',
     title: 'Payout and the money pots',
-    text: 'The cycle pays out on 6 February 2027. Interest is shared by each month\'s savings. Transfer fees for the payout come from the fees members declare. The constitution does not say how interest is shared or what happens to leftover pots.',
-    clause: 'Savings',
+    text: 'The constitution gives the payout date, 6 February 2027, and the app uses it. Interest is shared by each month\'s savings. Transfer fees for the payout come from the fees members declare. The constitution does not say how interest is shared, who pays the fees or what happens to leftover pots.',
+    clause: null,
     basis: 'not_in_constitution',
   },
 ];

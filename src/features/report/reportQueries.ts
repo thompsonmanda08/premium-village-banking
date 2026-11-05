@@ -20,6 +20,9 @@ export type MonthReport = {
   rules: { ratified_by_close: number };
 };
 
+/** The report page of the month that starts on this date. */
+export const reportPath = (startsOn: string) => `/report/${startsOn.slice(0, 7)}`;
+
 export function useMonthReport(periodId: string | undefined) {
   return useQuery({
     queryKey: ['month-report', periodId],

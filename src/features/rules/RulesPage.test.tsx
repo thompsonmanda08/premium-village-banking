@@ -52,7 +52,15 @@ test('loading: a labelled skeleton under the page title', () => {
   cyclesQuery.mockReturnValue(new Promise(() => {}));
   renderRules();
   expect(screen.getByRole('heading', { name: 'Rules' })).toBeInTheDocument();
-  expect(screen.getByText('Loading the rules…')).toBeInTheDocument();
+  expect(screen.getAllByRole('status').some((el) => el.textContent?.includes('Loading the rules…'))).toBe(true);
+});
+
+test('loading the votes: a labelled status inside the rules card', async () => {
+  cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
+  ratificationsQuery.mockReturnValue(new Promise(() => {}));
+  renderRules();
+  await screen.findByText('How the app applies the rules');
+  expect(screen.getAllByRole('status').some((el) => el.textContent?.includes('Loading the votes…'))).toBe(true);
 });
 
 test('lists the rules, loan limits, unambiguous repayment periods and key dates', async () => {
@@ -124,14 +132,26 @@ test('a member sees no Record a vote button, an admin sees one per rule', async 
   cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
   renderRules();
   await screen.findByText('How the app applies the rules');
-  expect(screen.queryByRole('button', { name: /Record a vote/ })).toBeNull();
+  expect(await screen.findAllByText('Not yet voted')).toHaveLength(13);
+  expect(screen.queryByRole('button', { name: /Record a/ })).toBeNull();
 });
 
 test('admin sees a Record a vote button for every rule', async () => {
   cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
   renderRules(undefined, true);
   await screen.findByText('How the app applies the rules');
-  expect(await screen.findAllByRole('button', { name: /Record a vote/ })).toHaveLength(13);
+  expect(await screen.findAllByRole('button', { name: /^Record a vote on / })).toHaveLength(13);
+});
+
+test('a rule that already has a vote offers to record a new one', async () => {
+  cyclesQuery.mockResolvedValue({ data: [CYCLE], error: null });
+  ratificationsQuery.mockResolvedValue({ data: [VOTE], error: null });
+  renderRules(undefined, true);
+  const again = await screen.findByRole('button', { name: 'Record a new vote on Loan interest' });
+  expect(again).toHaveTextContent('Record a new vote');
+  expect(screen.getAllByRole('button', { name: /^Record a vote on / })).toHaveLength(12);
+  await userEvent.click(again);
+  expect(await screen.findByText(/Entered a vote by mistake\? Record it again and the latest one counts\./)).toBeInTheDocument();
 });
 
 test('the votes failing to load shows a message and a retry, the rest of the page stays', async () => {

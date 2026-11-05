@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { renderLedger } from '@/features/ledger/testFixtures';
@@ -48,4 +48,40 @@ test('a refusal shows the friendly sentence and keeps the sheet open', async () 
   await userEvent.click(screen.getByRole('button', { name: 'Record vote' }));
   expect(await screen.findByText('Check the vote: votes for can\'t be more than votes counted, and the date can\'t be in the future.')).toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
+});
+
+test('a date in the future is refused before any request', async () => {
+  renderSheet();
+  await fill('2999-01-01', '12', '18');
+  await userEvent.click(screen.getByRole('button', { name: 'Record vote' }));
+  expect(await screen.findByText('The date can’t be in the future.')).toBeInTheDocument();
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+test('nobody having voted is refused before any request', async () => {
+  renderSheet();
+  await fill('2026-10-14', '0', '0');
+  await userEvent.click(screen.getByRole('button', { name: 'Record vote' }));
+  expect(await screen.findByText('At least one member must have voted.')).toBeInTheDocument();
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+// user-event only looks for a submit button inside the form, so it cannot press Enter for a button tied by the `form` attribute.
+// A browser can, so the test checks the tie (what makes Enter work there) and that submitting the form records the vote.
+test('Enter records the vote: the footer button submits the form', async () => {
+  renderSheet();
+  await fill('2026-10-14', '12', '18');
+  const button = screen.getByRole('button', { name: 'Record vote' });
+  const form = screen.getByLabelText('Votes for').closest('form')!;
+  expect(button).toHaveAttribute('type', 'submit');
+  expect(form.id).not.toBe('');
+  expect(button).toHaveAttribute('form', form.id);
+  fireEvent.submit(form);
+  await vi.waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+});
+
+test('says what to do about a vote entered by mistake', () => {
+  renderSheet();
+  expect(screen.getByText(/Entered a vote by mistake\? Record it again and the latest one counts\./)).toBeInTheDocument();
 });

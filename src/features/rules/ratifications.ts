@@ -15,12 +15,19 @@ export type RuleStatus = {
   row: Ratification | null;
 };
 
+const isLater = (a: Ratification, b: Ratification) => {
+  const d = Date.parse(a.created_at) - Date.parse(b.created_at);
+  return d !== 0 ? d > 0 : a.decided_on >= b.decided_on;
+};
+
 // The latest row for the rule in this cycle decides; a later failed vote replaces an earlier pass.
+// Rows are compared by instant (timestamps may mix Z and +00:00). A tie goes to the later decided_on,
+// then to the row later in the input (arbitrary but deterministic for a given input order).
 export function ruleStatus(rows: Ratification[], key: string, cycleId: string): RuleStatus {
   let latest: Ratification | null = null;
   for (const r of rows) {
     if (r.rule_key !== key || r.cycle_id !== cycleId) continue;
-    if (!latest || r.created_at > latest.created_at) latest = r;
+    if (!latest || isLater(r, latest)) latest = r;
   }
   if (!latest) return { state: 'not_voted', row: null };
   return { state: latest.passed ? 'ratified' : 'failed', row: latest };

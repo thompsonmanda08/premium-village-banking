@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { renderLedger } from '@/features/ledger/testFixtures';
@@ -65,6 +65,12 @@ test('earlier questions on this figure and their replies show; other figures do 
     isError: false,
   });
   renderSheet();
+  const items = within(screen.getByRole('list', { name: 'Your earlier questions' })).getAllByRole('listitem');
+  expect(items[0]).toHaveTextContent('Your question: First go');
+  expect(items[0]).toHaveTextContent('Reply: Checked, it is right');
+  expect(items[1]).toHaveTextContent('Your question: Second go');
+  expect(items[1]).toHaveTextContent('Waiting for a reply');
+  expect(items[1]).not.toHaveTextContent('Reply:');
   expect(screen.getByText('First go')).toBeInTheDocument();
   expect(screen.getByText('Checked, it is right')).toBeInTheDocument();
   expect(screen.getByText('Second go')).toBeInTheDocument();

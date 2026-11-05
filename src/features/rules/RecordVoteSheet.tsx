@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { localISODate } from '@/lib/format';
 import { Button, Sheet, TextField } from '@/ui';
 import type { CatalogRule } from './ruleCatalog';
@@ -23,7 +23,8 @@ export function RecordVoteSheet({ rule, cycleId, open, onClose }: Props) {
     if (!record.isPending) onClose();
   };
 
-  const submit = () => {
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
     const f = count(votesFor);
     const t = count(votesTotal);
     const next: Errors = {};
@@ -46,10 +47,10 @@ export function RecordVoteSheet({ rule, cycleId, open, onClose }: Props) {
       open={open}
       onClose={close}
       title="Record a vote"
-      description={`${rule.title}. A rule passes when at least two thirds of the members who voted are for it.`}
-      footer={<Button fullWidth isLoading={record.isPending} onClick={submit}>Record vote</Button>}
+      description={`${rule.title}. A rule passes when at least two thirds of the members who voted are for it. Entered a vote by mistake? Record it again and the latest one counts.`}
+      footer={<Button type="submit" form="record-vote" fullWidth isLoading={record.isPending}>Record vote</Button>}
     >
-      <form className="grid gap-4" noValidate onSubmit={(e) => e.preventDefault()}>
+      <form id="record-vote" className="grid gap-4" noValidate onSubmit={submit}>
         <TextField label="Date of the vote" type="date" max={localISODate(new Date())} error={errors.date} value={decidedOn} onChange={(e) => setDecidedOn(e.target.value)} />
         <TextField label="Votes for" inputMode="numeric" autoComplete="off" error={errors.votesFor} value={votesFor} onChange={(e) => setVotesFor(e.target.value)} />
         <TextField label="Members who voted" inputMode="numeric" autoComplete="off" error={errors.votesTotal} value={votesTotal} onChange={(e) => setVotesTotal(e.target.value)} />

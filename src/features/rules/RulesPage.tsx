@@ -10,7 +10,7 @@ import { loanLimitLines, tenorLines } from '@/lib/rulesText';
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Skeleton } from '@/ui';
 import { RecordVoteSheet } from './RecordVoteSheet';
 import { RULE_CATALOG, type CatalogRule, type RuleBasis } from './ruleCatalog';
-import { ruleStatus, unratifiedCount, type Ratification } from './ratifications';
+import { ruleStatus, unratifiedCount, type RuleStatus } from './ratifications';
 import { useRatifications } from './useRatifications';
 
 const BASIS: Record<RuleBasis, string> = {
@@ -19,8 +19,7 @@ const BASIS: Record<RuleBasis, string> = {
   not_in_constitution: 'Applied by the app, not in the constitution',
 };
 
-function statusText(rows: Ratification[], key: string, cycleId: string) {
-  const { state, row } = ruleStatus(rows, key, cycleId);
+function statusText({ state, row }: RuleStatus) {
   if (state === 'ratified' && row) return `Ratified ${formatDate(row.decided_on)}, ${row.votes_for} of ${row.votes_total}`;
   return state === 'failed' ? 'Voted, did not pass' : 'Not yet voted';
 }
@@ -48,17 +47,21 @@ function AppliedRules({ cycleId }: { cycleId: string }) {
         <>
           <p className="mb-2 text-base font-semibold text-fg">{unratifiedCount(rows, cycleId)} rules not yet ratified</p>
           <ul role="list" className="divide-y divide-line">
-            {RULE_CATALOG.map((rule) => (
+            {RULE_CATALOG.map((rule) => {
+              const status = ruleStatus(rows, rule.key, cycleId);
+              const verb = status.row ? 'Record a new vote' : 'Record a vote';
+              return (
               <li key={rule.key} className="grid gap-2 py-4">
                 <h3 className="text-base font-semibold text-fg">{rule.title}</h3>
                 <p className="text-base text-fg">{rule.text}</p>
                 <p className="text-sm text-muted"><span>{BASIS[rule.basis]}</span>{rule.clause ? <span> · {rule.clause}</span> : null}</p>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Badge tone={ruleStatus(rows, rule.key, cycleId).state === 'ratified' ? 'success' : 'neutral'}>{statusText(rows, rule.key, cycleId)}</Badge>
-                  {isAdmin ? <Button size="sm" variant="secondary" aria-label={`Record a vote on ${rule.title}`} onClick={() => setVoting(rule)}>Record a vote</Button> : null}
+                  <Badge tone={status.state === 'ratified' ? 'success' : 'neutral'}>{statusText(status)}</Badge>
+                  {isAdmin ? <Button size="sm" variant="secondary" aria-label={`${verb} on ${rule.title}`} onClick={() => setVoting(rule)}>{verb}</Button> : null}
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </>
       )}

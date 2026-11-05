@@ -49,9 +49,10 @@ export function useMyQueries(memberId: string | undefined) {
 }
 
 /** Open questions of the group, oldest first, with the asker's short name. Admins only (RLS lets a member see just their own). */
-export function useOpenQueries(groupId: string) {
+export function useOpenQueries(groupId: string, enabled: boolean) {
   return useQuery({
     queryKey: ['open-queries', groupId],
+    enabled,
     queryFn: async (): Promise<OpenQuery[]> => {
       const [qs, ms] = await Promise.all([
         supabase.from('figure_queries').select('*').eq('group_id', groupId).eq('status', 'open').order('created_at'),

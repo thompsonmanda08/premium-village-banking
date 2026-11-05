@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { groupStatement, renderLedger, year } from '@/features/ledger/testFixtures';
 import { RULE_CATALOG } from '@/features/rules/ruleCatalog';
 import type { MonthReport } from './reportQueries';
+import { reportPath } from './reportQueries';
 
 const hooks = vi.hoisted(() => ({ cycle: vi.fn(), report: vi.fn(), month: undefined as string | undefined }));
 vi.mock('@/lib/supabase', () => ({ supabase: {} }));
@@ -46,7 +47,9 @@ test('with names hidden no name appears and the page says why', () => {
   }));
   renderLedger(<ReportPage />);
   expect(screen.getByText('Names are hidden by the group’s setting.')).toBeInTheDocument();
-  expect(screen.queryByText('Zed Arrears')).toBeNull();
+  const page = document.body.textContent ?? '';
+  expect(page).not.toContain('Zed Arrears');
+  expect(page).not.toContain('Yan Late');
   expect(screen.getByText('Charge waived · A member')).toBeInTheDocument();
 });
 
@@ -80,8 +83,12 @@ test('loading and error states', () => {
   const { unmount } = renderLedger(<ReportPage />);
   expect(screen.getByText('Loading the monthly report')).toBeInTheDocument();
   unmount();
-  hooks.report.mockReturnValue({ data: undefined, isPending: false, isError: true, error: { message: 'x', code: 'period_not_closed' }, refetch: vi.fn() });
+  hooks.report.mockReturnValue({ data: undefined, isPending: false, isError: true, error: { code: 'P0001', message: 'period_not_closed' }, refetch: vi.fn() });
   renderLedger(<ReportPage />);
   expect(screen.getByText('That month isn’t closed yet, so there is no report for it.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+});
+
+test('reportPath is the month of the start date', () => {
+  expect(reportPath('2026-05-01')).toBe('/report/2026-05');
 });

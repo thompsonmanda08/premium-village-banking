@@ -9,9 +9,8 @@ import { friendlyError } from '@/lib/errors';
 import { money } from '@/lib/format';
 import { Alert, Button, Card, EmptyState, PageHeader, Skeleton } from '@/ui';
 import { OverridesList } from './OverridesList';
-import { useMonthReport } from './reportQueries';
+import { reportPath, useMonthReport } from './reportQueries';
 
-export const reportPath = (startsOn: string) => `/report/${startsOn.slice(0, 7)}`;
 const nav = 'inline-flex min-h-12 items-center font-semibold text-accent underline-offset-4 hover:underline';
 
 export function ReportPage() {

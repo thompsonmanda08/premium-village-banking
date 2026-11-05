@@ -31,6 +31,12 @@ test('a hidden row says "A member" with no amount or reason, plus a short note',
   expect(screen.getByText('Other members’ details are kept private.')).toBeInTheDocument();
 });
 
+test('a missing short name in an open group is not called private', () => {
+  render(<OverridesList recorded overrides={[row({ member_id: 'm1', member: null })]} />);
+  expect(screen.getByText('Charge waived · A member')).toBeInTheDocument();
+  expect(screen.queryByText('Other members’ details are kept private.')).toBeNull();
+});
+
 test('recorded but empty reads "No overrides this month"; not recorded says so', () => {
   const { rerender } = render(<OverridesList recorded overrides={[]} />);
   expect(screen.getByText('No overrides this month.')).toBeInTheDocument();
