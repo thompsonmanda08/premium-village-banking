@@ -28,7 +28,7 @@ Money: savings and earnings `success`, amounts owed `warning`, penalties and los
 
 The group's emblem (hands holding a coin and a sprout among village huts), cut to a circle on transparency:
 `public/brand-mark.png` (192px, in-app via `BrandMark`) and `public/logo.png` (512px, the source for the favicon and install
-icons; regenerate with `bun x pwa-assets-generator`). The emblem keeps its own colours in both themes; maskable and Apple
+icons; regenerate with `pnpm exec pwa-assets-generator`). The emblem keeps its own colours in both themes; maskable and Apple
 icons pad it with white to match its white disc. It is detailed artwork, so keep it at 36px or larger.
 
 ## Shape

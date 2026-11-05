@@ -14,15 +14,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.4.0
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run lint
-      - run: bun run check:tokens
-      - run: bun run test
-      - run: bun run build
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run check:tokens
+      - run: pnpm run test
+      - run: pnpm run build
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:54321
           VITE_SUPABASE_ANON_KEY: ci-placeholder
@@ -32,16 +34,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.4.0
+          node-version: 22
+          cache: pnpm
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.120.0   # matches the supabase devDependency in bun.lock
-      - run: bun install --frozen-lockfile
+          version: 2.120.0   # matches the supabase devDependency in pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
       # `supabase start` applies supabase/migrations and seed.sql; `supabase db start` does not say it does.
       - run: supabase start -x studio,imgproxy,mailpit,logflare,vector
-      - run: bun scripts/db-test.mjs
+      - run: node scripts/db-test.mjs
         env:
           SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
@@ -49,9 +53,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.4.0
-      - run: bun install --frozen-lockfile
-      - run: bun run fn:test
-      - run: bun x deno check supabase/functions/invite-member/index.ts
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run fn:test
+      - run: pnpm dlx deno check supabase/functions/invite-member/index.ts

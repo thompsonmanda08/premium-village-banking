@@ -7,6 +7,7 @@ import { AccountPage } from '@/features/account/AccountPage';
 import { ClosePage } from '@/features/desk/ClosePage';
 import { MemberLedgerPage } from '@/features/desk/MemberLedgerPage';
 import { MembersPage } from '@/features/desk/MembersPage';
+import { PoolPage } from '@/features/desk/PoolPage';
 import { ReportsPage } from '@/features/desk/ReportsPage';
 import { DeskPage } from '@/features/desk/DeskPage';
 import { LedgerCheckPage } from '@/features/desk/LedgerCheckPage';
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
                   page('desk/close', 'Close the month', <ClosePage />),
                   page('desk/members', 'Members', <MembersPage />),
                   page('desk/members/:memberId', 'Member ledger', <MemberLedgerPage />),
+                  page('desk/pool', 'Pool and members', <PoolPage />),
                   page('desk/reports', 'Reports', <ReportsPage />),
                   page('rules', 'Rules', <RulesPage />),
                   page('account', 'Account', <AccountPage />),

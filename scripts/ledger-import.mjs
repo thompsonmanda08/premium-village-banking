@@ -1,8 +1,8 @@
-// bun run ledger:import -- [--target <ref>|local] [--through Sep] [--write] [--dir data/content]
+// pnpm run ledger:import [--target <ref>|local] [--through Sep] [--write] [--dir data/content]
 // Imports the 2026 treasurer workbooks (git-ignored, data/content/) into Cycle 2026 of Premium Village Banking.
 // Local only, never in CI. Without --write it runs the whole import inside a transaction, prints counts and totals,
 // and rolls back. The money maths is all in SQL (private.import_history); this file only reads cells.
-// SUPABASE_DB_URL (bun loads .env.local) must be the owner connection: no app role can execute anything in `private`.
+// SUPABASE_DB_URL (run through `node --env-file-if-exists=.env.local`) must be the owner connection: no app role can execute anything in `private`.
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'

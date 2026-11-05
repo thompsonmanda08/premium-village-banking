@@ -23,7 +23,7 @@ access, change or delete other people's data while testing; use your own test ac
 - Views over RLS tables are select-only (`revoke all`, `grant select`) and filter rows themselves.
 - Any value affecting money, status, limits or dates is computed or validated in the database.
 - Add pgTAP tests for each new table/function covering anon, an outsider, a member, an admin and
-  the owner, including attempts on another group's rows. `bun run db:test` must pass.
+  the owner, including attempts on another group's rows. `pnpm run db:test` must pass.
 
 ### Ledger
 - Ledger tables (`wallets`, `periods`, `declarations`, `entries`, `loans`, `loan_instalments`, `member_status`,
@@ -73,7 +73,7 @@ access, change or delete other people's data while testing; use your own test ac
 - Strip invite tokens from the address bar after reading them.
 
 ### Dependencies
-- Run `bun audit` before releases; no known high/critical issues in runtime dependencies.
+- Run `pnpm audit` before releases; no known high/critical issues in runtime dependencies.
 - Prefer existing dependencies; pin versions for Edge Function imports.
 
 See `SECURITY_AUDIT.md` for the latest audit, open items and the pre-release checklist.

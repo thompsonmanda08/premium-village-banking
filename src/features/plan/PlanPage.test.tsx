@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { instalment, loan, renderLedger, statement, year } from '@/features/ledger/testFixtures';
 
+vi.mock('./PlanProjection', () => ({ PlanProjection: () => null }));
 const hooks = vi.hoisted(() => ({ cycle: vi.fn(), loans: vi.fn(), statements: vi.fn(), payout: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: {} }));
 vi.mock('@/features/ledger/queries', async (orig) => ({
