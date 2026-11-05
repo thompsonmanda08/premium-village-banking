@@ -143,13 +143,35 @@ reset role;
 update members set status = 'left' where id = tests.lm('Cid');
 select tests.login_as(tests.id('other'));
 select throws_ok($$select raise_query(tests.lp(2), 'cum_savings', 'still here?')$$, '42501', 'not_admin', 'a member who left cannot raise a query');
+-- Deliberate (spec section 11, item 8): leaving does not hide a member's own record.
+select is((select count(*)::int from figure_queries), 1, 'a member who left still reads their own old queries');
 reset role;
+
+-- on the record for the owner too (this block runs as the table owner, not authenticated) -----------
+select ok(not has_table_privilege('service_role', 'public.figure_queries', 'INSERT,UPDATE,DELETE,TRUNCATE'),
+  'service_role cannot write the table');
+select throws_ok(format('update figure_queries set reply = %L where id = %L', 'edited', tests.id('q1')), 'P0001', 'append_only',
+  'the owner cannot edit an answered query');
+select throws_ok(format('update figure_queries set status = %L where id = %L', 'open', tests.id('q1')), 'P0001', 'append_only',
+  'nor reopen it');
+select throws_ok(format('update figure_queries set note = %L where id = %L', 'rewritten', tests.id('q_cid')), 'P0001', 'append_only',
+  'nor rewrite the note of an open query');
+select throws_ok(format($$update figure_queries set status = 'answered', reply = 'x', answered_at = now(), note = 'rewritten'
+  where id = %L$$, tests.id('q_cid')), 'P0001', 'append_only', 'nor change the note while answering');
+select throws_ok(format('delete from figure_queries where id = %L', tests.id('q_cid')), 'P0001', 'append_only', 'nor delete a query');
+select throws_ok('truncate figure_queries', 'P0001', 'append_only', 'nor truncate the table');
+select tests.login_as(tests.id('admin'));
+select is((select status from answer_query(tests.id('q_cid'), 'The excess is 10% of what was owed.')), 'answered',
+  'answer_query still makes the open-to-answered change through the guard');
+reset role;
+select is((select note from figure_queries where id = tests.id('q_cid')), 'why was I charged?', 'the member''s note is untouched');
 
 -- table shape -------------------------------------------------------------------------------------
 select throws_ok(format($$insert into figure_queries (group_id, period_id, member_id, field, note)
   values (%L, %L, %L, 'cum_savings', 'x')$$, tests.id('group2'), tests.lp(1), tests.lm('Ben')), '23503', null,
   'a query''s month and member belong to its group');
-select throws_ok(format($$update figure_queries set status = 'closed' where id = %L$$, tests.id('q1')), '23514', null,
+select throws_ok(format($$insert into figure_queries (group_id, period_id, member_id, field, note, status)
+  values (%L, %L, %L, 'cum_savings', 'x', 'closed')$$, tests.id('lg'), tests.lp(1), tests.lm('Ben')), '23514', null,
   'status is open or answered');
 
 select * from finish();
