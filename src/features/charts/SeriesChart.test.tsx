@@ -1,5 +1,5 @@
-import { render } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { act, render } from '@testing-library/react';
+import { afterEach, expect, test, vi } from 'vitest';
 import { SeriesChart, type SeriesDef } from './SeriesChart';
 
 const fmt = (n: number) => `K ${n}`;
@@ -115,4 +115,43 @@ test('each mark carries its value in a title, and the legend names every series'
   const legend = container.querySelector('[data-legend]')!;
   expect(legend.textContent).toContain('Saved');
   expect(legend.textContent).toContain('Pool');
+});
+
+test('the table and the hover titles give the exact amount even when the right axis is shortened', () => {
+  const { container } = render(
+    <SeriesChart {...base} rightFormat={(n) => `${n / 1000}k`} series={[bar('a', [100, 100, 100]), line('pool', [4749, 4800, 4900], { axis: 'right' })]} />,
+  );
+  const first = container.querySelector('tbody tr')!;
+  expect([...first.querySelectorAll('td')].map((c) => c.textContent)).toEqual(['K 100', 'K 4749']);
+  expect(container.querySelector('circle[data-series="pool"] title')?.textContent).toBe('Feb — pool: K 4749');
+  expect([...container.querySelectorAll('svg text')].some((t) => t.textContent === '4k')).toBe(true); // the axis itself stays short (ticks are 0, 2k, 4k, 6k)
+});
+
+// Text must stay readable on a phone: one drawing unit is one pixel, so the drawing is as wide as the space it is given.
+let resized: (() => void) | null = null;
+const stubSize = (width: number) => {
+  vi.stubGlobal('ResizeObserver', class { constructor(cb: () => void) { resized = cb; } observe() {} disconnect() {} unobserve() {} });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => width });
+};
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resized = null;
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+});
+
+test('the drawing takes the width of its container, so 12px text stays 12px on a phone', () => {
+  stubSize(320);
+  const { container } = render(<SeriesChart {...base} series={[bar('a', [100, 200, 300])]} />);
+  act(() => resized?.());
+  expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 320 260');
+});
+
+test('on a narrow screen only every other month label is drawn so they do not run together', () => {
+  stubSize(300);
+  const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
+  const { container } = render(<SeriesChart {...base} categories={months} series={[bar('a', months.map(() => 100))]} />);
+  act(() => resized?.());
+  const labels = [...container.querySelectorAll('svg text')].map((t) => t.textContent).filter((t) => months.includes(t ?? ''));
+  expect(labels).toEqual(['Feb', 'Apr', 'Jun', 'Aug', 'Oct', 'Dec']);
+  expect(container.querySelectorAll('tbody tr')).toHaveLength(12); // the table still has every month
 });

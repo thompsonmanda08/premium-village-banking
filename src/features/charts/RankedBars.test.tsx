@@ -1,5 +1,5 @@
-import { render } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { act, render } from '@testing-library/react';
+import { afterEach, expect, test, vi } from 'vitest';
 import { RankedBars } from './RankedBars';
 
 const fmt = (n: number) => `K ${n}`;
@@ -42,4 +42,27 @@ test('no rows says so; the table lists the rows', () => {
   const rows = [...second.container.querySelectorAll('tbody tr')].map((r) => [...r.querySelectorAll('td,th')].map((c) => c.textContent));
   expect(rows).toEqual([['Ann', 'K 300']]);
   expect(second.container.querySelector('svg')).toHaveAttribute('aria-label', 'x');
+});
+
+let resized: (() => void) | null = null;
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resized = null;
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+});
+
+test('on a phone the drawing is as wide as the screen, and the values line up in a column at the right edge, clear of the names', () => {
+  vi.stubGlobal('ResizeObserver', class { constructor(cb: () => void) { resized = cb; } observe() {} disconnect() {} unobserve() {} });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 320 });
+  const { container } = render(<RankedBars label="x" format={fmt} rows={[{ label: 'Ann', value: 300 }, { label: 'Bob', value: -184 }]} />);
+  act(() => resized?.());
+  expect(container.querySelector('svg')).toHaveAttribute('viewBox', expect.stringMatching(/^0 0 320 /));
+  const values = [...container.querySelectorAll('svg text')].filter((t) => t.textContent === 'K 300' || t.textContent === 'K -184');
+  expect(values).toHaveLength(2);
+  for (const v of values) {
+    expect(v.getAttribute('text-anchor')).toBe('end');
+    expect(Number(v.getAttribute('x'))).toBe(316);
+  }
+  const bob = container.querySelector('rect[data-row="Bob"]')!;
+  expect(Number(bob.getAttribute('x'))).toBeGreaterThan(90); // right of the name column
 });

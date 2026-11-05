@@ -1,5 +1,6 @@
 import { ChartTable } from './ChartTable';
 import { niceDomain, scaleLinear } from './scale';
+import { useWidth } from './useWidth';
 import { AREA, TONE, type Tone } from './tone';
 
 export type SeriesDef = {
@@ -31,13 +32,13 @@ type Props = {
   height?: number;
 };
 
-const W = 640;
 const MARGIN = { l: 56, t: 12, b: 32 };
 const finite = (v: number | null | undefined): v is number => v != null && Number.isFinite(v);
 const f = (n: number): string => String(Math.round(n * 100) / 100);
 
 /** Bars and lines on shared categories, with an optional right axis, a reference line and a table of the numbers. */
 export function SeriesChart({ label, categories, series, format, axisFormat, rightFormat, stacked = false, reference, categoryLabel = 'Month', height = 260 }: Props) {
+  const [ref, W] = useWidth();
   const hasData = series.some((s) => s.values.some(finite));
   if (categories.length === 0 || !hasData) return <p className="text-sm text-muted">No data yet</p>;
 
@@ -80,6 +81,7 @@ export function SeriesChart({ label, categories, series, format, axisFormat, rig
   const groupWidth = band * 0.7;
   const barW = groupWidth / g;
   const yFor = (s: SeriesDef) => (s.axis === 'right' ? yR : yL);
+  const every = Math.max(1, Math.ceil(26 / band)); // draw every k-th label when the months would run together
 
   const barMarks = bars.flatMap((s, j) =>
     s.values.flatMap((v, i) => {
@@ -135,7 +137,7 @@ export function SeriesChart({ label, categories, series, format, axisFormat, rig
         {s.values.map((v, i) =>
           finite(v) ? (
             <circle key={`p${i}`} data-series={s.key} cx={f(cx(i))} cy={f(y(v))} r={3} className={TONE[s.tone].fill}>
-              <title>{`${categories[i]} — ${s.label}: ${(s.axis === 'right' ? (rightFormat ?? format) : format)(v)}`}</title>
+              <title>{`${categories[i]} — ${s.label}: ${format(v)}`}</title>
             </circle>
           ) : null,
         )}
@@ -151,13 +153,13 @@ export function SeriesChart({ label, categories, series, format, axisFormat, rig
       c,
       ...series.map((s) => {
         const v = s.values[i];
-        return finite(v) ? (s.axis === 'right' ? axisR : format)(v) : '—';
+        return finite(v) ? format(v) : '—';
       }),
     ]),
   };
 
   return (
-    <figure className="grid gap-2">
+    <figure ref={ref} className="grid gap-2">
       <svg role="img" aria-label={label} viewBox={`0 0 ${W} ${height}`} className="h-auto w-full">
         {L.ticks.map((t) => (
           <g key={`t${t}`}>
@@ -179,7 +181,7 @@ export function SeriesChart({ label, categories, series, format, axisFormat, rig
             <text x={x1} y={f(yL(reference.value) - 5)} textAnchor="end" className="fill-muted text-xs">{reference.label}</text>
           </g>
         ) : null}
-        {categories.map((c, i) => (
+        {categories.map((c, i) => i % every === 0 && (
           <text key={`c${i}`} x={f(cx(i))} y={height - 10} textAnchor="middle" className="fill-muted text-xs">{c}</text>
         ))}
       </svg>
