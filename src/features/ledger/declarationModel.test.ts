@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { EMPTY_FORM, fromDeclaration, sentTotal, validateDeclaration } from './declarationForm';
+import { EMPTY_FORM, fromDeclaration, sentTotal, validateDeclaration } from './declarationModel';
 import { declaration } from './testFixtures';
 
 const form = (o: Partial<typeof EMPTY_FORM>) => ({ ...EMPTY_FORM, ...o });

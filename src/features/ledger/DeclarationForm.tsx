@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Alert, Button, TextField } from '@/ui';
 import { cn } from '@/ui/cn';
 import { useLedgerAction } from './actions';
-import { AMOUNTS, EMPTY_FORM, fromDeclaration, validateDeclaration, type DeclarationArgs, type FormErrors, type FormValues } from './declarationForm';
+import { AMOUNTS, EMPTY_FORM, fromDeclaration, validateDeclaration, type DeclarationArgs, type FormErrors, type FormValues } from './declarationModel';
 import type { DeclarationRow, Wallet } from './model';
 
 type Props = { periodId: string; memberId: string; wallets: Wallet[]; initial?: DeclarationRow | null; onDone: () => void };

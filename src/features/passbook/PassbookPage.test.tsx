@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { renderLedger, statement, year } from '@/features/ledger/testFixtures';
 
+vi.mock('@/features/ledger/MyCharts', () => ({ MyCharts: () => null }));
 const hooks = vi.hoisted(() => ({ cycle: vi.fn(), statements: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: {} }));
 vi.mock('@/features/ledger/queries', async (orig) => ({

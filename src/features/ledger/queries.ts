@@ -154,6 +154,19 @@ export function usePayoutPreview(cycleId: string | undefined, memberId: string |
   });
 }
 
+/** Every member's payout_preview row. The database only returns them to the treasurer; `enabled` keeps anyone else from asking. */
+export function useGroupPayout(cycleId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['payout-preview', cycleId, 'all'],
+    enabled: Boolean(cycleId && enabled),
+    queryFn: async (): Promise<PayoutRow[]> => {
+      const { data, error } = await supabase.rpc('payout_preview', { p_cycle: cycleId! });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export type LoanCheck = {
   period_id: string;
   label: string;
