@@ -18,7 +18,7 @@ export const makeQueryClient = () =>
  * for one visit), and a loan check holds lending cash, which moves and must never be read back days later as if it were current, and a close preview
  * holds every member's figures.
  */
-const NEVER_PERSISTED = ['invite-preview', 'loan-check', 'close-preview', 'month-report'];
+const NEVER_PERSISTED = ['invite-preview', 'loan-check', 'close-preview', 'month-report', 'minimum-breakdown', 'my-queries', 'open-queries'];
 export const shouldPersistQuery = (query: Query): boolean => !NEVER_PERSISTED.includes(String(query.queryKey[0])) && defaultShouldDehydrateQuery(query);
 
 export const persister = createAsyncStoragePersister({

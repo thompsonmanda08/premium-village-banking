@@ -12,6 +12,7 @@ import { LoansSection } from './LoansSection';
 import { MonthPanel } from './MonthPanel';
 import { NotYetDeclared } from './NotYetDeclared';
 import { PenaltiesSection } from './PenaltiesSection';
+import { QuestionsCard } from './QuestionsCard';
 
 function DeskBody() {
   const { group } = useGroup();
@@ -44,6 +45,7 @@ function DeskBody() {
   const row = 'flex min-h-14 items-center justify-between gap-3 py-2 transition duration-150 hover:text-accent active:scale-[.99]';
   return (
     <div className="grid gap-4 md:gap-5">
+      <QuestionsCard />
       <MonthPanel cycleId={cycle.data.cycle.id} periods={cycle.data.periods} />
       {/* The month's work on the left, who still owes a declaration and the tools on the right. */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start lg:gap-6">

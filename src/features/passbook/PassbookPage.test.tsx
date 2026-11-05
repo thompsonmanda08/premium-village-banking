@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { renderLedger, statement, year } from '@/features/ledger/testFixtures';
 
 vi.mock('@/features/ledger/MyCharts', () => ({ MyCharts: () => null }));
+vi.mock('./BreakdownPanel', () => ({ BreakdownPanel: ({ periodId }: { periodId: string }) => <p>Breakdown for {periodId}</p> }));
 const hooks = vi.hoisted(() => ({ cycle: vi.fn(), statements: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: {} }));
 vi.mock('@/features/ledger/queries', async (orig) => ({
@@ -96,4 +97,11 @@ test('no statements yet: an empty state', () => {
 test('a member without a profile is handled by the shared frame', () => {
   renderLedger(<PassbookPage />, { member: null });
   expect(screen.getByText('Your account isn’t linked to a member')).toBeInTheDocument();
+});
+
+test('the breakdown and a question button for each figure appear for the latest statement', async () => {
+  hooks.statements.mockReturnValue(ok([statement({ id: 's8', period_id: 'p8' })]));
+  renderLedger(<PassbookPage />);
+  expect(screen.getByText('Breakdown for p8')).toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: /^Question / })).toHaveLength(6);
 });

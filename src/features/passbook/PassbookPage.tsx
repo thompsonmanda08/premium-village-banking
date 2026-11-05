@@ -1,4 +1,5 @@
 import { BookOpen } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { useGroup } from '@/features/group/GroupContext';
 import { Figure } from '@/features/ledger/Figure';
@@ -8,8 +9,11 @@ import { MyCharts } from '@/features/ledger/MyCharts';
 import { currentPeriod, lastClosed } from '@/features/ledger/model';
 import { useLedgerCycle, useMyStatements } from '@/features/ledger/queries';
 import { reportPath } from '@/features/report/ReportPage';
+import { QueryFigureSheet } from '@/features/queries/QueryFigureSheet';
+import { QUERY_FIELDS } from '@/features/queries/queryHooks';
 import { money } from '@/lib/format';
-import { EmptyState } from '@/ui';
+import { Button, EmptyState } from '@/ui';
+import { BreakdownPanel } from './BreakdownPanel';
 
 function breakdown(s: StatementRow): Array<{ label: string; value: number }> {
   const lines = [
@@ -37,6 +41,7 @@ export function PassbookPage() {
   const latest = views[0];
   const open = currentPeriod(periods);
   const closed = lastClosed(periods);
+  const [questioning, setQuestioning] = useState<string | null>(null);
 
   return (
     <MemberScreen
@@ -62,6 +67,23 @@ export function PassbookPage() {
             Your statements appear here once the treasurer closes each month.
           </EmptyState>
         )}
+
+        {latest && member ? (
+          <>
+            <BreakdownPanel memberId={member.id} periodId={latest.period.id} />
+            <div className="rounded-2xl border border-line bg-surface p-4 md:p-5">
+              <h3 className="text-base font-semibold text-fg">Does a figure look wrong?</h3>
+              <ul role="list" className="mt-1 divide-y divide-line">
+                {Object.entries(QUERY_FIELDS).map(([field, label]) => (
+                  <li key={field} className="py-1">
+                    <Button size="sm" variant="secondary" fullWidth onClick={() => setQuestioning(field)}>Question {label}</Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {questioning ? <QueryFigureSheet periodId={latest.period.id} field={questioning} open onClose={() => setQuestioning(null)} /> : null}
+          </>
+        ) : null}
 
         {open ? <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">Your {open.label} statement appears when the treasurer closes the month.</p> : null}
 
