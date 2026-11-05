@@ -5,6 +5,7 @@ export { Card, CardHeader } from './Card';
 export { Panel } from './Panel';
 export { Badge, type Tone } from './Badge';
 export { TextField } from './TextField';
+export { InfoTip } from './InfoTip';
 export { SelectField } from './SelectField';
 export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';

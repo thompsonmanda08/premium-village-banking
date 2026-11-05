@@ -36,7 +36,7 @@ function MembersBody() {
         {rows.length === 0 ? (
           <p className="text-sm text-muted">No active members.</p>
         ) : (
-          <ul role="list" className="divide-y divide-line">
+          <ul role="list" className="divide-y divide-line lg:grid lg:grid-cols-2 lg:gap-x-8 lg:[&>li:nth-child(2)]:border-t-0">
             {rows.map((m) => (
               <li key={m.id} className="flex min-h-12 items-center justify-between gap-3 py-2">
                 <Link to={`/desk/members/${m.id}`} className="font-semibold text-accent underline underline-offset-4">{m.short_name}</Link>

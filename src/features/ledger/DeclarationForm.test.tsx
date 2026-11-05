@@ -82,3 +82,12 @@ test('editing a returned declaration starts from its figures', () => {
   expect(screen.getByLabelText('Wallet')).toHaveValue('w1');
   expect(screen.getByLabelText('Note (optional)')).toHaveValue('May payment');
 });
+
+test('the less common amounts start folded, open when they hold a figure, and the total follows what is typed', async () => {
+  const { container } = renderForm();
+  const groups = () => [...container.querySelectorAll('details')].map((d) => d.open);
+  expect(groups()).toEqual([false, false]);
+  await userEvent.type(screen.getByLabelText('Savings'), '250');
+  await userEvent.type(screen.getByLabelText('Loan repayment'), '100.50');
+  expect(screen.getByText('You are sending').nextElementSibling).toHaveTextContent('350.50');
+});

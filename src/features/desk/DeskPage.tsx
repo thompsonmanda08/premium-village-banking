@@ -41,19 +41,21 @@ function DeskBody() {
   const ready = declarations.data && members.data && wallets.data;
   const failed = [declarations, members, wallets].find((q) => q.isError && !q.data);
   return (
-    <div className="grid gap-4 md:gap-5">
-      <MonthPanel cycleId={cycle.data.cycle.id} periods={cycle.data.periods} />
+    <div className="grid gap-4 md:gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="lg:col-span-2"><MonthPanel cycleId={cycle.data.cycle.id} periods={cycle.data.periods} /></div>
       {open ? (
         failed ? (
+          <div className="lg:col-span-2">
           <Alert
             tone="danger"
             action={<Button size="sm" variant="secondary" onClick={() => { void declarations.refetch(); void members.refetch(); void wallets.refetch(); }}>Try again</Button>}
           >
             {friendlyError(failed.error)}
           </Alert>
+          </div>
         ) : ready ? (
           <>
-            <DeclarationInbox periodId={open.id} deadline={open.deadline} declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} />
+            <div className="lg:col-span-2"><DeclarationInbox periodId={open.id} deadline={open.deadline} declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} /></div>
             <LoansSection periodId={open.id} declarations={declarations.data!} members={activeMembers(members.data!)} wallets={wallets.data!} />
             <PenaltiesSection periodId={open.id} members={activeMembers(members.data!)} />
             <NotYetDeclared periodId={open.id} members={activeMembers(members.data!)} declarations={declarations.data!} wallets={wallets.data!} />
@@ -73,7 +75,7 @@ function DeskBody() {
             </Card>
           </>
         ) : (
-          <div role="status"><span className="sr-only">Loading declarations</span><Skeleton className="h-40" /></div>
+          <div role="status" className="lg:col-span-2"><span className="sr-only">Loading declarations</span><Skeleton className="h-40" /></div>
         )
       ) : null}
       <Card>

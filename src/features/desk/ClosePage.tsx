@@ -113,7 +113,7 @@ function CloseBody() {
   }
 
   return (
-    <div className="grid gap-4 md:gap-5">
+    <div className="grid gap-4 md:gap-5 lg:grid-cols-2 lg:items-start">
       <Card>
         <section aria-labelledby="before-close">
           <h2 id="before-close" className="text-lg font-semibold text-fg">Before you close</h2>

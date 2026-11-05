@@ -2,9 +2,44 @@ import { useId, useState, type FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Alert, Button, TextField } from '@/ui';
 import { cn } from '@/ui/cn';
+import { ChevronDown } from 'lucide-react';
+import { money } from '@/lib/format';
 import { useLedgerAction } from './actions';
-import { AMOUNTS, EMPTY_FORM, fromDeclaration, validateDeclaration, type DeclarationArgs, type FormErrors, type FormValues } from './declarationModel';
+import { parseKwacha, sumKwacha } from './money';
+import { AMOUNTS, EMPTY_FORM, fromDeclaration, validateDeclaration, type AmountKey, type DeclarationArgs, type FormErrors, type FormValues } from './declarationModel';
 import type { DeclarationRow, Wallet } from './model';
+
+const PRIMARY: AmountKey[] = ['saving', 'loan_repayment'];
+const OTHER: AmountKey[] = ['excess', 'membership', 'penalty', 'txn_fee'];
+const BORROW: AmountKey[] = ['borrowing_request'];
+const MONEY: AmountKey[] = [...PRIMARY, ...OTHER];
+
+// What each box is for, in the member's words, so nobody has to guess where an amount goes.
+const COPY: Record<AmountKey, { hint: string; info: string }> = {
+  saving: { hint: 'Added to your savings this month.', info: 'Your savings earn a share of the group’s interest when the cycle pays out. The monthly minimum is in the group rules.' },
+  loan_repayment: { hint: 'Paid towards a loan you already have.', info: 'This reduces what you owe. It does not change your savings. The Plan page lists your loans.' },
+  excess: { hint: 'Your share of the charge on idle cash.', info: 'Cash the group has not lent out is charged excess interest, shared by members by their savings. Your statement shows your share.' },
+  membership: { hint: 'The membership fee, if it is due.', info: 'The amount is in the group rules. Leave it empty if you have already paid it.' },
+  penalty: { hint: 'A penalty the treasurer charged you.', info: 'Only enter a penalty that is on your statement or that the treasurer told you about.' },
+  txn_fee: { hint: 'The fee you paid to send this money.', info: 'Mobile-money transfer fees are kept outside the lending pool, so they are recorded on their own.' },
+  borrowing_request: { hint: 'What you would like to borrow next.', info: 'This is only a request. The treasurer decides, and what you can borrow depends on your savings.' },
+};
+
+/** A collapsed group of fields: the common path stays short, and the rest is one tap away. */
+function More({ title, hint, open, children }: { title: string; hint: string; keys: readonly AmountKey[]; open: boolean; children: React.ReactNode }) {
+  return (
+    <details open={open} className="group rounded-xl border border-line">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2">
+        <span>
+          <span className="block text-base font-medium text-fg">{title}</span>
+          <span className="block text-sm text-muted">{hint}</span>
+        </span>
+        <ChevronDown aria-hidden className="size-5 shrink-0 text-muted transition-transform duration-150 group-open:rotate-180" />
+      </summary>
+      <div className="grid gap-4 px-4 pb-4">{children}</div>
+    </details>
+  );
+}
 
 type Props = { periodId: string; memberId: string; wallets: Wallet[]; initial?: DeclarationRow | null; onDone: () => void };
 
@@ -43,23 +78,34 @@ export function DeclarationForm({ periodId, memberId, wallets, initial, onDone }
     submit.mutate(result.args, { onSuccess: onDone });
   };
 
+  const lookup = (k: AmountKey) => AMOUNTS.find((a) => a.key === k)!;
+  const field = (k: AmountKey) => (
+    <TextField key={k} label={lookup(k).label} hint={COPY[k].hint} info={COPY[k].info} prefix="K" inputMode="decimal" autoComplete="off" placeholder="0" error={errors[k]} value={values[k]} onChange={set(k)} />
+  );
+  // A group opens when it already holds a figure or an error, so nothing typed is ever hidden.
+  const open = (keys: readonly AmountKey[]) => keys.some((k) => values[k].trim() !== '' || errors[k]);
+  const sending = sumKwacha(...MONEY.map((k) => parseKwacha(values[k]) ?? 0));
+
   return (
-    <form className="grid gap-4" noValidate onSubmit={onSubmit}>
+    <form className="@container grid gap-4" noValidate onSubmit={onSubmit}>
       {errors.form ? <Alert tone="danger">{errors.form}</Alert> : null}
-      {AMOUNTS.map((a) => (
-        <TextField
-          key={a.key}
-          label={a.label}
-          inputMode="decimal"
-          autoComplete="off"
-          placeholder="0"
-          error={errors[a.key]}
-          value={values[a.key]}
-          onChange={set(a.key)}
-        />
-      ))}
+      <div className="grid gap-4 @md:grid-cols-2">{PRIMARY.map(field)}</div>
+
+      <More title="Other charges" hint="Excess, membership, penalty or the mobile-money fee" keys={OTHER} open={open(OTHER)}>
+        <div className="grid gap-4 @md:grid-cols-2">{OTHER.map(field)}</div>
+      </More>
+      <More title="Ask to borrow" hint="A request for the treasurer, not money you send" keys={BORROW} open={open(BORROW)}>
+        {BORROW.map(field)}
+      </More>
+
+      <p className="flex items-baseline justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3">
+        <span className="text-sm text-muted">You are sending</span>
+        <span className="tabular text-lg font-semibold text-fg">{money(sending)}</span>
+      </p>
+
       <div className="grid gap-1.5">
         <label htmlFor={walletId} className="text-sm font-medium text-fg">Wallet</label>
+        <p className="-mt-1 text-sm text-muted">Where you sent the money from.</p>
         <select
           id={walletId}
           value={values.wallet}

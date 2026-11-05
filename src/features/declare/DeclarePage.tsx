@@ -76,7 +76,8 @@ export function DeclarePage() {
   return (
     <>
       <PageHeader title="Declare" subtitle={period.label} />
-      <div className="grid gap-4 md:gap-5">
+      <div className="grid gap-4 md:gap-5 lg:grid-cols-3 lg:items-start">
+        <div className="grid gap-4 md:gap-5">
         <Card>
           <p className="flex flex-wrap items-center gap-2 text-base text-fg">
             Due <strong>{formatDate(period.deadline)}</strong>
@@ -89,16 +90,7 @@ export function DeclarePage() {
           ) : null}
         </Card>
 
-        {failed ? (
-          <Alert
-            tone="danger"
-            action={<Button size="sm" variant="secondary" onClick={() => { void declarations.refetch(); void wallets.refetch(); }}>Try again</Button>}
-          >
-            {friendlyError(failed.error)}
-          </Alert>
-        ) : declarations.isPending || wallets.isPending ? (
-          <div role="status"><span className="sr-only">Loading your declaration</span><Skeleton className="h-40" /></div>
-        ) : (
+        {!failed && !declarations.isPending && !wallets.isPending ? (
           <>
             {approved.map((d) => (
               <Card key={d.id}>
@@ -116,7 +108,22 @@ export function DeclarePage() {
                 ) : null}
               </Card>
             ) : null}
+          </>
+        ) : null}
+        </div>
 
+        <div className="grid gap-4 md:gap-5 lg:col-span-2">
+        {failed ? (
+          <Alert
+            tone="danger"
+            action={<Button size="sm" variant="secondary" onClick={() => { void declarations.refetch(); void wallets.refetch(); }}>Try again</Button>}
+          >
+            {friendlyError(failed.error)}
+          </Alert>
+        ) : declarations.isPending || wallets.isPending ? (
+          <div role="status"><span className="sr-only">Loading your declaration</span><Skeleton className="h-40" /></div>
+        ) : (
+          <>
             {lostEdit ? (
               <Alert tone="info">Your declaration was approved while you were editing, so your changes were not sent. You can declare another payment below.</Alert>
             ) : null}
@@ -142,6 +149,7 @@ export function DeclarePage() {
             ) : null}
           </>
         )}
+        </div>
       </div>
     </>
   );

@@ -9,14 +9,14 @@ import { ThemeProvider } from './ThemeProvider';
 vi.mock('@/lib/supabase', () => ({ supabase: { auth: { signOut: vi.fn() } } }));
 const { AppShell } = await import('./AppShell');
 
-function renderShell(isAdmin: boolean, width?: 'narrow' | 'medium') {
+function renderShell(isAdmin: boolean) {
   const membership: Membership = {
     group: { id: 'g1', name: 'Premium Village Banking', currency: 'ZMW', owner_user_id: 'x', figures_visibility: 'open' },
     member: { id: 'm1', group_id: 'g1', full_name: 'Tafara', short_name: 'Tafara', role: isAdmin ? 'admin' : 'member', status: 'active', email: null },
     isAdmin,
   };
   const router = createMemoryRouter(
-    [{ element: <AppShell />, children: [{ index: true, element: <p>Home body</p>, handle: { title: 'Home', width } }] }],
+    [{ element: <AppShell />, children: [{ index: true, element: <p>Home body</p>, handle: { title: 'Home' } }] }],
     { initialEntries: ['/'] },
   );
   render(
@@ -49,14 +49,4 @@ test('marks the current tab', () => {
   renderShell(false);
   const nav = screen.getByRole('navigation', { name: 'Main' });
   expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
-});
-
-test('a page that asks for a narrow column is centred in one, and others use the full width', () => {
-  renderShell(false, 'narrow');
-  expect(screen.getByText('Home body').parentElement).toHaveClass('mx-auto', 'max-w-xl');
-});
-
-test('a page with no width fills the container', () => {
-  renderShell(false);
-  expect(screen.getByText('Home body').parentElement).not.toHaveClass('max-w-xl');
 });

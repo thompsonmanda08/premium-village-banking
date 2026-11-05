@@ -24,10 +24,10 @@ import { TermsPage } from '@/features/legal/TermsPage';
 import { RulesPage } from '@/features/rules/RulesPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { NotFound } from '@/features/shells/NotFound';
-import { AppShell, type PageWidth } from './AppShell';
+import { AppShell } from './AppShell';
 import { RouteError } from './RouteError';
 
-const page = (path: string, title: string, element: ReactNode, width?: PageWidth) => ({ path, element, handle: { title, width } });
+const page = (path: string, title: string, element: ReactNode) => ({ path, element, handle: { title } });
 
 export const router = createBrowserRouter([
   {
@@ -50,20 +50,20 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <HomePage />, handle: { title: 'Home' } },
                   page('passbook', 'Passbook', <PassbookPage />),
-                  page('declare', 'Declare', <DeclarePage />, 'narrow'),
+                  page('declare', 'Declare', <DeclarePage />),
                   page('plan', 'Plan', <PlanPage />),
                   page('record', 'My record', <RecordPage />),
                   page('group', 'Group', <GroupPage />),
-                  page('desk', 'Desk', <DeskPage />, 'medium'),
-                  page('desk/ledger-check', 'Ledger check', <LedgerCheckPage />, 'medium'),
-                  page('desk/close', 'Close the month', <ClosePage />, 'medium'),
-                  page('desk/members', 'Members', <MembersPage />, 'medium'),
-                  page('desk/members/:memberId', 'Member ledger', <MemberLedgerPage />, 'medium'),
+                  page('desk', 'Desk', <DeskPage />),
+                  page('desk/ledger-check', 'Ledger check', <LedgerCheckPage />),
+                  page('desk/close', 'Close the month', <ClosePage />),
+                  page('desk/members', 'Members', <MembersPage />),
+                  page('desk/members/:memberId', 'Member ledger', <MemberLedgerPage />),
                   page('desk/pool', 'Pool and members', <PoolPage />),
-                  page('desk/reports', 'Reports', <ReportsPage />, 'medium'),
+                  page('desk/reports', 'Reports', <ReportsPage />),
                   page('rules', 'Rules', <RulesPage />),
-                  page('account', 'Account', <AccountPage />, 'narrow'),
-                  page('settings/:tab?', 'Group settings', <SettingsPage />, 'medium'),
+                  page('account', 'Account', <AccountPage />),
+                  page('settings/:tab?', 'Group settings', <SettingsPage />),
                   page('*', 'Not found', <NotFound />),
                 ],
               },
