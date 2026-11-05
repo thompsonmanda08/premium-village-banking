@@ -2,11 +2,12 @@
 // The browser may load exceljs in exactly one place (src/features/exports/loadExcel.ts, a dynamic import) so it stays a lazy chunk.
 import { expect, test, vi } from 'vitest';
 import { ESLint } from 'eslint';
+import { fileURLToPath } from 'node:url';
 
 // ESLint's first run loads the whole config; under a busy full-suite run that can pass the default 5 seconds.
 vi.setConfig({ testTimeout: 60_000 });
 
-const eslint = new ESLint({ cwd: new URL('..', import.meta.url).pathname });
+const eslint = new ESLint({ cwd: fileURLToPath(new URL('..', import.meta.url)) });
 const rulesFor = async (code, filePath) => {
   const [result] = await eslint.lintText(code, { filePath });
   return result.messages.map((m) => m.ruleId);

@@ -30,5 +30,5 @@ export const resolveTheme = (pref: ThemePref, prefersDark: boolean): ResolvedThe
 export function applyTheme(theme: ResolvedTheme, root: HTMLElement = document.documentElement): void {
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', CANVAS[theme]);
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', CANVAS[theme]));
 }
