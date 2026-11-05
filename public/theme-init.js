@@ -17,6 +17,8 @@
   var theme = dark ? 'dark' : 'light';
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
-  var meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', dark ? '#0F1113' : '#EEF0F2');
+  // Both tags get the chosen colour, so an in-app theme that differs from the OS one wins over the media queries.
+  document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+    meta.setAttribute('content', dark ? '#0F1113' : '#EEF0F2');
+  });
 })();
