@@ -409,6 +409,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"rule_ratifications": {
+                  Row: {
+                    "created_at": string,"cycle_id": string,"decided_on": string,"group_id": string,"id": string,"meeting_ref": string | null,"note": string | null,"passed": boolean,"recorded_by": string | null,"rule_key": string,"votes_for": number,"votes_total": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"cycle_id": string,"decided_on": string,"group_id": string,"id"?: string,"meeting_ref"?: string | null,"note"?: string | null,"passed": boolean,"recorded_by"?: string | null,"rule_key": string,"votes_for": number,"votes_total": number
+                  }
+                  Update: {
+                    "created_at"?: string,"cycle_id"?: string,"decided_on"?: string,"group_id"?: string,"id"?: string,"meeting_ref"?: string | null,"note"?: string | null,"passed"?: boolean,"recorded_by"?: string | null,"rule_key"?: string,"votes_for"?: number,"votes_total"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rule_ratifications_cycle_id_group_id_fkey"
+      columns: ["cycle_id","group_id"]
+isOneToOne: false
+      referencedRelation: "cycles"
+      referencedColumns: ["id","group_id"]
+    },{
+      foreignKeyName: "rule_ratifications_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"statements": {
                   Row: {
                     "closing_owed": number,"created_at": string,"cum_savings": number,"excess_charged": number,"group_id": string,"id": string,"interest_earned": number,"interest_earned_to_date": number,"loan_interest_charged": number,"loan_principal_sent": number,"member_id": string,"next_minimum": number,"opening_owed": number,"paid_to_excess": number,"paid_to_interest": number,"paid_to_penalties": number,"paid_to_principal": number,"paid_total": number,"penalties_charged": number,"period_id": string,"saving": number,"source": string,"unpaid_minimum": number
@@ -522,7 +548,7 @@ isOneToOne: false
           Views: {
             "group_members": {
                   Row: {
-                    "full_name": string | null,"group_id": string | null,"id": string | null,"linked": boolean | null,"role": string | null,"short_name": string | null,"status": string | null
+                    "full_name": string,"group_id": string,"id": string,"linked": boolean | null,"role": string,"short_name": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
@@ -625,9 +651,6 @@ isOneToOne: false
 "create_group":
 { Args: { "p_currency": string,"p_full_name": string,"p_name": string,"p_short_name": string }; Returns: string
                            },
-"loan_check":
-{ Args: { "p_member": string,"p_principal"?: number }; Returns: Json
-                           },
 "invite_preview":
 { Args: { "p_token": string }; Returns: Json
                            },
@@ -639,6 +662,9 @@ isOneToOne: false
                            },
 "ledger_check":
 { Args: { "p_group": string }; Returns: Json
+                           },
+"loan_check":
+{ Args: { "p_member": string,"p_principal"?: number }; Returns: Json
                            },
 "open_period":
 { Args: { "p_cycle": string,"p_deadline"?: string,"p_month_index": number }; Returns: {
@@ -708,6 +734,27 @@ isOneToOne: false
                           SetofOptions: {
         from: "*"
         to: "entries"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"record_ratification":
+{ Args: { "p_cycle": string,"p_decided_on": string,"p_meeting_ref"?: string,"p_note"?: string,"p_rule_key": string,"p_votes_for": number,"p_votes_total": number }; Returns: {
+              "created_at": string,
+"cycle_id": string,
+"decided_on": string,
+"group_id": string,
+"id": string,
+"meeting_ref": string | null,
+"note": string | null,
+"passed": boolean,
+"recorded_by": string | null,
+"rule_key": string,
+"votes_for": number,
+"votes_total": number
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "rule_ratifications"
         isOneToOne: true
         isSetofReturn: false
       } },
