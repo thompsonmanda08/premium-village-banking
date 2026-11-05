@@ -49,7 +49,7 @@ test('admin with an open month sees the month panel, the inbox and who has not d
   renderLedger(<DeskPage />, { isAdmin: true });
   expect(screen.getByText('Oct 2026 is open')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Waiting (1)' })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: 'Not yet declared' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /Not yet declared/ })).toBeInTheDocument();
   expect(screen.getByText('Ann')).toBeInTheDocument();
   expect(screen.queryByText('Old')).toBeNull();
 });

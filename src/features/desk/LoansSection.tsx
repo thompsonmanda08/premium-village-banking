@@ -32,7 +32,7 @@ export function LoansSection({ periodId, declarations, members, wallets }: Props
     <section aria-labelledby="loans-title" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="loans-title" className="text-xl font-semibold text-fg">Loans</h2>
-        <Button size="sm" onClick={() => setSheet({})}>Send a loan</Button>
+        <Button size="sm" variant="secondary" onClick={() => setSheet({})}>Send a loan</Button>
       </div>
 
       <Card>

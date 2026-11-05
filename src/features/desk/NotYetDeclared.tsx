@@ -12,8 +12,8 @@ export function NotYetDeclared({ periodId, members, declarations, wallets }: Pro
   if (missing.length === 0) return null;
   return (
     <Card>
-      <h3 className="text-lg font-semibold text-fg">Not yet declared</h3>
-      <ul role="list" className="divide-y divide-line">
+      <h3 className="text-lg font-semibold text-fg">Not yet declared <span className="tabular font-normal text-muted">({missing.length})</span></h3>
+      <ul role="list" className="mt-1 divide-y divide-line lg:max-h-[30rem] lg:overflow-y-auto">
         {missing.map((m) => (
           <li key={m.id} className="flex items-center justify-between gap-3 py-2">
             <span className="text-fg">{m.short_name}</span>
