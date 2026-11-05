@@ -48,9 +48,6 @@ export async function POST(req: Request) {
       .is('revoked_at', null)
     if (revokeError) throw revokeError
 
-    const { error: emailError } = await asCaller.from('members').update({ email }).eq('id', memberId)
-    if (emailError) throw emailError
-
     const token = makeToken()
     const expiresAt = inviteExpiry()
     const { error: insertError } = await asCaller.from('invites').insert({
@@ -78,6 +75,10 @@ export async function POST(req: Request) {
       })
       if (otpError) throw isRateLimited(otpError) ? new HttpError(429, 'over_email_send_rate_limit') : new HttpError(502, 'invite_email_failed')
     }
+
+    // Saved only once the email has gone out, so a failed send does not leave a new address on the member.
+    const { error: emailError } = await asCaller.from('members').update({ email }).eq('id', memberId)
+    if (emailError) throw emailError
 
     return json(200, { ok: true, expiresAt })
   } catch (err) {
