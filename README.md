@@ -65,6 +65,18 @@ and refuse a hosted database when `PROD_PROJECT_REF` is unset. The import is re-
 rows) until the app takes over the cycle: once a month is opened in the app, or any app entry, statement or
 declaration exists, it refuses (`already_opened`).
 
+## Proof of payment (Cloudflare R2)
+
+Members can attach a screenshot or PDF to a declaration. The files live in a private R2 bucket; `api/proof.ts` is the only
+thing that reads or writes it, and only after the database says the caller may see that member's declarations.
+
+1. In Cloudflare, create an R2 bucket and leave public access off.
+2. Create an R2 API token with Object Read & Write on that bucket only.
+3. In the Vercel project add `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET` (see `.env.example`).
+4. Optional: an R2 lifecycle rule to delete objects after the cycle's records are no longer needed.
+
+Photos are shrunk to 1600px in the browser; files over 4 MB are refused (Vercel functions take bodies up to 4.5 MB).
+
 ## Check
 
     pnpm run typecheck && pnpm run lint && pnpm run check:tokens && pnpm run test

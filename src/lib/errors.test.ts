@@ -66,7 +66,7 @@ const SQL_CODES = [
   'period_not_open', 'previous_period_open', 'declarations_pending', 'loans_closed', 'insufficient_cash',
   'over_cap_needs_reason', 'reason_required', 'entry_not_found', 'already_closed', 'unexplained_differences',
   'already_opened', 'invalid_amount', 'invalid_date', 'wallet_not_found', 'declaration_not_found', 'append_only',
-  'cycle_overlap', 'invalid_note', 'invalid_pot', 'invalid_purpose',
+  'cycle_overlap', 'invalid_note', 'invalid_pot', 'invalid_purpose', 'file_too_large', 'invalid_file', 'too_many_files', 'upload_failed', 'proof_failed',
 ];
 const FUNCTION_CODES = [
   'invalid_body', 'invalid_member', 'invalid_email', 'not_signed_in', 'not_admin', 'member_taken', 'member_not_active', 'invite_failed',

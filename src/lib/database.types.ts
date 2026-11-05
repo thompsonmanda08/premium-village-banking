@@ -65,6 +65,18 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"declaration_proofs": {
+                  Row: {
+                    "content_type": string,"created_at": string,"created_by": string | null,"group_id": string,"id": string,"member_id": string,"object_key": string,"period_id": string,"size_bytes": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "content_type": string,"created_at"?: string,"created_by"?: string | null,"group_id": string,"id"?: string,"member_id": string,"object_key": string,"period_id": string,"size_bytes": number
+                  }
+                  Update: {
+                    "content_type"?: string,"created_at"?: string,"created_by"?: string | null,"group_id"?: string,"id"?: string,"member_id"?: string,"object_key"?: string,"period_id"?: string,"size_bytes"?: number
+                  }
+                  Relationships: []
                 },"declarations": {
                   Row: {
                     "borrowing_request": number,"created_at": string,"decided_at": string | null,"decided_by": string | null,"excess": number,"group_id": string,"id": string,"loan_repayment": number,"member_id": string,"membership": number,"note": string | null,"penalty": number,"period_id": string,"return_reason": string | null,"saving": number,"status": string,"submitted_at": string,"submitted_by": string | null,"supersedes_id": string | null,"txn_fee": number,"wallet_id": string | null
@@ -691,6 +703,14 @@ isOneToOne: false
 { Args: { "p_loan": string,"p_purpose": string }; Returns: {
               "approved_reason": string | null,"arrears_warning": string | null,"cap_warning": string | null,"created_at": string,"group_id": string,"id": string,"interest": number,"member_id": string,"period_id": string,"principal": number,"purpose": string | null,"sent_at": string,"status": string,"term_months": number,"wallet_id": string | null
             }
+                           },
+"add_proof":
+{ Args: { "p_key": string,"p_member": string,"p_period": string,"p_size": number,"p_type": string }; Returns: {
+              "content_type": string,"created_at": string,"created_by": string | null,"group_id": string,"id": string,"member_id": string,"object_key": string,"period_id": string,"size_bytes": number
+            }
+                           },
+"remove_proof":
+{ Args: { "p_id": string }; Returns: undefined
                            },
 "payout_preview":
 { Args: { "p_cycle": string }; Returns: {

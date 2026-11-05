@@ -54,7 +54,7 @@ access, change or delete other people's data while testing; use your own test ac
   RLS applies. Use the service-role key only for the one call that needs it, after the checks.
 - Validate request bodies; return fixed error codes, never raw errors; log no emails, tokens or keys.
 - Same-origin from the app, so no CORS. Reject a missing or invalid `Authorization` header before doing anything else.
-- `SUPABASE_SERVICE_ROLE_KEY` and `SITE_URL` are set only in the Vercel project settings, never `VITE_`-prefixed. Tests live in `api/**/*.test.ts` and run with `pnpm run test`.
+- `SUPABASE_SERVICE_ROLE_KEY`, `SITE_URL` and the R2 keys (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`) are set only in the Vercel project settings, never `VITE_`-prefixed. The proof bucket stays private: files are served only by `api/proof.ts`, which checks the database first, sniffs the real file type and sends them sandboxed with `nosniff`. Tests live in `api/**/*.test.ts` and run with `pnpm run test`.
 
 ### Secrets
 - Real values live only in `.env.local` (gitignored) or in the

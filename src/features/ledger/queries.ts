@@ -94,6 +94,7 @@ export function useRefreshLedger(groupId: string) {
       qc.invalidateQueries({ queryKey: ['loans'] }),
       qc.invalidateQueries({ queryKey: ['payout-preview'] }),
       qc.invalidateQueries({ queryKey: ['pots'] }),
+      qc.invalidateQueries({ queryKey: ['proofs'] }),
       qc.invalidateQueries({ queryKey: ['expenses'] }),
       qc.invalidateQueries({ queryKey: ['lending-purpose'] }),
       qc.invalidateQueries({ queryKey: ['minimum-payable'] }),

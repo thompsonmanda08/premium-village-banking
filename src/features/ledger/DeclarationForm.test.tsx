@@ -4,7 +4,9 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { declaration, renderLedger } from './testFixtures';
 
 const rpc = vi.hoisted(() => vi.fn());
+const proofLib = vi.hoisted(() => ({ prepareProof: vi.fn(), uploadProof: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }));
+vi.mock('@/lib/proof', () => ({ ...proofLib, PROOF_ACCEPT: 'image/jpeg', fetchProof: vi.fn() }));
 const { DeclarationForm } = await import('./DeclarationForm');
 
 const WALLETS = [{ id: 'w1', name: 'Airtel' }, { id: 'w2', name: 'MTN' }];
@@ -103,4 +105,41 @@ test('a saved declaration with a penalty opens Other charges, and a group opened
   await userEvent.type(penalty, '5');
   await userEvent.clear(penalty);
   expect(fresh.container.querySelectorAll('details')[0]!.open).toBe(true);
+});
+
+const PHOTO = () => new File(['x'], 'payment.jpg', { type: 'image/jpeg' });
+const sendWithProof = async () => {
+  await userEvent.type(screen.getByLabelText('Savings'), '250');
+  await userEvent.selectOptions(screen.getByLabelText('Wallet'), 'w1');
+  await userEvent.upload(screen.getByLabelText('Proof of payment (optional)'), PHOTO());
+  await userEvent.click(screen.getByRole('button', { name: 'Submit declaration' }));
+};
+
+test('a chosen proof is uploaded to the month after the declaration is sent', async () => {
+  rpc.mockResolvedValue({ data: {}, error: null });
+  const prepared = new Blob(['small'], { type: 'image/jpeg' });
+  proofLib.prepareProof.mockResolvedValue(prepared);
+  proofLib.uploadProof.mockResolvedValue('proof-1');
+  renderForm();
+  await sendWithProof();
+  await vi.waitFor(() => expect(proofLib.uploadProof).toHaveBeenCalledWith('p9', 'm1', prepared));
+  expect(rpc).toHaveBeenCalledWith('submit_declaration', expect.anything());
+});
+
+test('a proof that cannot be uploaded does not undo the declaration, and says so', async () => {
+  rpc.mockResolvedValue({ data: {}, error: null });
+  proofLib.prepareProof.mockResolvedValue(new Blob(['x'], { type: 'image/jpeg' }));
+  proofLib.uploadProof.mockRejectedValue(Object.assign(new Error('upload_failed'), { code: 'upload_failed' }));
+  renderForm();
+  await sendWithProof();
+  expect(await screen.findByText(/Declaration sent, but the proof was not attached/)).toBeInTheDocument();
+  await vi.waitFor(() => expect(onDone).toHaveBeenCalled());
+});
+
+test('a file that cannot be used is refused on its field and nothing is sent', async () => {
+  proofLib.prepareProof.mockRejectedValue(Object.assign(new Error('file_too_large'), { code: 'file_too_large' }));
+  renderForm();
+  await sendWithProof();
+  expect(await screen.findByText(/too big/i)).toBeInTheDocument();
+  expect(rpc).not.toHaveBeenCalled();
 });

@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { money } from '@/lib/format';
 import { AMOUNTS, sentTotal } from './declarationModel';
 import type { DeclarationRow } from './model';
+import { ProofLinks } from './Proofs';
 
 export function DeclarationSummary({ d, walletName }: { d: DeclarationRow; walletName?: string }) {
   const lines = AMOUNTS.filter((a) => d[a.key] > 0);
@@ -18,6 +19,7 @@ export function DeclarationSummary({ d, walletName }: { d: DeclarationRow; walle
       </dl>
       {sent > 0 ? <p className="font-semibold text-fg">Sending {money(sent)}{walletName ? ` from ${walletName}` : ''}</p> : null}
       {d.note ? <p className="text-muted">“{d.note}”</p> : null}
+      <ProofLinks periodId={d.period_id} memberId={d.member_id} />
     </div>
   );
 }

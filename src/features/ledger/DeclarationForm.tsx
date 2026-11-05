@@ -1,10 +1,13 @@
 import { useId, useState, type FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Alert, Button, TextField } from '@/ui';
+import { Alert, Button, TextField, useToast } from '@/ui';
 import { cn } from '@/ui/cn';
 import { ChevronDown } from 'lucide-react';
 import { money } from '@/lib/format';
+import { friendlyError } from '@/lib/errors';
+import { prepareProof, uploadProof } from '@/lib/proof';
 import { useLedgerAction } from './actions';
+import { ProofPicker } from './Proofs';
 import { parseKwacha, sumKwacha } from './money';
 import { AMOUNTS, EMPTY_FORM, fromDeclaration, validateDeclaration, type AmountKey, type DeclarationArgs, type FormErrors, type FormValues } from './declarationModel';
 import type { DeclarationRow, Wallet } from './model';
@@ -49,8 +52,11 @@ export function DeclarationForm({ periodId, memberId, wallets, initial, onDone }
   const [values, setValues] = useState<FormValues>(initial ? fromDeclaration(initial) : EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const walletId = useId();
+  const toast = useToast();
+  const [proof, setProof] = useState<File | null>(null);
+  const [proofError, setProofError] = useState<string>();
 
-  const submit = useLedgerAction(async (a: DeclarationArgs) => {
+  const submit = useLedgerAction(async (a: DeclarationArgs & { proof: Blob | null }) => {
     const { error } = await supabase.rpc('submit_declaration', {
       p_period: periodId,
       p_member: memberId,
@@ -65,19 +71,37 @@ export function DeclarationForm({ periodId, memberId, wallets, initial, onDone }
       p_note: a.note,
     });
     if (error) throw error;
+    // The declaration is already sent; a proof that fails to upload must not read as a failed declaration.
+    if (a.proof) {
+      try {
+        await uploadProof(periodId, memberId, a.proof);
+      } catch (e) {
+        toast(`Declaration sent, but the proof was not attached. ${friendlyError(e)} Edit your declaration to try again.`, { tone: 'danger' });
+      }
+    }
   }, 'Declaration sent to the treasurer.');
 
   const set = (k: keyof FormValues) => (e: { target: { value: string } }) => setValues((v) => ({ ...v, [k]: e.target.value }));
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    let prepared: Blob | null = null;
+    if (proof) {
+      try {
+        prepared = await prepareProof(proof);
+        setProofError(undefined);
+      } catch (err) {
+        setProofError(friendlyError(err));
+        return;
+      }
+    }
     const result = validateDeclaration(values);
     if ('errors' in result) {
       setErrors(result.errors);
       return;
     }
     setErrors({});
-    submit.mutate(result.args, { onSuccess: onDone });
+    submit.mutate({ ...result.args, proof: prepared }, { onSuccess: onDone });
   };
 
   const lookup = (k: AmountKey) => AMOUNTS.find((a) => a.key === k)!;
@@ -124,6 +148,7 @@ export function DeclarationForm({ periodId, memberId, wallets, initial, onDone }
         </select>
         {errors.wallet ? <p id={`${walletId}-error`} role="alert" className="text-sm text-danger">{errors.wallet}</p> : null}
       </div>
+      <ProofPicker file={proof} onChange={(f) => { setProof(f); setProofError(undefined); }} error={proofError} />
       <TextField label="Note (optional)" maxLength={500} autoComplete="off" error={errors.note} value={values.note} onChange={set('note')} />
       <Button type="submit" fullWidth isLoading={submit.isPending}>Submit declaration</Button>
     </form>
