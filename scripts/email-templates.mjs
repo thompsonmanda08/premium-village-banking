@@ -1,4 +1,4 @@
-// Generates supabase/templates/*.html from one layout: bun scripts/email-templates.mjs
+// Generates supabase/templates/*.html from one layout: node scripts/email-templates.mjs
 // Subjects live in supabase/config.toml; the hosted project gets both via the Management API.
 import { mkdirSync, writeFileSync } from 'node:fs';
 

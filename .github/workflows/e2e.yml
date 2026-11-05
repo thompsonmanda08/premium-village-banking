@@ -10,12 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.4.0
-      - run: bun install --frozen-lockfile
-      - run: bun x playwright install --with-deps chromium
-      - run: bun run e2e
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run e2e
         env:
           CI: 'true'
           BASE_URL: ${{ github.event.deployment_status.environment_url }}

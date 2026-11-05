@@ -33,7 +33,7 @@ export const targetsProject = (url, ref) => Boolean(ref) && String(url).toLowerC
 export const resetRefusal = (url, prodRef, allowHosted) => {
   if (targetsProject(url, prodRef)) return 'Refusing to reset the production project (PROD_PROJECT_REF).'
   if (!allowHosted && !isLocalUrl(url)) {
-    return 'Refusing to reset a database that is not localhost. Use `bun run db:start` and the local URL; --allow-hosted is for a hosted scratch project only.'
+    return 'Refusing to reset a database that is not localhost. Use `pnpm run db:start` and the local URL; --allow-hosted is for a hosted scratch project only.'
   }
   return null
 }
