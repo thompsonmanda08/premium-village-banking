@@ -30,7 +30,7 @@ function MembersBody() {
   const defaulted = new Set((statuses.data ?? []).filter((s) => s.defaulted).map((s) => s.member_id));
 
   return (
-    <div className="grid gap-3 lg:max-w-2xl">
+    <div className="grid gap-3">
       {statuses.isError && !statuses.data ? <p className="text-sm text-muted">Default flags could not be loaded just now.</p> : null}
       <Card>
         {rows.length === 0 ? (

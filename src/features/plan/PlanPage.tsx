@@ -23,9 +23,9 @@ export function PlanPage() {
       loadingLabel="Loading your plan"
       queries={[cycle, loans, statements]}
     >
-      <div className="grid gap-4 md:gap-5 lg:max-w-3xl">
+      <div className="grid gap-4 md:gap-5 lg:grid-cols-2 lg:items-start">
         {latest ? (
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:col-span-2">
             <Figure
               label={owedFigure(latest.statement.closing_owed).label}
               value={money(owedFigure(latest.statement.closing_owed).amount)}
@@ -34,11 +34,12 @@ export function PlanPage() {
             <Figure label="Next minimum" value={money(latest.statement.next_minimum)} />
           </div>
         ) : (
-          <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">Your first statement appears when the treasurer closes a month.</p>
+          <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted lg:col-span-2">Your first statement appears when the treasurer closes a month.</p>
         )}
 
         <PlanProjection statements={statements.data ?? []} periods={periods} />
 
+        <div className="grid gap-4 md:gap-5">
         <section aria-labelledby="loans-heading" className="grid gap-3">
           <h2 id="loans-heading" className="text-lg font-semibold text-fg">Your loans</h2>
           {(loans.data ?? []).length === 0 ? (
@@ -99,6 +100,7 @@ export function PlanPage() {
         ) : payout.isError ? (
           <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">The payout projection couldn’t be loaded just now.</p>
         ) : null}
+        </div>
       </div>
     </MemberScreen>
   );

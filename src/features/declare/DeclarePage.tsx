@@ -76,7 +76,7 @@ export function DeclarePage() {
   return (
     <>
       <PageHeader title="Declare" subtitle={period.label} />
-      <div className="grid gap-4 md:gap-5 lg:max-w-xl">
+      <div className="grid gap-4 md:gap-5">
         <Card>
           <p className="flex flex-wrap items-center gap-2 text-base text-fg">
             Due <strong>{formatDate(period.deadline)}</strong>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useMatches } from 'react-router';
+import { cn } from '@/ui';
 import { useGroup } from '@/features/group/GroupContext';
 import { InstallHint } from '@/features/pwa/InstallHint';
 import { BottomNav } from './BottomNav';
@@ -8,8 +9,13 @@ import { OfflineBanner } from './OfflineBanner';
 import { TopBar } from './TopBar';
 import { TopNav } from './TopNav';
 
+/** Forms and short lists read best as a centred column; dashboards use the whole container. */
+const WIDTH = { narrow: 'max-w-xl', medium: 'max-w-3xl' } as const;
+export type PageWidth = keyof typeof WIDTH;
+
 export function AppShell() {
   const { isAdmin } = useGroup();
+  const width = [...useMatches()].reverse().map((m) => (m.handle as { width?: PageWidth } | undefined)?.width).find(Boolean);
   const [moreOpen, setMoreOpen] = useState(false);
 
   return (
@@ -23,7 +29,9 @@ export function AppShell() {
         <OfflineBanner />
         <main id="main" className="mx-auto w-full max-w-[1280px] flex-1 px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-4 md:px-8 md:pb-12 md:pt-4">
           <InstallHint />
-          <Outlet />
+          <div className={cn('mx-auto w-full', width && WIDTH[width])}>
+            <Outlet />
+          </div>
         </main>
       </div>
       <BottomNav isAdmin={isAdmin} onMore={() => setMoreOpen(true)} />

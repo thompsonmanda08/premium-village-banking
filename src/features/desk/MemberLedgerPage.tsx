@@ -66,7 +66,7 @@ function MemberLedgerBody() {
   const changedBy = status ? actors.data?.find((a) => a.user_id === status.changed_by)?.short_name : undefined;
 
   return (
-    <div className="grid gap-4 md:gap-5 lg:max-w-3xl">
+    <div className="grid gap-4 md:gap-5">
       {cycleId ? <DefaultPanel memberId={memberId} memberName={name} cycleId={cycleId} status={status} changedBy={changedBy} /> : null}
 
       <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">

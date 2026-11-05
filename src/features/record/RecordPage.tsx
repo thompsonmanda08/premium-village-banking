@@ -18,7 +18,7 @@ export function RecordPage() {
 
   return (
     <MemberScreen title="Record" subtitle="Everything recorded against you" loadingLabel="Loading your record" queries={[cycle, entries, statements]}>
-      <div className="mb-4 md:mb-5 lg:max-w-3xl">
+      <div className="mb-4 md:mb-5">
         <MyCharts statements={statements.data ?? []} periods={cycle.data?.periods ?? []} view="record" />
       </div>
       {groups.length === 0 ? (
@@ -26,7 +26,7 @@ export function RecordPage() {
           Your savings, payments and charges appear here as the treasurer records them.
         </EmptyState>
       ) : (
-        <div className="grid gap-4 md:gap-5 lg:max-w-3xl">
+        <div className="grid gap-4 md:gap-5 lg:grid-cols-2 lg:items-start">
           {groups.map((g) => (
             <div key={g.periodId} className="rounded-2xl border border-line bg-surface shadow-sm dark:shadow-none">
               <section aria-labelledby={`month-${g.periodId}`}>

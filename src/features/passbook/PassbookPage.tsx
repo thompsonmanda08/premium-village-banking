@@ -42,7 +42,7 @@ export function PassbookPage() {
       loadingLabel="Loading your passbook"
       queries={[cycle, statements]}
     >
-      <div className="grid gap-4 md:gap-5 lg:max-w-3xl">
+      <div className="grid gap-4 md:gap-5">
         {latest ? (
           <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
             <Figure label="Total saved" value={money(latest.statement.cum_savings)} />
@@ -64,6 +64,7 @@ export function PassbookPage() {
 
         <MyCharts statements={statements.data ?? []} periods={periods} view="passbook" />
 
+        <div className="grid gap-4 md:gap-5 lg:grid-cols-2 lg:items-start">
         {views.map(({ statement: s, period }) => (
           <div key={s.id} className="rounded-2xl border border-line bg-surface shadow-sm dark:shadow-none">
             <details>
@@ -86,6 +87,7 @@ export function PassbookPage() {
             </details>
           </div>
         ))}
+        </div>
       </div>
     </MemberScreen>
   );

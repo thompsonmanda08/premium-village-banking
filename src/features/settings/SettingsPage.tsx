@@ -23,7 +23,7 @@ export function SettingsPage() {
   const { Panel } = current;
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <PageHeader title="Group settings" subtitle={group.name} />
       <nav aria-label="Settings sections" className="mb-6">
         <ul className="grid grid-cols-4 gap-1 rounded-full border border-line bg-surface p-1 md:inline-grid">

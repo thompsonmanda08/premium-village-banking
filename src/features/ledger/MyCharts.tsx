@@ -42,9 +42,9 @@ export function MyCharts({ statements, periods, view }: { statements: StatementR
 
   if (view === 'record') {
     return (
-      <div className="grid gap-4 md:gap-5">
-        <Verdict net={s.net} roi={s.roi} />
-        <div className="grid grid-cols-2 gap-3 md:gap-4">
+      <div className="grid gap-4 md:gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="lg:col-span-2"><Verdict net={s.net} roi={s.roi} /></div>
+        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:col-span-2">
           <Figure label="Months at the minimum" value={`${s.monthsAtMinimum} of ${s.months.length}`} />
           <Figure label="Charged so far" value={money(s.interestCharged + s.penalties)} />
         </div>
@@ -71,14 +71,15 @@ export function MyCharts({ statements, periods, view }: { statements: StatementR
   }
 
   return (
-    <div className="grid gap-4 md:gap-5">
-      <Verdict net={s.net} roi={s.roi} />
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+    <div className="grid gap-4 md:gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="lg:col-span-2"><Verdict net={s.net} roi={s.roi} /></div>
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:col-span-2 lg:grid-cols-4">
         <Figure label="Loans taken" value={money(s.loans)} />
         <Figure label="Interest charged" value={money(s.interestCharged)} />
         <Figure label="Penalties" value={money(s.penalties)} />
         <Figure label="Interest earned" value={money(s.earned)} />
       </div>
+      <div className="lg:col-span-2">
       <Panel title="Savings and interest growth" hint="Your savings balance, with interest earned and interest charged building up beside it.">
         <SeriesChart
           label={`Savings and interest growth. Your savings stand at ${money(s.savings)}; you have earned ${money(last.earned)} and been charged ${money(last.charges)}.`}
@@ -90,6 +91,7 @@ export function MyCharts({ statements, periods, view }: { statements: StatementR
           ]}
         />
       </Panel>
+      </div>
       <Panel title="Monthly contributions">
         <SeriesChart
           label={`Monthly contributions. You saved ${money(last.saving)} in ${last.label}.`}
@@ -108,6 +110,7 @@ export function MyCharts({ statements, periods, view }: { statements: StatementR
           ]}
         />
       </Panel>
+      <div className="lg:col-span-2">
       <Panel title="Month by month">
         {/* Phones get a card per month; the nine columns only fit from md. */}
         <ul role="list" className="grid gap-2 md:hidden">
@@ -140,6 +143,7 @@ export function MyCharts({ statements, periods, view }: { statements: StatementR
           </table>
         </div>
       </Panel>
+      </div>
     </div>
   );
 }

@@ -54,7 +54,7 @@ function ReportsBody() {
   const idle = busy === null;
 
   return (
-    <div className="grid gap-4 md:gap-5 lg:max-w-2xl">
+    <div className="grid gap-4 md:gap-5">
       <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">These files contain members’ figures. Send a member only their own report.</p>
 
       <Card>

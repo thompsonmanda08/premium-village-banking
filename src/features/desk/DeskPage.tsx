@@ -41,7 +41,7 @@ function DeskBody() {
   const ready = declarations.data && members.data && wallets.data;
   const failed = [declarations, members, wallets].find((q) => q.isError && !q.data);
   return (
-    <div className="grid gap-4 md:gap-5 lg:max-w-2xl">
+    <div className="grid gap-4 md:gap-5">
       <MonthPanel cycleId={cycle.data.cycle.id} periods={cycle.data.periods} />
       {open ? (
         failed ? (

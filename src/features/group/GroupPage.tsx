@@ -71,7 +71,7 @@ export function GroupPage() {
         </EmptyState>
       ) : (
         <Card className="p-0 md:p-0">
-          <ul role="list" className="divide-y divide-line">
+          <ul role="list" className="divide-y divide-line lg:grid lg:grid-cols-2 lg:gap-x-6 lg:px-2 lg:[&>li:nth-child(2)]:border-t-0">
             {data.map((m) => (
               <li key={m.id} className="flex items-center gap-3 px-4 py-3">
                 <Avatar name={m.full_name ?? ''} />
