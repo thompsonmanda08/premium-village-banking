@@ -1,11 +1,11 @@
 # Premium Village Bank
 
 Mobile-first savings, declarations and loans app for Premium Village Banking.
-Vite + React SPA on Vercel, Supabase (Postgres, Auth, Edge Functions) on the free tier.
+Vite + React SPA on Vercel, Supabase (Postgres, Auth) on the free tier, and one Vercel Node function (`api/invite-member.ts`) for invites.
 
 ## Develop
 
-Prerequisites: Bun 1.4+, Deno 2 (Edge Function tests), Docker (the local Supabase stack).
+Prerequisites: Node 22+, pnpm 12 (`corepack enable`), Docker (the local Supabase stack).
 
 **The hosted Supabase project is production**: it holds the group's real accounts and money data. Day-to-day database
 work uses a development database (below). Never reset production, and never run the pgTAP suite against it.
@@ -69,7 +69,6 @@ declaration exists, it refuses (`already_opened`).
 
     pnpm run typecheck && pnpm run lint && pnpm run check:tokens && pnpm run test
     pnpm run db:test         # pgTAP suite (development database)
-    pnpm run fn:test         # Edge Function unit tests
     pnpm run e2e             # Playwright smoke (starts the dev server)
 
 Specs and plans: `docs/superpowers/`. Operations: `docs/ops/`.

@@ -69,14 +69,14 @@ export async function POST(req: Request) {
     const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo })
     if (inviteError) {
       if (isRateLimited(inviteError)) throw new HttpError(429, 'over_email_send_rate_limit')
-      if (inviteError.code !== 'email_exists') throw inviteError
+      if (inviteError.code !== 'email_exists') throw new HttpError(502, 'invite_email_failed')
       // Existing account (e.g. re-invite): send a sign-in link that lands on the invite page.
       const mailer = createClient(url, anonKey, { auth: { persistSession: false } })
       const { error: otpError } = await mailer.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
       })
-      if (otpError) throw isRateLimited(otpError) ? new HttpError(429, 'over_email_send_rate_limit') : otpError
+      if (otpError) throw isRateLimited(otpError) ? new HttpError(429, 'over_email_send_rate_limit') : new HttpError(502, 'invite_email_failed')
     }
 
     return json(200, { ok: true, expiresAt })

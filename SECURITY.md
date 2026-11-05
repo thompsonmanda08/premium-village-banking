@@ -49,15 +49,16 @@ access, change or delete other people's data while testing; use your own test ac
   `supabase/tests/database/15_ledger_security.sql`, the privilege matrix for anon, an outsider, a member, another
   group's member and admin, the admin and the owner.
 
-### Edge Functions
+### Server functions (`api/`, Vercel Node)
 - Act as the caller (anon key + the caller's `Authorization` header) for every read and write, so
   RLS applies. Use the service-role key only for the one call that needs it, after the checks.
 - Validate request bodies; return fixed error codes, never raw errors; log no emails, tokens or keys.
-- Keep `verify_jwt = true`. CORS origins come from `SITE_URL`/`ALLOWED_ORIGINS`, exact match only.
+- Same-origin from the app, so no CORS. Reject a missing or invalid `Authorization` header before doing anything else.
+- `SUPABASE_SERVICE_ROLE_KEY` and `SITE_URL` are set only in the Vercel project settings, never `VITE_`-prefixed. Tests live in `api/**/*.test.ts` and run with `pnpm run test`.
 
 ### Secrets
-- Real values live only in `.env.local` and `supabase/functions/.env` (both gitignored) or in
-  Supabase secrets. Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` may use the `VITE_` prefix.
+- Real values live only in `.env.local` (gitignored) or in the
+  Vercel project settings. Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` may use the `VITE_` prefix.
 - Never paste a DB URL, password, service-role key or access token into code, commits, issues,
   chat logs or test output. Scripts print errors through `scripts/scrub.mjs`.
 - `supabase/seed.sql` has public passwords and must only reach a local stack (`seed-guard.mjs`).
@@ -74,6 +75,6 @@ access, change or delete other people's data while testing; use your own test ac
 
 ### Dependencies
 - Run `pnpm audit` before releases; no known high/critical issues in runtime dependencies.
-- Prefer existing dependencies; pin versions for Edge Function imports.
+- Prefer existing dependencies; pin versions.
 
 See `SECURITY_AUDIT.md` for the latest audit, open items and the pre-release checklist.

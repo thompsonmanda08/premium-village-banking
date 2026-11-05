@@ -52,6 +52,7 @@ const KNOWN: Record<string, string> = {
   invalid_email: 'Enter a valid email address.',
   invalid_member: 'That member could not be found.',
   invite_failed: 'The invite could not be sent. Please try again.',
+  invite_email_failed: 'The invite was saved but the email could not be sent. Try sending it again.',
   invite_in_progress: 'An invite is already being sent. Wait a moment and try again.',
   invalid_credentials: BAD_LOGIN,
   email_not_confirmed: UNCONFIRMED,

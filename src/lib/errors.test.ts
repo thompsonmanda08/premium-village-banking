@@ -70,7 +70,7 @@ const SQL_CODES = [
 ];
 const FUNCTION_CODES = [
   'invalid_body', 'invalid_member', 'invalid_email', 'not_signed_in', 'not_admin', 'member_taken', 'member_not_active', 'invite_failed',
-  'invite_in_progress',
+  'invite_in_progress', 'invite_email_failed',
 ];
 
 test.each([...new Set([...SQL_CODES, ...FUNCTION_CODES])])('has a friendly sentence for %s', (code) => {
